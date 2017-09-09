@@ -2,11 +2,13 @@ package paxi
 
 import "sync"
 
+// CMap is concurrent map with generic key and value as interface{} type
 type CMap struct {
 	data map[interface{}]interface{}
 	sync.RWMutex
 }
 
+// NewCMap make new CMap
 func NewCMap() *CMap {
 	return &CMap{
 		data: make(map[interface{}]interface{}),

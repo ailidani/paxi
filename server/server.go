@@ -51,10 +51,9 @@ func main() {
 
 	//configs := makeConfig(6)
 
-	config := ConnectToMaster(*addr, NODE, NewID(uint8(*sid), uint8(*nid)))
-	log.Println(config)
+	config := ConnectToMaster(*addr, false, NewID(uint8(*sid), uint8(*nid)))
 
-	switch config.Protocol {
+	switch config.Algorithm {
 	case WPaxos:
 		replica := wpaxos.NewReplica(config)
 		replica.Run()

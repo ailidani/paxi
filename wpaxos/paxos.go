@@ -9,7 +9,7 @@ import (
 
 type instance struct {
 	ballot    int
-	command   Command
+	commands  []Command
 	committed bool
 	request   *Request
 	quorum    *Quorum
@@ -17,7 +17,7 @@ type instance struct {
 }
 
 type paxos struct {
-	*Node
+	*Replica
 
 	key      Key
 	active   bool
@@ -33,9 +33,9 @@ type paxos struct {
 	stat *stat
 }
 
-func NewPaxos(node *Node, key Key) *paxos {
+func NewPaxos(replica *Replica, key Key) *paxos {
 	return &paxos{
-		Node:     node,
+		Replica:  replica,
 		key:      key,
 		active:   false,
 		ballot:   0,
@@ -43,7 +43,7 @@ func NewPaxos(node *Node, key Key) *paxos {
 		cmds:     make(map[int]*instance),
 		slot:     0,
 		commit:   0,
-		stat:     NewStat(node.Threshold),
+		stat:     NewStat(replica.Threshold),
 	}
 }
 
@@ -66,18 +66,18 @@ func (p *paxos) accept(msg Request) {
 	p.slot++
 	p.cmds[p.slot] = &instance{
 		ballot:    p.ballot,
-		command:   msg.Command,
+		commands:  msg.Commands,
 		committed: false,
 		request:   &msg,
 		quorum:    NewQuorum(),
 		timestamp: time.Now(),
 	}
 	p.cmds[p.slot].quorum.ACK(p.ID)
-	p.Multicast(&Accept{
-		Key:     p.key,
-		Ballot:  p.ballot,
-		Slot:    p.slot,
-		Command: msg.Command,
+	p.Multicast(p.ID.Site(), &Accept{
+		Key:      p.key,
+		Ballot:   p.ballot,
+		Slot:     p.slot,
+		Commands: msg.Commands,
 	})
 }
 
@@ -97,14 +97,15 @@ func (p *paxos) handleRequest(msg Request) {
 		p.requests = append(p.requests, msg)
 	} else if p.Threshold > 0 && p.ballot != 0 {
 		// p.Forward(LeaderID(p.ballot), msg)
-		p.ReplyChan <- Reply{
+		rep := Reply{
 			OK:        false,
 			CommandID: msg.CommandID,
 			LeaderID:  LeaderID(p.ballot),
 			ClientID:  msg.ClientID,
-			Command:   msg.Command,
+			Commands:  msg.Commands,
 			Timestamp: msg.Timestamp,
 		}
+		msg.Reply(rep)
 	} else {
 		p.requests = append(p.requests, msg)
 		p.NextBallot()
@@ -183,7 +184,7 @@ func (p *paxos) handleAccept(msg Accept) {
 		}
 		p.cmds[msg.Slot] = &instance{
 			ballot:    msg.Ballot,
-			command:   msg.Command,
+			commands:  msg.Commands,
 			committed: false,
 		}
 	}
@@ -217,22 +218,23 @@ func (p *paxos) handleAccepted(msg Accepted) {
 				p.commit++
 			}
 			p.Broadcast(&Commit{
-				Key:     p.key,
-				Ballot:  ins.ballot,
-				Slot:    msg.Slot,
-				Command: ins.command,
+				Key:      p.key,
+				Ballot:   ins.ballot,
+				Slot:     msg.Slot,
+				Commands: ins.commands,
 			})
-			p.ReplyChan <- Reply{
+			rep := Reply{
 				OK:        true,
 				CommandID: ins.request.CommandID,
 				LeaderID:  p.ID,
 				ClientID:  ins.request.ClientID,
-				Command:   ins.request.Command,
+				Commands:  ins.request.Commands,
 				Timestamp: ins.request.Timestamp,
 			}
+			ins.request.Reply(rep)
 		}
 	} else {
-		glog.Warningf("Replica %s put cmd %v in slot=%d back to queue.\n", p.ID, ins.request.Command, msg.Slot)
+		glog.Warningf("Replica %s put cmd %v in slot=%d back to queue.\n", p.ID, ins.request.Commands, msg.Slot)
 		p.RequestChan <- *ins.request
 		delete(p.cmds, msg.Slot)
 	}
@@ -253,7 +255,7 @@ func (p *paxos) handleCommit(msg Commit) {
 
 	if p.cmds[msg.Slot] == nil {
 		p.cmds[msg.Slot] = &instance{
-			command:   msg.Command,
+			commands:  msg.Commands,
 			ballot:    msg.Ballot,
 			committed: true,
 		}

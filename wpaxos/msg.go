@@ -41,14 +41,14 @@ type Nack struct {
 
 // Accept phase 2a
 type Accept struct {
-	Key     Key
-	Ballot  int
-	Slot    int
-	Command Command
+	Key      Key
+	Ballot   int
+	Slot     int
+	Commands []Command
 }
 
 func (a Accept) String() string {
-	return fmt.Sprintf("Accept {key=%d, lid=%s, bal=%d, slot=%d, cmd=%v}", a.Key, LeaderID(a.Ballot), a.Ballot, a.Slot, a.Command)
+	return fmt.Sprintf("Accept {key=%d, lid=%s, bal=%d, slot=%d, cmd=%v}", a.Key, LeaderID(a.Ballot), a.Ballot, a.Slot, a.Commands)
 }
 
 // Accepted phase 2b
@@ -65,14 +65,14 @@ func (a Accepted) String() string {
 
 // Commit phase 3
 type Commit struct {
-	Key     Key
-	Ballot  int
-	Slot    int
-	Command Command
+	Key      Key
+	Ballot   int
+	Slot     int
+	Commands []Command
 }
 
 func (c Commit) String() string {
-	return fmt.Sprintf("Commit {key=%d, lid=%s, bal=%d, slot=%d, cmd=%v}", c.Key, LeaderID(c.Ballot), c.Ballot, c.Slot, c.Command)
+	return fmt.Sprintf("Commit {key=%d, lid=%s, bal=%d, slot=%d, cmd=%v}", c.Key, LeaderID(c.Ballot), c.Ballot, c.Slot, c.Commands)
 }
 
 // LeaderChange switch leader

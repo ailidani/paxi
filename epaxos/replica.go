@@ -14,6 +14,7 @@ var bf_PT uint32
 type Replica struct {
 	*Node
 	N                int // total number of replicas
+	Peers            map[ID]string
 	InstanceSpace    map[ID][]*Instance
 	crtInstance      map[ID]int
 	CommittedUpTo    map[ID]int
@@ -107,6 +108,7 @@ func NewReplica(config *Config) *Replica {
 	r := &Replica{
 		N:                  N,
 		Node:               NewNode(config),
+		Peers:              config.Addrs,
 		InstanceSpace:      make(map[ID][]*Instance, N),
 		crtInstance:        make(map[ID]int, N),
 		CommittedUpTo:      make(map[ID]int, N),
@@ -355,7 +357,7 @@ func (r *Replica) handleProposal(msg Request) {
 
 	glog.V(2).Infof("Starting instance %d\n", instance)
 
-	cmds := []Command{msg.Command}
+	cmds := msg.Commands
 
 	r.startPhase1(r.ID, instance, 0, []Request{msg}, cmds)
 }
@@ -553,10 +555,10 @@ func (r *Replica) handlePreAcceptReply(msg *PreAcceptReply) {
 					CommandID: p.CommandID,
 					LeaderID:  r.ID,
 					ClientID:  p.ClientID,
-					Command:   p.Command,
+					Commands:  p.Commands,
 					Timestamp: p.Timestamp,
 				}
-				r.ReplyChan <- reply
+				p.Reply(reply)
 			}
 		}
 		commit := &Commit{
@@ -622,10 +624,10 @@ func (r *Replica) handlePreAcceptOK(msg *PreAcceptOK) {
 					CommandID: p.CommandID,
 					LeaderID:  r.ID,
 					ClientID:  p.ClientID,
-					Command:   p.Command,
+					Commands:  p.Commands,
 					Timestamp: p.Timestamp,
 				}
-				r.ReplyChan <- reply
+				p.Reply(reply)
 			}
 		}
 		commit := &Commit{
@@ -731,10 +733,10 @@ func (r *Replica) handleAcceptReply(msg *AcceptReply) {
 					CommandID: p.CommandID,
 					LeaderID:  r.ID,
 					ClientID:  p.ClientID,
-					Command:   p.Command,
+					Commands:  p.Commands,
 					Timestamp: p.Timestamp,
 				}
-				r.ReplyChan <- reply
+				p.Reply(reply)
 			}
 		}
 	}

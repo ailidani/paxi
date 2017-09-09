@@ -2,9 +2,12 @@ package paxi
 
 import (
 	"encoding/gob"
-	"net"
+	"encoding/json"
+	"io/ioutil"
+	"net/http"
+	"net/url"
 	"paxi/glog"
-	"strings"
+	"strconv"
 	"sync"
 )
 
@@ -16,194 +19,94 @@ var (
 	Q2Size        int
 )
 
-type transport struct {
-	addr    string
-	conn    net.Conn
-	encoder *gob.Encoder
-	decoder *gob.Decoder
-}
-
+// Node is the base class for every replica
+// it includes networking, state machine and client handshake logic
 type Node struct {
-	ID      ID
-	Peers   map[ID]*transport
-	Clients map[ID]*transport
+	ID ID
+	Socket
+	http string
 
 	State       *StateMachine
 	RequestChan chan Request
-	ReplyChan   chan Reply
-	MessageChan chan Message
+	MessageChan chan interface{}
 
 	sync.RWMutex
 
-	Threshold int
-	BackOff   int  // random backoff interval
-	Thrifty   bool // only send messages to a quorum
+	BackOff int  // random backoff interval
+	Thrifty bool // only send messages to a quorum
 }
 
+// NewNode creates a new Node object from configuration
 func NewNode(config *Config) *Node {
 	gob.Register(Request{})
 	gob.Register(Reply{})
-	gob.Register(Register{})
 
-	n := &Node{
-		ID:          config.ID,
-		Peers:       make(map[ID]*transport),
-		Clients:     make(map[ID]*transport),
-		State:       NewStateMachine(),
-		RequestChan: make(chan Request, config.ChanBufferSize),
-		ReplyChan:   make(chan Reply, config.ChanBufferSize),
-		MessageChan: make(chan Message, config.ChanBufferSize),
-		Threshold:   config.Threshold,
-		BackOff:     config.BackOff,
-		Thrifty:     config.Thrifty,
-	}
+	node := new(Node)
+	node.ID = config.ID
+	node.Socket = NewSocket(config.ID, config.Addrs)
+	url, _ := url.Parse(config.HTTPAddrs[config.ID])
+	node.http = ":" + url.Port()
+	node.State = NewStateMachine()
+	node.RequestChan = make(chan Request, config.ChanBufferSize)
+	node.MessageChan = make(chan interface{}, config.ChanBufferSize)
+	node.BackOff = config.BackOff
+	node.Thrifty = config.Thrifty
 
 	sites := make(map[uint8]int)
-	for id, addr := range config.Addrs {
-		n.Peers[id] = &transport{addr: addr}
+	for id := range config.Addrs {
 		sites[id.Site()]++
 	}
 	NumSites = len(sites)
-	NumNodes = len(n.Peers)
-	NumLocalNodes = sites[n.ID.Site()]
+	NumNodes = len(config.Addrs)
+	NumLocalNodes = sites[config.ID.Site()]
 	Q1Size = NumSites * (config.F + 1)
 	Q2Size = NumLocalNodes - config.F
 
-	return n
+	return node
 }
 
 func (n *Node) Run() {
-	go n.replying()
-	go n.connecting()
-	n.listening()
+	go n.recv()
+	n.serve()
 }
 
-// replying to clients
-func (n *Node) replying() {
-	for {
-		reply := <-n.ReplyChan
-		glog.V(2).Infof("Replica %s sending %v\n", n.ID, reply)
-		n.RLock()
-		err := n.Clients[reply.ClientID].encoder.Encode(reply)
-		n.RUnlock()
+func (n *Node) serve() {
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		var req Request
+		req.w = w
+		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			glog.Errorln("Replica send reply error", err)
+			glog.Errorln("error reading body: ", err)
+			http.Error(w, "cannot read body", http.StatusBadRequest)
+			return
 		}
-	}
-}
 
-func (n *Node) listening() {
-	addr := n.Peers[n.ID].addr
-	port := strings.Split(addr, ":")[1]
-	listener, err := net.Listen("tcp", ":"+port)
+		if len(r.URL.Path) > 1 {
+			i, _ := strconv.Atoi(r.URL.Path[1:])
+			key := Key(i)
+			switch r.Method {
+			case http.MethodGet:
+				req.Commands = []Command{Command{GET, key, nil}}
+			case http.MethodPut:
+			case http.MethodPost:
+				req.Commands = []Command{Command{PUT, key, body}}
+			}
+		} else {
+			json.Unmarshal(body, &req)
+		}
+
+		n.RequestChan <- req
+	})
+	err := http.ListenAndServe(n.http, nil)
 	if err != nil {
-		glog.Fatalln("Listener error: ", err)
+		glog.Fatalln(err)
 	}
+}
+
+func (n *Node) recv() {
 	for {
-		conn, err := listener.Accept()
-		if err != nil {
-			glog.Errorln("Accept error: ", err)
-			continue
-		}
-		go func(conn net.Conn) {
-			decoder := gob.NewDecoder(conn)
-			encoder := gob.NewEncoder(conn)
-			var msg Message
-			for {
-				err := decoder.Decode(&msg)
-				if err != nil {
-					glog.Errorln(err)
-					conn.Close()
-					break
-				}
-				switch msg := msg.(type) {
-				case Register:
-					if msg.EndpointType == CLIENT {
-						n.Lock()
-						n.Clients[msg.ID] = &transport{
-							addr:    conn.RemoteAddr().String(),
-							conn:    conn,
-							encoder: encoder,
-							decoder: decoder,
-						}
-						n.Unlock()
-					}
-
-				case Request:
-					n.RequestChan <- msg
-
-				case Reply:
-					// TODO
-					glog.Fatalln("Forward and reply Not implemented.")
-
-				default:
-					n.MessageChan <- msg
-				}
-			}
-		}(conn)
+		msg := n.Recv()
+		glog.Infoln("Received msg ", msg)
+		n.MessageChan <- msg
 	}
-}
-
-func (n *Node) connecting() {
-	var err error
-	done := len(n.Peers) - 1
-	for done > 0 {
-		for id, peer := range n.Peers {
-			if id == n.ID {
-				continue
-			}
-			if peer.conn != nil {
-				continue
-			}
-			peer.conn, err = net.Dial("tcp", peer.addr)
-			if err != nil {
-				continue
-			}
-			peer.decoder = gob.NewDecoder(peer.conn)
-			peer.encoder = gob.NewEncoder(peer.conn)
-			// todo listen??
-			done--
-		}
-	}
-}
-
-func (n *Node) Broadcast(msg Message) {
-	for id, peer := range n.Peers {
-		if id == n.ID {
-			continue
-		}
-		err := peer.encoder.Encode(&msg)
-		if err != nil {
-			glog.Errorln("Node broadcast error", err)
-		}
-	}
-}
-
-func (n *Node) Multicast(msg Message) {
-	for id, peer := range n.Peers {
-		if id == n.ID {
-			continue
-		}
-		if id.Site() == n.ID.Site() {
-			err := peer.encoder.Encode(&msg)
-			if err != nil {
-				glog.Errorln("Node multicast error", err)
-			}
-		}
-	}
-}
-
-func (n *Node) Send(to ID, msg Message) {
-	if n.Peers[to].encoder == nil {
-		return
-	}
-	err := n.Peers[to].encoder.Encode(&msg)
-	if err != nil {
-		glog.Errorln("Node reply error", err)
-	}
-}
-
-func (n *Node) Forward(to ID, request Request) {
-	n.Send(to, request)
-	// TODO wait for reply??
 }

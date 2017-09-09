@@ -95,9 +95,11 @@ func (r *Replica) init(key Key) {
 }
 
 func (r *Replica) handleRequest(msg Request) {
-	key := msg.Command.Key
-	r.init(key)
-	r.paxi[key].handleRequest(msg)
+	if len(msg.Commands) == 1 {
+		key := msg.Commands[0].Key
+		r.init(key)
+		r.paxi[key].handleRequest(msg)
+	}
 }
 
 func (r *Replica) handlePrepare(msg Prepare) {

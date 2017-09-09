@@ -7,16 +7,20 @@ import (
 	"strconv"
 )
 
+// default values
 const (
 	PORT             = 1735
+	HTTP_PORT        = 8080
 	CHAN_BUFFER_SIZE = 1024 * 10000
 	BUFFER_SIZE      = 1024 * 10000
 )
 
-type Protocol int
+// Algorithm type
+type Algorithm int
 
+// add algorithm type here
 const (
-	WPaxos = iota
+	WPaxos Algorithm = iota
 	EPaxos
 	KPaxos
 	WanKeeper
@@ -25,17 +29,17 @@ const (
 
 type Config struct {
 	ID             ID            `json:"id"`
-	Addrs          map[ID]string `json:"address"`
-	Protocol       Protocol      `json:"protocol"`
-	F              int           `json:"f"`
+	Addrs          map[ID]string `json:"address"`      // address for node communication
+	HTTPAddrs      map[ID]string `json:"http_address"` // address for client
+	Algorithm      Algorithm     `json:"algorithm"`
+	F              int           `json:"f"` // number of failure nodes
 	Threshold      int           `json:"threshold"`
 	BackOff        int           `json:"backoff"`
 	Thrifty        bool          `json:"thrifty"`
 	ChanBufferSize int           `json:"chan_buffer_size"`
 	BufferSize     int           `json:"buffer_size"`
 	ConfigFile     string        `json:"file"`
-	Consistency    int
-	// Persistent     bool          `json:"persistent"`
+	Consistency    int           `json:"consistency"`
 	// Transport      string        `json:"transport"`
 	// RecvRoutines   int           `json:"recv_routines"`
 	// Codec          string        `json:"codec"`
@@ -44,26 +48,17 @@ type Config struct {
 
 func MakeDefaultConfig() *Config {
 	id := NewID(0, 0)
-	return &Config{
-		ID:             id,
-		Addrs:          map[ID]string{id: ":" + strconv.Itoa(PORT)},
-		Protocol:       WPaxos,
-		F:              0,
-		Threshold:      0,
-		BackOff:        0,
-		Thrifty:        false,
-		ChanBufferSize: CHAN_BUFFER_SIZE,
-		BufferSize:     BUFFER_SIZE,
-		ConfigFile:     "config.json",
-		// Transport:      "tcp4",
-		// RecvRoutines:   RECV_ROUTINES,
-		// Codec:          "gob",
-		// Batching:       false,
-		// Persistent:     false,
-	}
+	config := new(Config)
+	config.ID = NewID(1, 1)
+	config.Addrs = map[ID]string{id: "chan://*:" + strconv.Itoa(PORT)}
+	config.Algorithm = WPaxos
+	config.ChanBufferSize = CHAN_BUFFER_SIZE
+	config.BufferSize = BUFFER_SIZE
+	config.ConfigFile = "config.json"
+	return config
 }
 
-// String is implemented to print the config.
+// String is implemented to print the config
 func (c *Config) String() string {
 	config, err := json.Marshal(c)
 	if err != nil {

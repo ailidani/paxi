@@ -11,12 +11,13 @@ import (
 )
 
 var n = flag.Int("n", 1, "N number of replicas, default value 1.")
-var protocol = flag.String("protocol", "wpaxos", "Consensus protocol name")
+var algorithm = flag.String("algorithm", "wpaxos", "Consensus algorithm name")
 var consistency = flag.Int("c", 1, "Consistency level")
-var F = flag.Int("f", 0, "failure per site")
-var Threshold = flag.Int("threshold", 0, "Threshold for leader change, 0 means immediate")
-var BackOff = flag.Int("backoff", 100, "Random backoff time")
-var Thrifty = flag.Bool("thrifty", false, "")
+var f = flag.Int("f", 0, "failure per site")
+var threshold = flag.Int("threshold", 0, "Threshold for leader change, 0 means immediate")
+var backOff = flag.Int("backoff", 100, "Random backoff time")
+var thrifty = flag.Bool("thrifty", false, "")
+var transport = flag.String("transport", "udp", "Transport protocols, including tcp, udp, chan (local)")
 
 var ChanBufferSize = flag.Int("chanbufsize", paxi.CHAN_BUFFER_SIZE, "")
 var BufferSize = flag.Int("bufsize", paxi.BUFFER_SIZE, "")
@@ -32,37 +33,39 @@ func main() {
 	in := make(chan paxi.Register)
 	out := make(chan paxi.Config)
 
-	var p paxi.Protocol
-	switch *protocol {
+	var algo paxi.Algorithm
+	switch *algorithm {
 	case "wpaxos":
-		p = paxi.WPaxos
+		algo = paxi.WPaxos
 	case "epaxos":
-		p = paxi.EPaxos
+		algo = paxi.EPaxos
 	case "kpaxos":
-		p = paxi.KPaxos
+		algo = paxi.KPaxos
 	}
 
-	config := paxi.Config{
-		Protocol:       p,
-		F:              *F,
-		Threshold:      *Threshold,
-		BackOff:        *BackOff,
-		Thrifty:        *Thrifty,
-		ChanBufferSize: *ChanBufferSize,
-		BufferSize:     *BufferSize,
-	}
+	config := new(paxi.Config)
+	config.Algorithm = algo
+	config.F = *f
+	config.Threshold = *threshold
+	config.BackOff = *backOff
+	config.Thrifty = *thrifty
+	config.ChanBufferSize = *ChanBufferSize
+	config.BufferSize = *BufferSize
 
 	go func() {
-		nodes := make(map[paxi.ID]string, *n)
+		addrs := make(map[paxi.ID]string, *n)
+		http := make(map[paxi.ID]string, *n)
 		for i := 0; i < *n; i++ {
 			msg := <-in
 			id := msg.ID
-			nodes[id] = msg.Addr + ":" + strconv.Itoa(paxi.PORT+i+1)
-			log.Printf("Node %v address %s\n", id, nodes[id])
+			addrs[id] = *transport + "://" + msg.Addr + ":" + strconv.Itoa(paxi.PORT+i+1)
+			http[id] = "http://" + msg.Addr + ":" + strconv.Itoa(paxi.HTTP_PORT+i+1)
+			log.Printf("Node %v address %s\n", id, addrs[id])
 		}
-		config.Addrs = nodes
+		config.Addrs = addrs
+		config.HTTPAddrs = http
 		for i := 0; i < *n; i++ {
-			out <- config
+			out <- *config
 		}
 	}()
 
@@ -91,25 +94,19 @@ func main() {
 				return
 			}
 			var c paxi.Config
-			switch msg.EndpointType {
-			case paxi.NODE:
+			if !msg.Client {
 				msg.Addr = strings.Split(conn.RemoteAddr().String(), ":")[0]
 				log.Printf("Node %s address %s\n", msg.ID, msg.Addr)
 				in <- msg
 				c = <-out
-			case paxi.CLIENT:
-				c = config
-			default:
-				log.Panicf("Node %s unknown type\n", msg.ID)
+			} else {
+				c = *config
 			}
 			c.ID = msg.ID
-			log.Printf("Sending Config %v\n", c)
 			err = encoder.Encode(c)
 			if err != nil {
 				log.Panicln(err)
 			}
 		}(conn)
 	}
-
-	log.Println("Master done.")
 }

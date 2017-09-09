@@ -11,11 +11,9 @@ var (
 	ErrStateMachineExecution = errors.New("StateMachine execution error")
 )
 
-type Key int64
-type Value int64
+type Key int
+type Value []byte
 type Version int
-
-const NIL Value = 0
 
 type Operation uint8
 
@@ -91,7 +89,7 @@ func (s *StateMachine) Execute(commands ...Command) (Value, error) {
 		case PUT:
 			if s.data[c.Key] == nil {
 				s.data[c.Key] = make(map[Version]Value)
-				s.data[c.Key][0] = NIL
+				s.data[c.Key][0] = nil
 			}
 			v := s.maxVersion(c.Key) + 1
 			s.data[c.Key][v] = c.Value
@@ -102,7 +100,7 @@ func (s *StateMachine) Execute(commands ...Command) (Value, error) {
 			}
 		}
 	}
-	return NIL, ErrStateMachineExecution
+	return nil, ErrStateMachineExecution
 }
 
 func Conflict(gamma *Command, delta *Command) bool {

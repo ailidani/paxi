@@ -63,7 +63,7 @@ func (e *Exec) strongconnect(v *Instance, index *int) bool {
 	stack = stack[0 : l+1]
 	stack[l] = v
 
-	for id := range e.r.Peers {
+	for id := range e.r.ExecutedUpTo {
 		inst := v.deps[id]
 		for i := e.r.ExecutedUpTo[id] + 1; i <= inst; i++ {
 			for e.r.InstanceSpace[id][i] == nil || e.r.InstanceSpace[id][i].cmds == nil || v.cmds == nil {

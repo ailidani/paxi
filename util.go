@@ -8,6 +8,7 @@ import (
 	"time"
 )
 
+// Max of two int
 func Max(a, b int) int {
 	if a < b {
 		return b
@@ -15,6 +16,7 @@ func Max(a, b int) int {
 	return a
 }
 
+// VMax of a vector
 func VMax(v ...int) int {
 	max := v[0]
 	for _, i := range v {
@@ -28,10 +30,6 @@ func VMax(v ...int) int {
 func NextBallot(ballot int, id ID) int {
 	return (ballot>>16+1)<<16 | int(id)
 }
-
-// func NextBallot(ballot int, id ID) int {
-// 	return ballot
-// }
 
 func LeaderID(ballot int) ID {
 	return ID(uint16(ballot))
@@ -54,7 +52,7 @@ func Schedule(what func(), delay time.Duration) chan bool {
 	return stop
 }
 
-func ConnectToMaster(addr string, t EndpointType, id ID) *Config {
+func ConnectToMaster(addr string, client bool, id ID) *Config {
 	gob.Register(Register{})
 	gob.Register(Config{})
 	conn, err := net.Dial("tcp", addr+":"+strconv.Itoa(PORT))
@@ -64,9 +62,9 @@ func ConnectToMaster(addr string, t EndpointType, id ID) *Config {
 	dec := gob.NewDecoder(conn)
 	enc := gob.NewEncoder(conn)
 	msg := &Register{
-		EndpointType: t,
-		ID:           id,
-		Addr:         "",
+		Client: client,
+		ID:     id,
+		Addr:   "",
 	}
 	enc.Encode(msg)
 	var config Config

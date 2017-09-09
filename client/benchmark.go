@@ -16,7 +16,7 @@ var addr = flag.String("master", "127.0.0.1", "Master address.")
 
 var t = flag.Int("t", 0, "Total number of time in seconds.")
 var rounds = flag.Int("r", 1, "Split the total number of requests into this many rounds, and do rounds sequentially. Defaults to 1.")
-var synch = flag.Bool("sync", false, "Sync operations.")
+var synch = flag.Bool("sync", true, "Sync operations.")
 var writes = flag.Int("w", 100, "Percentage of updates (writes). Defaults to 100%.")
 
 var keys = flag.Int("k", 1000, "Key space")
@@ -63,12 +63,12 @@ func do(client *Client) {
 
 	if *synch {
 		start := time.Now()
-		client.Put(key, 42)
+		client.Put(key, []byte{42})
 		t := time.Now().Sub(start)
 		latency = append(latency, t)
 		glog.V(1).Infof("%v, %d, %v", client.ID, key, float64(t.Nanoseconds())/1000000.0)
 	} else {
-		client.PutAsync(key, 41)
+		client.PutAsync(key, []byte{41})
 		counter++
 		if counter%throttleUnit == 0 {
 			tnow := time.Now().UnixNano()
@@ -112,7 +112,7 @@ func run(client *Client) {
 func main() {
 	flag.Parse()
 
-	config := ConnectToMaster(*addr, CLIENT, NewID(uint8(*sid), uint8(*nid)))
+	config := ConnectToMaster(*addr, true, NewID(uint8(*sid), uint8(*nid)))
 	glog.Infof("Received config %s\n", config)
 
 	clients := make([]*Client, 0)

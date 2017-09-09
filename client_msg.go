@@ -1,12 +1,10 @@
 package paxi
 
-import "fmt"
-
-/**************************
- *    Interface Related   *
- **************************/
-
-type Message interface{}
+import (
+	"encoding/json"
+	"fmt"
+	"net/http"
+)
 
 /***************************
  * Client-Replica Messages *
@@ -16,13 +14,20 @@ type CommandID int
 
 type Request struct {
 	CommandID CommandID
-	Command   Command
+	Commands  []Command
 	ClientID  ID
 	Timestamp int64
+
+	w http.ResponseWriter `json:"-"`
 }
 
-func (p Request) String() string {
-	return fmt.Sprintf("Request {cid=%d, cmd=%v, id=%s}", p.CommandID, p.Command, p.ClientID)
+func (r *Request) Reply(rep Reply) {
+	b, _ := json.Marshal(rep)
+	r.w.Write(b)
+}
+
+func (r Request) String() string {
+	return fmt.Sprintf("Request {cid=%d, cmd=%v, id=%s}", r.CommandID, r.Commands, r.ClientID)
 }
 
 type Reply struct {
@@ -30,12 +35,12 @@ type Reply struct {
 	CommandID CommandID
 	LeaderID  ID
 	ClientID  ID
-	Command   Command
+	Commands  []Command
 	Timestamp int64
 }
 
 func (r Reply) String() string {
-	return fmt.Sprintf("Reply {ok=%t, cid=%d, lid=%s, id=%v, cmd=%v}", r.OK, r.CommandID, r.LeaderID, r.ClientID, r.Command)
+	return fmt.Sprintf("Reply {ok=%t, cid=%d, lid=%s, id=%v, cmd=%v}", r.OK, r.CommandID, r.LeaderID, r.ClientID, r.Commands)
 }
 
 type Read struct {
@@ -80,15 +85,8 @@ type TransactionReply struct {
  *     Config Related     *
  **************************/
 
-type EndpointType uint8
-
-const (
-	CLIENT EndpointType = iota
-	NODE
-)
-
 type Register struct {
-	EndpointType EndpointType
-	ID           ID
-	Addr         string
+	Client bool
+	ID     ID
+	Addr   string
 }

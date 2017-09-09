@@ -9,6 +9,8 @@ import (
 type Replica struct {
 	*Node
 	paxi map[Key]*paxos
+
+	Threshold int
 }
 
 func NewReplica(config *Config) *Replica {
@@ -21,8 +23,9 @@ func NewReplica(config *Config) *Replica {
 	gob.Register(LeaderChange{})
 
 	return &Replica{
-		Node: NewNode(config),
-		paxi: make(map[Key]*paxos),
+		Node:      NewNode(config),
+		paxi:      make(map[Key]*paxos),
+		Threshold: config.Threshold,
 	}
 }
 
@@ -76,14 +79,16 @@ func (r *Replica) dispatch(msg Message) {
 
 func (r *Replica) init(key Key) {
 	if _, exists := r.paxi[key]; !exists {
-		r.paxi[key] = NewPaxos(r.Node, key)
+		r.paxi[key] = NewPaxos(r, key)
 	}
 }
 
 func (r *Replica) handleRequest(msg Request) {
-	key := msg.Command.Key
-	r.init(key)
-	r.paxi[key].handleRequest(msg)
+	if len(msg.Commands) == 1 {
+		key := msg.Commands[0].Key
+		r.init(key)
+		r.paxi[key].handleRequest(msg)
+	}
 }
 
 func (r *Replica) handlePrepare(msg Prepare) {

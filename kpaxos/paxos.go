@@ -63,18 +63,18 @@ func (p *paxos) accept(msg Request) {
 	p.slot++
 	p.cmds[p.slot] = &instance{
 		ballot:    p.ballot,
-		command:   msg.Command,
+		command:   msg.Commands[0],
 		committed: false,
 		request:   &msg,
 		quorum:    NewQuorum(),
 		timestamp: time.Now(),
 	}
 	p.cmds[p.slot].quorum.ACK(p.ID)
-	p.Multicast(&Accept{
+	p.Multicast(p.ID.Site(), &Accept{
 		Key:     p.key,
 		Ballot:  p.ballot,
 		Slot:    p.slot,
-		Command: msg.Command,
+		Command: msg.Commands[0],
 	})
 }
 
@@ -83,14 +83,15 @@ func (p *paxos) handleRequest(msg Request) {
 		p.accept(msg)
 	} else {
 		// p.Forward(LeaderID(p.ballot), msg)
-		p.ReplyChan <- Reply{
+		rep := Reply{
 			OK:        false,
 			CommandID: msg.CommandID,
 			LeaderID:  LeaderID(p.ballot),
 			ClientID:  msg.ClientID,
-			Command:   msg.Command,
+			Commands:  msg.Commands,
 			Timestamp: msg.Timestamp,
 		}
+		msg.Reply(rep)
 	}
 }
 
@@ -204,17 +205,18 @@ func (p *paxos) handleAccepted(msg Accepted) {
 				Slot:    msg.Slot,
 				Command: ins.command,
 			})
-			p.ReplyChan <- Reply{
+			rep := Reply{
 				OK:        true,
 				CommandID: ins.request.CommandID,
 				LeaderID:  p.ID,
 				ClientID:  ins.request.ClientID,
-				Command:   ins.request.Command,
+				Commands:  ins.request.Commands,
 				Timestamp: ins.request.Timestamp,
 			}
+			ins.request.Reply(rep)
 		}
 	} else {
-		glog.Warningf("Replica %s put cmd %v in slot=%d back to queue.\n", p.ID, ins.request.Command, msg.Slot)
+		glog.Warningf("Replica %s put cmd %v in slot=%d back to queue.\n", p.ID, ins.request.Commands, msg.Slot)
 		p.RequestChan <- *ins.request
 		delete(p.cmds, msg.Slot)
 	}

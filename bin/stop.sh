@@ -33,6 +33,6 @@ else
 	rm "${PID_FILE}"
 fi
 
-#rm logs/*
+rm logs/*
 
-pkill -x client
+#pkill -x client
