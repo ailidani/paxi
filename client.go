@@ -5,7 +5,9 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"io/ioutil"
+	"log"
 	"net/http"
+	"net/http/httputil"
 	"paxi/glog"
 	"sync"
 	"time"
@@ -100,16 +102,15 @@ func (c *Client) Put(key Key, value Value) {
 
 	url := c.addrs[id]
 	data, err := json.Marshal(*req)
-	rep, err := http.Post(url, "json", bytes.NewBuffer(data))
+	rep, err := http.Post(url, "application/json", bytes.NewBuffer(data))
 	if err != nil {
 		glog.Errorln(err)
 		return
 	}
 	defer rep.Body.Close()
-	glog.V(2).Infoln(rep.Status)
-	if rep.StatusCode == http.StatusOK {
-		return
-	}
+	dump, _ := httputil.DumpResponse(rep, true)
+	log.Println(rep.Status)
+	log.Printf("%q", dump)
 }
 
 // PutAsync do Put request in goroutine

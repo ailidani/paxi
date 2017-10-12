@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"paxi/glog"
 )
 
 /***************************
@@ -22,8 +23,17 @@ type Request struct {
 }
 
 func (r *Request) Reply(rep Reply) {
-	b, _ := json.Marshal(rep)
-	r.w.Write(b)
+	b, err := json.Marshal(rep)
+	if err != nil {
+		http.Error(r.w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	r.w.Header().Set("Content-Type", "application/json")
+	//r.w.Header().Set("Content-Length", strconv.Itoa(len(b)))
+	_, err = r.w.Write(b)
+	if err != nil {
+		glog.Errorln(err)
+	}
 }
 
 func (r Request) String() string {

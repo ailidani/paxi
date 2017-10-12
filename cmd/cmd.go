@@ -18,6 +18,11 @@ func main() {
 	client := NewClient(config)
 	client.Start()
 
+	if len(os.Args) < 2 {
+		log.Println("cmd {get key | put key value}")
+		return
+	}
+
 	cmd := os.Args[1]
 	args := os.Args[2:]
 

@@ -23,7 +23,9 @@ const (
 	GET
 	DELETE
 	RLOCK
+	RUNLOCK
 	WLOCK
+	WUNLOCK
 )
 
 type Command struct {
@@ -45,7 +47,7 @@ func (c *Command) IsRead() bool {
 
 // StateMachine maintains the multi-version key-value data store
 type StateMachine struct {
-	lock  *sync.Mutex
+	lock  *sync.RWMutex
 	data  map[Key]map[Version]Value
 	data2 *MMap
 	data3 map[Key]*list.List
@@ -53,12 +55,12 @@ type StateMachine struct {
 }
 
 func NewStateMachine() *StateMachine {
-	return &StateMachine{
-		lock:  new(sync.Mutex),
-		data:  make(map[Key]map[Version]Value),
-		data2: NewMMap(),
-		data3: make(map[Key]*list.List),
-	}
+	s := new(StateMachine)
+	s.lock = new(sync.RWMutex)
+	s.data = make(map[Key]map[Version]Value)
+	s.data2 = NewMMap()
+	s.data3 = make(map[Key]*list.List)
+	return s
 }
 
 func versions(m map[Version]Value) []Version {
@@ -98,6 +100,8 @@ func (s *StateMachine) Execute(commands ...Command) (Value, error) {
 			if value, present := s.data[c.Key]; present {
 				return value[s.maxVersion(c.Key)], nil
 			}
+		case DELETE:
+			delete(s.data, c.Key)
 		}
 	}
 	return nil, ErrStateMachineExecution

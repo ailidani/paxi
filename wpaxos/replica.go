@@ -48,7 +48,7 @@ func (r *Replica) messageLoop() {
 	}
 }
 
-func (r *Replica) dispatch(msg Message) {
+func (r *Replica) dispatch(msg interface{}) {
 	switch msg := msg.(type) {
 	case Prepare:
 		glog.V(1).Infof("Replica %s ===[%v]===>>> Replica %s\n", LeaderID(msg.Ballot), msg, r.ID)
