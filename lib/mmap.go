@@ -1,4 +1,4 @@
-package paxi
+package lib
 
 import "sync"
 

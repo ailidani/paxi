@@ -49,6 +49,19 @@ func (q *Quorum) Majority() bool {
 	return q.size > NumNodes/2
 }
 
+func (q *Quorum) SiteMajority() bool {
+	for _, s := range q.sites {
+		if s >= NumLocalNodes/2 {
+			return true
+		}
+	}
+	return false
+}
+
+func (q *Quorum) AllSites() bool {
+	return len(q.sites) == NumSites
+}
+
 func (q *Quorum) Q1() bool {
 	return len(q.sites) == NumSites && q.size >= Q1Size
 }

@@ -53,8 +53,6 @@ func Schedule(what func(), delay time.Duration) chan bool {
 }
 
 func ConnectToMaster(addr string, client bool, id ID) *Config {
-	gob.Register(Register{})
-	gob.Register(Config{})
 	conn, err := net.Dial("tcp", addr+":"+strconv.Itoa(PORT))
 	if err != nil {
 		log.Fatalln(err)

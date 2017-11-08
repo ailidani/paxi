@@ -1,22 +1,27 @@
 package paxi
 
 import (
-	"encoding/gob"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"paxi/glog"
+	"reflect"
 	"strconv"
 	"sync"
 )
 
 var (
-	NumSites      int
-	NumNodes      int
+	// NumSites total number of sites
+	NumSites int
+	// NumNodes total number of nodes
+	NumNodes int
+	// NumLocalNodes number of nodes per site
 	NumLocalNodes int
-	Q1Size        int
-	Q2Size        int
+	// Q1Size phase one quorum size
+	Q1Size int
+	// Q2Size phase two quorum size
+	Q2Size int
 )
 
 // Node is the base class for every replica
@@ -26,9 +31,9 @@ type Node struct {
 	Socket
 	http string
 
-	State       *StateMachine
-	RequestChan chan Request
+	DB          *StateMachine
 	MessageChan chan interface{}
+	handles     map[string]reflect.Value
 
 	sync.RWMutex
 
@@ -38,17 +43,14 @@ type Node struct {
 
 // NewNode creates a new Node object from configuration
 func NewNode(config *Config) *Node {
-	gob.Register(Request{})
-	gob.Register(Reply{})
-
 	node := new(Node)
 	node.ID = config.ID
 	node.Socket = NewSocket(config.ID, config.Addrs)
 	url, _ := url.Parse(config.HTTPAddrs[config.ID])
 	node.http = ":" + url.Port()
-	node.State = NewStateMachine()
-	node.RequestChan = make(chan Request, config.ChanBufferSize)
+	node.DB = NewStateMachine()
 	node.MessageChan = make(chan interface{}, config.ChanBufferSize)
+	node.handles = make(map[string]reflect.Value)
 	node.BackOff = config.BackOff
 	node.Thrifty = config.Thrifty
 
@@ -65,39 +67,63 @@ func NewNode(config *Config) *Node {
 	return node
 }
 
+// Register a handle function for each message type
+func (n *Node) Register(m interface{}, f interface{}) {
+	t := reflect.TypeOf(m)
+	fn := reflect.ValueOf(f)
+	if fn.Kind() != reflect.Func || fn.Type().NumIn() != 1 || fn.Type().In(0) != t {
+		panic("register handle function error")
+	}
+	n.handles[t.String()] = fn
+}
+
+// Run start and run the node
 func (n *Node) Run() {
+	glog.Infof("node %v start running\n", n.ID)
+	if len(n.handles) > 0 {
+		go n.handle()
+	}
 	go n.recv()
 	n.serve()
 }
 
 func (n *Node) serve() {
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		var req Request
 		req.w = w
-		body, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			glog.Errorln("error reading body: ", err)
-			http.Error(w, "cannot read body", http.StatusBadRequest)
-			return
-		}
+		//req.ClientID, _ = IDFromString(r.Header.Get("id"))
+		cid, _ := strconv.Atoi(r.Header.Get("cid"))
+		req.CommandID = CommandID(cid)
 
 		if len(r.URL.Path) > 1 {
 			i, _ := strconv.Atoi(r.URL.Path[1:])
 			key := Key(i)
 			switch r.Method {
 			case http.MethodGet:
-				req.Commands = []Command{Command{GET, key, nil}}
-			case http.MethodPut:
-			case http.MethodPost:
-				req.Commands = []Command{Command{PUT, key, body}}
+				req.Command = Command{GET, key, nil}
+			case http.MethodPut, http.MethodPost:
+				body, err := ioutil.ReadAll(r.Body)
+				if err != nil {
+					glog.Errorln("error reading body: ", err)
+					http.Error(w, "cannot read body", http.StatusBadRequest)
+					return
+				}
+				req.Command = Command{PUT, key, Value(body)}
 			}
 		} else {
+			body, err := ioutil.ReadAll(r.Body)
+			if err != nil {
+				glog.Errorln("error reading body: ", err)
+				http.Error(w, "cannot read body", http.StatusBadRequest)
+				return
+			}
 			json.Unmarshal(body, &req)
 		}
 
-		n.RequestChan <- req
+		n.MessageChan <- req
 	})
-	err := http.ListenAndServe(n.http, nil)
+	err := http.ListenAndServe(n.http, mux)
 	if err != nil {
 		glog.Fatalln(err)
 	}
@@ -105,8 +131,19 @@ func (n *Node) serve() {
 
 func (n *Node) recv() {
 	for {
-		msg := n.Recv()
-		glog.Infoln("Received msg ", msg)
-		n.MessageChan <- msg
+		n.MessageChan <- n.Recv()
+	}
+}
+
+func (n *Node) handle() {
+	for {
+		msg := <-n.MessageChan
+		v := reflect.ValueOf(msg)
+		name := v.Type().String()
+		f, exists := n.handles[name]
+		if !exists {
+			glog.Fatalf("no registered handle function for message type %v", name)
+		}
+		f.Call([]reflect.Value{v})
 	}
 }

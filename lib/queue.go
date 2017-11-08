@@ -1,4 +1,4 @@
-package paxi
+package lib
 
 type Queue struct {
 	queue []interface{}

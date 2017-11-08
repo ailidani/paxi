@@ -47,62 +47,43 @@ func (c *Command) IsRead() bool {
 
 // StateMachine maintains the multi-version key-value data store
 type StateMachine struct {
-	lock  *sync.RWMutex
-	data  map[Key]map[Version]Value
-	data2 *MMap
-	data3 map[Key]*list.List
+	lock *sync.RWMutex
+	// data  map[Key]map[Version]Value
+	data map[Key]*list.List
 	sync.RWMutex
 }
 
 func NewStateMachine() *StateMachine {
 	s := new(StateMachine)
 	s.lock = new(sync.RWMutex)
-	s.data = make(map[Key]map[Version]Value)
-	s.data2 = NewMMap()
-	s.data3 = make(map[Key]*list.List)
+	s.data = make(map[Key]*list.List)
 	return s
 }
 
-func versions(m map[Version]Value) []Version {
-	versions := make([]Version, len(m))
-	i := 0
-	for v := range m {
-		versions[i] = v
-		i++
+func (s *StateMachine) Execute(c Command) (Value, error) {
+	var v Value
+	s.RLock()
+	if s.data[c.Key] == nil {
+		s.data[c.Key] = list.New()
 	}
-	return versions
-}
-
-func (s *StateMachine) maxVersion(key Key) Version {
-	max := 0
-	for v := range s.data[key] {
-		if int(v) >= max {
-			max = int(v)
-		}
+	tail := s.data[c.Key].Back()
+	if tail != nil {
+		v = tail.Value.(Value)
 	}
-	return Version(max)
-}
-
-func (s *StateMachine) Execute(commands ...Command) (Value, error) {
-	s.Lock()
-	defer s.Unlock()
-	for _, c := range commands {
-		switch c.Operation {
-		case PUT:
-			if s.data[c.Key] == nil {
-				s.data[c.Key] = make(map[Version]Value)
-				s.data[c.Key][0] = nil
-			}
-			v := s.maxVersion(c.Key) + 1
-			s.data[c.Key][v] = c.Value
-			return c.Value, nil
-		case GET:
-			if value, present := s.data[c.Key]; present {
-				return value[s.maxVersion(c.Key)], nil
-			}
-		case DELETE:
-			delete(s.data, c.Key)
-		}
+	s.RUnlock()
+	switch c.Operation {
+	case PUT:
+		s.Lock()
+		defer s.Unlock()
+		s.data[c.Key].PushBack(c.Value)
+		return v, nil
+	case GET:
+		return v, nil
+	case DELETE:
+		s.Lock()
+		defer s.Unlock()
+		delete(s.data, c.Key)
+		return v, nil
 	}
 	return nil, ErrStateMachineExecution
 }

@@ -11,7 +11,7 @@ import (
 )
 
 var n = flag.Int("n", 1, "N number of replicas, default value 1.")
-var algorithm = flag.String("algorithm", "wpaxos", "Consensus algorithm name")
+var algorithm = flag.String("algorithm", "cosmos", "Consensus algorithm name")
 var consistency = flag.Int("c", 1, "Consistency level")
 var f = flag.Int("f", 0, "failure per site")
 var threshold = flag.Int("threshold", 0, "Threshold for leader change, 0 means immediate")
@@ -27,24 +27,11 @@ func main() {
 
 	log.Println("Master server starting...")
 
-	gob.Register(paxi.Register{})
-	gob.Register(paxi.Config{})
-
 	in := make(chan paxi.Register)
 	out := make(chan paxi.Config)
 
-	var algo paxi.Algorithm
-	switch *algorithm {
-	case "wpaxos":
-		algo = paxi.WPaxos
-	case "epaxos":
-		algo = paxi.EPaxos
-	case "kpaxos":
-		algo = paxi.KPaxos
-	}
-
 	config := new(paxi.Config)
-	config.Algorithm = algo
+	config.Algorithm = *algorithm
 	config.F = *f
 	config.Threshold = *threshold
 	config.BackOff = *backOff

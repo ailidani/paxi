@@ -19,6 +19,11 @@ var UDPAddress = map[ID]string{
 	id2: "udp://127.0.0.1:1736",
 }
 
+var ChanAddress = map[ID]string{
+	id1: "chan://127.0.0.1:1735",
+	id2: "chan://127.0.0.1:1736",
+}
+
 var MixAddress = map[ID]string{
 	id1: "tcp://127.0.0.1:1735",
 	id2: "udp://127.0.0.1:1736",
@@ -35,7 +40,7 @@ func run(address map[ID]string) error {
 	go func() {
 		sock1 := NewSocket(id1, address)
 		defer sock1.Close()
-		sock1.Broadcast(send)
+		sock1.Multicast(id1.Site(), send)
 	}()
 	sock2 := NewSocket(id2, address)
 	defer sock2.Close()
@@ -52,10 +57,17 @@ func TestSocket(t *testing.T) {
 	if err != nil {
 		t.Error()
 	}
+
 	err = run(UDPAddress)
 	if err != nil {
 		t.Error()
 	}
+
+	err = run(ChanAddress)
+	if err != nil {
+		t.Error()
+	}
+
 	// err = run(MixAddress)
 	// if err != nil {
 	// 	t.Error()

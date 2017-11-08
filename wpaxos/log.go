@@ -55,7 +55,6 @@ func (l *log) entry(i int) *entry {
 func (l *log) create(b int, r Request) int {
 	entry := &entry{
 		ballot:    b,
-		cmds:      r.Commands,
 		request:   r,
 		quorum:    NewQuorum(),
 		timestamp: time.Now(),

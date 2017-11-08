@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/url"
 	"paxi/glog"
+	"sync"
 )
 
 // Transport = transport + pipe + client + server
@@ -36,7 +37,6 @@ func NewTransport(addr string) Transport {
 	case "chan":
 		t := new(channel)
 		t.transport = transport
-		t.addr = uri.Host
 		return t
 	case "tcp":
 		t := new(tcp)
@@ -142,10 +142,11 @@ func (t *transport) Close() {
 /* Inta-process communication *
 /******************************/
 
+var chans = make(map[string]chan *Message)
+
 type channel struct {
 	*transport
-	addr string
-	peer string
+	sync.RWMutex
 }
 
 func (c *channel) Scheme() string {
@@ -153,10 +154,40 @@ func (c *channel) Scheme() string {
 }
 
 func (c *channel) Dial() error {
+	c.RLock()
+	defer c.RUnlock()
+	go func(conn chan<- *Message) {
+		for {
+			select {
+			case <-c.close:
+				return
+			case m := <-c.send:
+				if m.Expired() {
+					m.Free()
+					continue
+				}
+				conn <- m
+			}
+		}
+	}(chans[c.uri.Host])
 	return nil
 }
 
-func (c *channel) Listen() {}
+func (c *channel) Listen() {
+	c.Lock()
+	defer c.Unlock()
+	chans[c.uri.Host] = make(chan *Message, CHAN_BUFFER_SIZE)
+	go func(conn <-chan *Message) {
+		for {
+			select {
+			case <-c.close:
+				return
+			case m := <-conn:
+				c.recv <- m
+			}
+		}
+	}(chans[c.uri.Host])
+}
 
 /******************************
 /*     TCP communication      *

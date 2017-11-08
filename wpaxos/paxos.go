@@ -66,7 +66,7 @@ func (p *paxos) accept(msg Request) {
 	p.slot++
 	p.cmds[p.slot] = &instance{
 		ballot:    p.ballot,
-		commands:  msg.Commands,
+		commands:  []Command{msg.Command},
 		committed: false,
 		request:   &msg,
 		quorum:    NewQuorum(),
@@ -77,7 +77,7 @@ func (p *paxos) accept(msg Request) {
 		Key:      p.key,
 		Ballot:   p.ballot,
 		Slot:     p.slot,
-		Commands: msg.Commands,
+		Commands: []Command{msg.Command},
 	})
 }
 
@@ -102,7 +102,7 @@ func (p *paxos) handleRequest(msg Request) {
 			CommandID: msg.CommandID,
 			LeaderID:  LeaderID(p.ballot),
 			ClientID:  msg.ClientID,
-			Commands:  msg.Commands,
+			Command:   msg.Command,
 			Timestamp: msg.Timestamp,
 		}
 		msg.Reply(rep)
@@ -180,7 +180,7 @@ func (p *paxos) handleAccept(msg Accept) {
 
 		ins, exists := p.cmds[msg.Slot]
 		if exists && ins.request != nil {
-			p.RequestChan <- *p.cmds[msg.Slot].request
+			p.MessageChan <- *p.cmds[msg.Slot].request
 		}
 		p.cmds[msg.Slot] = &instance{
 			ballot:    msg.Ballot,
@@ -228,14 +228,14 @@ func (p *paxos) handleAccepted(msg Accepted) {
 				CommandID: ins.request.CommandID,
 				LeaderID:  p.ID,
 				ClientID:  ins.request.ClientID,
-				Commands:  ins.request.Commands,
+				Command:   ins.request.Command,
 				Timestamp: ins.request.Timestamp,
 			}
 			ins.request.Reply(rep)
 		}
 	} else {
-		glog.Warningf("Replica %s put cmd %v in slot=%d back to queue.\n", p.ID, ins.request.Commands, msg.Slot)
-		p.RequestChan <- *ins.request
+		glog.Warningf("Replica %s put cmd %v in slot=%d back to queue.\n", p.ID, ins.request.Command, msg.Slot)
+		p.MessageChan <- *ins.request
 		delete(p.cmds, msg.Slot)
 	}
 

@@ -1,9 +1,19 @@
 package kpaxos
 
 import (
+	"encoding/gob"
 	"fmt"
 	. "paxi"
 )
+
+func init() {
+	gob.Register(Prepare{})
+	gob.Register(Promise{})
+	gob.Register(Accept{})
+	gob.Register(Accepted{})
+	gob.Register(Nack{})
+	gob.Register(Commit{})
+}
 
 /**************************
  * Inter-Replica Messages *

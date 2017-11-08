@@ -1,9 +1,18 @@
 package wankeeper
 
 import (
+	"encoding/gob"
 	"fmt"
 	. "paxi"
 )
+
+func init() {
+	gob.Register(NewLeader{})
+	gob.Register(Vote{})
+	gob.Register(Accept{})
+	gob.Register(Accepted{})
+	gob.Register(Commit{})
+}
 
 /**************************
  * Intra-Cluster Messages *

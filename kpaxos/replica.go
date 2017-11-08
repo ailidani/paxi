@@ -1,9 +1,7 @@
 package kpaxos
 
 import (
-	"encoding/gob"
 	. "paxi"
-	"paxi/glog"
 )
 
 type Replica struct {
@@ -12,61 +10,16 @@ type Replica struct {
 }
 
 func NewReplica(config *Config) *Replica {
-	gob.Register(Prepare{})
-	gob.Register(Promise{})
-	gob.Register(Accept{})
-	gob.Register(Accepted{})
-	gob.Register(Nack{})
-	gob.Register(Commit{})
-
-	return &Replica{
-		Node: NewNode(config),
-		paxi: make(map[Key]*paxos),
-	}
-}
-
-// Run start running replica
-func (r *Replica) Run() {
-	go r.messageLoop()
-	r.Node.Run()
-}
-
-func (r *Replica) messageLoop() {
-	for {
-		select {
-		case msg := <-r.RequestChan:
-			glog.V(2).Infof("Replica %s received %v\n", r.ID, msg)
-			r.handleRequest(msg)
-
-		case msg := <-r.MessageChan:
-			r.dispatch(msg)
-		}
-	}
-}
-
-func (r *Replica) dispatch(msg interface{}) {
-	switch msg := msg.(type) {
-	case Prepare:
-		glog.V(1).Infof("Replica %s ===[%v]===>>> Replica %s\n", LeaderID(msg.Ballot), msg, r.ID)
-		r.handlePrepare(msg)
-
-	case Promise:
-		glog.V(1).Infof("Replica %s ===[%v]===>>> Replica %s\n", msg.ID, msg, r.ID)
-		r.handlePromise(msg)
-		glog.V(2).Infof("Number of keys: %d", r.keys())
-
-	case Accept:
-		glog.V(1).Infof("Replica %s ===[%v]===>>> Replica %s\n", LeaderID(msg.Ballot), msg, r.ID)
-		r.handleAccept(msg)
-
-	case Accepted:
-		glog.V(1).Infof("Replica %s ===[%v]===>>> Replica %s\n", msg.ID, msg, r.ID)
-		r.handleAccepted(msg)
-
-	case Commit:
-		// glog.V(1).Infof("Replica %s ===[%v]===>>> Replica %s\n", LeaderID(msg.Ballot), msg, r.ID)
-		r.handleCommit(msg)
-	}
+	r := new(Replica)
+	r.Node = NewNode(config)
+	r.paxi = make(map[Key]*paxos)
+	r.Register(Request{}, r.handleRequest)
+	r.Register(Prepare{}, r.handlePrepare)
+	r.Register(Promise{}, r.handlePromise)
+	r.Register(Accept{}, r.handleAccept)
+	r.Register(Accepted{}, r.handleAccepted)
+	r.Register(Commit{}, r.handleCommit)
+	return r
 }
 
 func index(key Key) ID {
@@ -95,11 +48,9 @@ func (r *Replica) init(key Key) {
 }
 
 func (r *Replica) handleRequest(msg Request) {
-	if len(msg.Commands) == 1 {
-		key := msg.Commands[0].Key
-		r.init(key)
-		r.paxi[key].handleRequest(msg)
-	}
+	key := msg.Command.Key
+	r.init(key)
+	r.paxi[key].handleRequest(msg)
 }
 
 func (r *Replica) handlePrepare(msg Prepare) {

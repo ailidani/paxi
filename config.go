@@ -11,27 +11,15 @@ import (
 const (
 	PORT             = 1735
 	HTTP_PORT        = 8080
-	CHAN_BUFFER_SIZE = 1024 * 10000
+	CHAN_BUFFER_SIZE = 1024 * 1
 	BUFFER_SIZE      = 1024 * 10000
-)
-
-// Algorithm type
-type Algorithm int
-
-// add algorithm type here
-const (
-	WPaxos Algorithm = iota
-	EPaxos
-	KPaxos
-	WanKeeper
-	Cosmos
 )
 
 type Config struct {
 	ID             ID            `json:"id"`
 	Addrs          map[ID]string `json:"address"`      // address for node communication
 	HTTPAddrs      map[ID]string `json:"http_address"` // address for client
-	Algorithm      Algorithm     `json:"algorithm"`
+	Algorithm      string        `json:"algorithm"`
 	F              int           `json:"f"` // number of failure nodes
 	Threshold      int           `json:"threshold"`
 	BackOff        int           `json:"backoff"`
@@ -51,7 +39,7 @@ func MakeDefaultConfig() *Config {
 	config := new(Config)
 	config.ID = NewID(1, 1)
 	config.Addrs = map[ID]string{id: "chan://*:" + strconv.Itoa(PORT)}
-	config.Algorithm = WPaxos
+	config.Algorithm = "wpaxos"
 	config.ChanBufferSize = CHAN_BUFFER_SIZE
 	config.BufferSize = BUFFER_SIZE
 	config.ConfigFile = "config.json"

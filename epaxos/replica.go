@@ -1,7 +1,6 @@
 package epaxos
 
 import (
-	"encoding/gob"
 	. "paxi"
 	"paxi/glog"
 )
@@ -91,18 +90,6 @@ func NewLeaderBookkeeping(proposals []Request, deps map[ID]int) *LeaderBookkeepi
 }
 
 func NewReplica(config *Config) *Replica {
-	gob.Register(Prepare{})
-	gob.Register(PrepareReply{})
-	gob.Register(PreAccept{})
-	gob.Register(PreAcceptReply{})
-	gob.Register(PreAcceptOK{})
-	gob.Register(Accept{})
-	gob.Register(AcceptReply{})
-	gob.Register(Commit{})
-	gob.Register(CommitShort{})
-	gob.Register(TryPreAccept{})
-	gob.Register(TryPreAcceptReply{})
-
 	N := len(config.Addrs)
 
 	r := &Replica{
@@ -143,17 +130,15 @@ func (r *Replica) Run() {
 func (r *Replica) messageLoop() {
 	for !r.Shutdown {
 		select {
-
-		case proposal := <-r.RequestChan:
-			glog.V(2).Infof("Replica %s received %v\n", r.ID, proposal)
-			r.handleProposal(proposal)
-			break
-
 		case iid := <-r.instancesToRecover:
 			r.startRecoveryForInstance(iid.replica, iid.instance)
 
 		case msg := <-r.MessageChan:
 			switch msg := msg.(type) {
+			case Request:
+				glog.V(2).Infof("Replica %s received %v\n", r.ID, msg)
+				r.handleProposal(msg)
+
 			case Prepare:
 				glog.V(2).Infof("Replica %s ===[%v]===>>> Replica %s\n", msg.LeaderId, msg, r.ID)
 				r.handlePrepare(&msg)
@@ -357,7 +342,7 @@ func (r *Replica) handleProposal(msg Request) {
 
 	glog.V(2).Infof("Starting instance %d\n", instance)
 
-	cmds := msg.Commands
+	cmds := []Command{msg.Command}
 
 	r.startPhase1(r.ID, instance, 0, []Request{msg}, cmds)
 }
@@ -555,7 +540,7 @@ func (r *Replica) handlePreAcceptReply(msg *PreAcceptReply) {
 					CommandID: p.CommandID,
 					LeaderID:  r.ID,
 					ClientID:  p.ClientID,
-					Commands:  p.Commands,
+					Command:   p.Command,
 					Timestamp: p.Timestamp,
 				}
 				p.Reply(reply)
@@ -624,7 +609,7 @@ func (r *Replica) handlePreAcceptOK(msg *PreAcceptOK) {
 					CommandID: p.CommandID,
 					LeaderID:  r.ID,
 					ClientID:  p.ClientID,
-					Commands:  p.Commands,
+					Command:   p.Command,
 					Timestamp: p.Timestamp,
 				}
 				p.Reply(reply)
@@ -733,7 +718,7 @@ func (r *Replica) handleAcceptReply(msg *AcceptReply) {
 					CommandID: p.CommandID,
 					LeaderID:  r.ID,
 					ClientID:  p.ClientID,
-					Commands:  p.Commands,
+					Command:   p.Command,
 					Timestamp: p.Timestamp,
 				}
 				p.Reply(reply)
@@ -762,7 +747,7 @@ func (r *Replica) handleCommit(msg *Commit) {
 			//someone committed a NO-OP, but we have proposals for this instance
 			//try in a different instance
 			for _, p := range inst.lb.proposals {
-				r.RequestChan <- p
+				r.MessageChan <- p
 			}
 			inst.lb = nil
 		}
@@ -806,7 +791,7 @@ func (r *Replica) handleCommitShort(commit *CommitShort) {
 		if inst.lb != nil && inst.lb.proposals != nil {
 			//try command in a different instance
 			for _, p := range inst.lb.proposals {
-				r.RequestChan <- p
+				r.MessageChan <- p
 			}
 			inst.lb = nil
 		}

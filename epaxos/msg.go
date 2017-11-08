@@ -1,9 +1,24 @@
 package epaxos
 
 import (
+	"encoding/gob"
 	"fmt"
 	. "paxi"
 )
+
+func init() {
+	gob.Register(Prepare{})
+	gob.Register(PrepareReply{})
+	gob.Register(PreAccept{})
+	gob.Register(PreAcceptReply{})
+	gob.Register(PreAcceptOK{})
+	gob.Register(Accept{})
+	gob.Register(AcceptReply{})
+	gob.Register(Commit{})
+	gob.Register(CommitShort{})
+	gob.Register(TryPreAccept{})
+	gob.Register(TryPreAcceptReply{})
+}
 
 type Prepare struct {
 	LeaderId ID
