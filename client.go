@@ -16,7 +16,7 @@ import (
 
 // Client main access point of client lib
 type Client struct {
-	ID        ID
+	ID        ID // client id use the same size id as servers in local site
 	N         int
 	addrs     map[ID]string
 	http      map[ID]string
@@ -44,17 +44,22 @@ func NewClient(config *Config) *Client {
 	return c
 }
 
-func (c *Client) RestGet(key Key) Value {
-	c.cid++
+func (c *Client) getNodeID(key Key) ID {
 	c.RLock()
+	defer c.RUnlock()
 	id, exists := c.index[key]
-	c.RUnlock()
+	// if not exists, select first node in local site
 	if !exists {
 		id = NewID(c.ID.Site(), 1)
 	}
+	return id
+}
 
-	url := c.http[id]
-	url += "/" + strconv.Itoa(int(key))
+// RESTGet access server's REST API with url = http://ip:port/key
+func (c *Client) RESTGet(key Key) Value {
+	c.cid++
+	id := c.getNodeID(key)
+	url := c.http[id] + "/" + strconv.Itoa(int(key))
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
@@ -66,9 +71,6 @@ func (c *Client) RestGet(key Key) Value {
 	rep, err := http.DefaultClient.Do(req)
 	if err != nil {
 		glog.Errorln(err)
-		dump, _ := httputil.DumpRequest(req, true)
-		glog.Errorf("%q", dump)
-		glog.Errorln(url)
 		return nil
 	}
 	defer rep.Body.Close()
@@ -82,7 +84,60 @@ func (c *Client) RestGet(key Key) Value {
 	return nil
 }
 
-func (c *Client) JsonGet(key Key) Value {
+// RESTPut access server's REST API with url = http://ip:port/key and request body of value
+func (c *Client) RESTPut(key Key, value Value) {
+	c.cid++
+	id := c.getNodeID(key)
+
+	url := c.http[id] + "/" + strconv.Itoa(int(key))
+
+	req, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(value))
+	if err != nil {
+		glog.Errorln(err)
+		return
+	}
+	req.Header.Set("id", c.ID.String())
+	req.Header.Set("cid", fmt.Sprintf("%v", c.cid))
+	rep, err := http.DefaultClient.Do(req)
+	if err != nil {
+		glog.Errorln(err)
+		return
+	}
+	defer rep.Body.Close()
+	dump, _ := httputil.DumpResponse(rep, true)
+	log.Println(rep.Status)
+	log.Printf("%q", dump)
+}
+
+// Get post json get request to server url
+func (c *Client) Get(key Key) Value {
+	return c.RESTGet(key)
+}
+
+// Put post json request
+func (c *Client) Put(key Key, value Value) {
+	c.RESTPut(key, value)
+}
+
+// GetAsync do Get request in goroutine
+func (c *Client) GetAsync(key Key) {
+	c.Add(1)
+	c.Lock()
+	c.results[c.cid+1] = false
+	c.Unlock()
+	go c.Get(key)
+}
+
+// PutAsync do Put request in goroutine
+func (c *Client) PutAsync(key Key, value Value) {
+	c.Add(1)
+	c.Lock()
+	c.results[c.cid+1] = false
+	c.Unlock()
+	go c.Put(key, value)
+}
+
+func (c *Client) JSONGet(key Key) Value {
 	c.cid++
 	cmd := Command{GET, key, nil}
 	req := new(Request)
@@ -91,12 +146,7 @@ func (c *Client) JsonGet(key Key) Value {
 	req.Command = cmd
 	req.Timestamp = time.Now().UnixNano()
 
-	c.RLock()
-	id, exists := c.index[key]
-	c.RUnlock()
-	if !exists {
-		id = NewID(c.ID.Site(), 1)
-	}
+	id := c.getNodeID(key)
 
 	url := c.http[id]
 	data, err := json.Marshal(*req)
@@ -113,54 +163,7 @@ func (c *Client) JsonGet(key Key) Value {
 	return nil
 }
 
-// Get post json get request to server url
-func (c *Client) Get(key Key) Value {
-	return c.RestGet(key)
-}
-
-// GetAsync do Get request in goroutine
-func (c *Client) GetAsync(key Key) {
-	c.Add(1)
-	c.Lock()
-	c.results[c.cid+1] = false
-	c.Unlock()
-	go c.Get(key)
-}
-
-func (c *Client) RestPut(key Key, value Value) {
-	c.cid++
-	c.RLock()
-	id, exists := c.index[key]
-	c.RUnlock()
-	if !exists {
-		id = NewID(c.ID.Site(), 1)
-	}
-
-	url := c.http[id]
-	url += "/" + strconv.Itoa(int(key))
-
-	req, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(value))
-	if err != nil {
-		glog.Errorln(err)
-		dump, _ := httputil.DumpRequest(req, true)
-		glog.Errorf("%q", dump)
-		glog.Errorln(url)
-		return
-	}
-	req.Header.Set("id", c.ID.String())
-	req.Header.Set("cid", fmt.Sprintf("%v", c.cid))
-	rep, err := http.DefaultClient.Do(req)
-	if err != nil {
-		glog.Errorln(err)
-		return
-	}
-	defer rep.Body.Close()
-	dump, _ := httputil.DumpResponse(rep, true)
-	log.Println(rep.Status)
-	log.Printf("%q", dump)
-}
-
-func (c *Client) JsonPut(key Key, value Value) {
+func (c *Client) JSONPut(key Key, value Value) {
 	c.cid++
 	cmd := Command{PUT, key, value}
 	req := new(Request)
@@ -169,12 +172,7 @@ func (c *Client) JsonPut(key Key, value Value) {
 	req.Command = cmd
 	req.Timestamp = time.Now().UnixNano()
 
-	c.RLock()
-	id, exists := c.index[key]
-	c.RUnlock()
-	if !exists {
-		id = NewID(c.ID.Site(), 1)
-	}
+	id := c.getNodeID(key)
 
 	url := c.http[id]
 	data, err := json.Marshal(*req)
@@ -187,20 +185,6 @@ func (c *Client) JsonPut(key Key, value Value) {
 	dump, _ := httputil.DumpResponse(rep, true)
 	log.Println(rep.Status)
 	log.Printf("%q", dump)
-}
-
-// Put post json request
-func (c *Client) Put(key Key, value Value) {
-	c.RestPut(key, value)
-}
-
-// PutAsync do Put request in goroutine
-func (c *Client) PutAsync(key Key, value Value) {
-	c.Add(1)
-	c.Lock()
-	c.results[c.cid+1] = false
-	c.Unlock()
-	go c.Put(key, value)
 }
 
 // RequestDone returns the total number of succeed async reqeusts

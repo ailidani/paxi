@@ -3,8 +3,6 @@ package paxi
 import (
 	"encoding/gob"
 	"fmt"
-	"net/http"
-	"paxi/glog"
 )
 
 func init() {
@@ -25,30 +23,19 @@ func init() {
 // CommandID identifies commands from each client, can be any integer type.
 type CommandID uint64
 
-// Request client reqeust with http response write
+// Request is client reqeust with http response channel
 type Request struct {
 	ClientID  ID
 	CommandID CommandID
 	Command   Command
 	Timestamp int64
 
-	w http.ResponseWriter
+	c chan Reply
 }
 
 // Reply replies to the current request
 func (r *Request) Reply(reply Reply) {
-	if reply.Err != nil {
-		http.Error(r.w, reply.Err.Error(), http.StatusInternalServerError)
-		return
-	}
-	r.w.Header().Set("ok", fmt.Sprintf("%v", reply.OK))
-	r.w.Header().Set("id", reply.ClientID.String())
-	r.w.Header().Set("cid", fmt.Sprintf("%v", reply.CommandID))
-	r.w.Header().Set("timestamp", fmt.Sprintf("%v", reply.Timestamp))
-	_, err := r.w.Write(reply.Command.Value)
-	if err != nil {
-		glog.Errorln(err)
-	}
+	r.c <- reply
 }
 
 func (r Request) String() string {

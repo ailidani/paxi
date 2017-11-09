@@ -13,9 +13,6 @@ if [ -z "${PID}" ]; then
     ./master -n 6 -transport udp -algorithm wpaxos &
     echo $! > ${PID_FILE}
     sleep 3
-    # ./server -v=2 -log_dir=logs &
-    # echo $! >> ${PID_FILE}
-    # sleep 3
     ./server -v=2 -log_dir=logs -sid 1 -nid 1 &
     echo $! >> ${PID_FILE}
     ./server -v=2 -log_dir=logs -sid 1 -nid 2 &
@@ -28,13 +25,13 @@ if [ -z "${PID}" ]; then
 	echo $! >> ${PID_FILE}
 	./server -v=2 -log_dir=logs -sid 2 -nid 3 &
 	echo $! >> ${PID_FILE}
-    sleep 5
+    # sleep 5
     # ./client -sid 1 -nid 1 -T 1 -k 1000 -c 50 -t 1
-    ./cmd put 1 1
-    ./cmd put 2 2
-    ./cmd put 1 2
-    ./cmd get 1
-    ./cmd get 1
+    # ./cmd put 1 1
+    # ./cmd put 2 2
+    # ./cmd put 1 2
+    # ./cmd get 1
+    # ./cmd get 1
 else
     echo "Servers are already started in this folder."
     exit 0

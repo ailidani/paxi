@@ -2,6 +2,8 @@ package paxi
 
 import (
 	"encoding/json"
+	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -91,7 +93,7 @@ func (n *Node) serve() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		var req Request
-		req.w = w
+		req.c = make(chan Reply)
 		//req.ClientID, _ = IDFromString(r.Header.Get("id"))
 		cid, _ := strconv.Atoi(r.Header.Get("cid"))
 		req.CommandID = CommandID(cid)
@@ -122,6 +124,23 @@ func (n *Node) serve() {
 		}
 
 		n.MessageChan <- req
+
+		reply := <-req.c
+		if reply.Err != nil {
+			http.Error(w, reply.Err.Error(), http.StatusInternalServerError)
+			return
+		}
+		// r.w.Header().Set("ok", fmt.Sprintf("%v", reply.OK))
+		w.Header().Set("id", reply.ClientID.String())
+		w.Header().Set("cid", fmt.Sprintf("%v", reply.CommandID))
+		w.Header().Set("timestamp", fmt.Sprintf("%v", reply.Timestamp))
+		if reply.Command.IsRead() {
+			_, err := io.WriteString(w, string(reply.Command.Value))
+			// _, err := r.w.Write(reply.Command.Value)
+			if err != nil {
+				glog.Errorln(err)
+			}
+		}
 	})
 	err := http.ListenAndServe(n.http, mux)
 	if err != nil {

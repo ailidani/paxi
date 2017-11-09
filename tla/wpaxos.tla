@@ -12,17 +12,42 @@ CONSTANT N
 (***************************************************************************)
 (* M number of zones                                                       *)
 (***************************************************************************)
-CONSTANT M
+CONSTANT Z
+
+(***************************************************************************)
+(* Fn faulty nodes in each zone                                            *)
+(***************************************************************************)
+CONSTANT Fn
+CONSTANT Fz
+ASSUME /\ Fn > 0 /\ Fn < N
+       /\ Fz > 0 /\ Fz < Z
 
 CONSTANTS Commands, Txns, Objects, Access(_)
 
-Zones == 1..M
-Nodes == Zones \X 1..N
+(***************************************************************************)
+(* Definitions                                                             *)
+(***************************************************************************)
+Zones == 1..Z
+Nodes == Zones \X (1..N)
 Leaders == Zones \X 1
-Q1 == \A Q \in SUBSET Nodes : /\ Cardinality(Q) = M
-                              /\ \A i,j \in Q : i[1] # j[1]
-Q2 == \A Q \in SUBSET Nodes : /\ Cardinality(Q) = N
-                              /\ \A i,j \in Q : i[1] = j[1]
+vertical == {q \in SUBSET Nodes : /\ Cardinality(q) = N - Fn
+                                  /\ \A i,j \in q : i[1] = j[1]}
+
+\*Q1 == {q \in UNION onezone : /\ Cardinality(q) = Z - 1
+\*                             /\ 
+
+\*Q2 == {q \in {i \cup j : i,j \in vertical} : Cardinality(q) = 2 * (N - Fn)}
+
+\*Q1 == {q \in SUBSET Nodes : /\ Cardinality(q) = (N - K + 1) * (Z - 1)
+\*                            /\ Cardinality({i[1] : i \in q}) >= Z - 1
+\*                            /\ Cardinality({i[2] : i \in q}) >= N - K + 1}
+
+Q2 == {q \in SUBSET Nodes : /\ Cardinality(q) = (N - Fn) * (Fz + 1)
+                            /\ Cardinality({i[1] : i \in q}) = (Fz + 1)
+                            /\ ~ \E k \in SUBSET q : /\ \A i, j \in k : i[1] = j[1]
+                                                     /\ Cardinality(k) > N - Fn}
+
+Q1 == {q \in SUBSET Nodes : \A q2 \in Q2 : q \cap q2 # {}}
 
 ASSUME IsFiniteSet(Nodes)
 
@@ -140,6 +165,7 @@ Messages ==     [type:{"prepare"}, n:Nodes, o:Objects, b:Ballots]
               accepted = [o \in Objects |-> {}]; \* [s -> Slots, b -> Ballots, c -> Commands]
               decided = [o \in Objects |-> [s \in Slots |-> <<>>]]; \* <<b, c>>
     {
+        p: print(Q2);
         start: while(TRUE) {
             either propose: propose();
             or HandlePrepare: HandlePrepare();
@@ -178,7 +204,13 @@ Init == (* Global variables *)
         /\ own = [self \in Nodes |-> {}]
         /\ accepted = [self \in Nodes |-> [o \in Objects |-> {}]]
         /\ decided = [self \in Nodes |-> [o \in Objects |-> [s \in Slots |-> <<>>]]]
-        /\ pc = [self \in ProcSet |-> "start"]
+        /\ pc = [self \in ProcSet |-> "p"]
+
+p(self) == /\ pc[self] = "p"
+           /\ PrintT((Q2))
+           /\ pc' = [pc EXCEPT ![self] = "start"]
+           /\ UNCHANGED << msgs, proposed, ballots, slots, log, own, accepted, 
+                           decided >>
 
 start(self) == /\ pc[self] = "start"
                /\ \/ /\ pc' = [pc EXCEPT ![self] = "propose"]
@@ -248,14 +280,18 @@ HandleAccepted(self) == /\ pc[self] = "HandleAccepted"
                         /\ UNCHANGED << msgs, proposed, ballots, slots, log, 
                                         own, accepted >>
 
-node(self) == start(self) \/ propose(self) \/ HandlePrepare(self)
-                 \/ HandlePromise(self) \/ HandleAccept(self)
-                 \/ HandleAccepted(self)
+node(self) == p(self) \/ start(self) \/ propose(self)
+                 \/ HandlePrepare(self) \/ HandlePromise(self)
+                 \/ HandleAccept(self) \/ HandleAccepted(self)
 
 Next == (\E self \in Nodes: node(self))
+           \/ (* Disjunct to prevent deadlock on termination *)
+              ((\A self \in ProcSet: pc[self] = "Done") /\ UNCHANGED vars)
 
 Spec == /\ Init /\ [][Next]_vars
         /\ \A self \in Nodes : WF_vars(node(self))
+
+Termination == <>(\A self \in ProcSet: pc[self] = "Done")
 
 \* END TRANSLATION
 
