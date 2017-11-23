@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"encoding/json"
-	"paxi/glog"
+	"paxi/log"
 )
 
 // Codec interface provide methods for serialization and deserialization
@@ -34,7 +34,7 @@ func (j *jsonCodec) Scheme() string {
 func (j *jsonCodec) Encode(msg interface{}) []byte {
 	b, err := json.Marshal(msg)
 	if err != nil {
-		glog.Errorln(err)
+		log.Errorln(err)
 		return nil
 	}
 	return b
@@ -44,7 +44,7 @@ func (j *jsonCodec) Decode(data []byte) interface{} {
 	var msg interface{}
 	err := json.Unmarshal(data, &msg)
 	if err != nil {
-		glog.Errorln(err)
+		log.Errorln(err)
 		return nil
 	}
 	return msg
@@ -61,7 +61,7 @@ func (g *gobCodec) Encode(msg interface{}) []byte {
 	encoder := gob.NewEncoder(buffer)
 	err := encoder.Encode(&msg)
 	if err != nil {
-		glog.Fatalln(err)
+		log.Fatalln(err)
 	}
 	return buffer.Bytes()
 }
@@ -72,7 +72,7 @@ func (g *gobCodec) Decode(data []byte) interface{} {
 	decoder := gob.NewDecoder(buffer)
 	err := decoder.Decode(&msg)
 	if err != nil {
-		glog.Fatalln(err)
+		log.Fatalln(err)
 	}
 	return msg
 }

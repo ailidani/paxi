@@ -10,46 +10,48 @@ EXTENDS Integers, Sequences, FiniteSets, TLC
 CONSTANT N
 
 (***************************************************************************)
-(* M number of zones                                                       *)
+(* Z number of zones                                                       *)
 (***************************************************************************)
 CONSTANT Z
 
 (***************************************************************************)
-(* Fn faulty nodes in each zone                                            *)
+(* Fz to tolerant Fz failure zones                                         *)
 (***************************************************************************)
-CONSTANT Fn
 CONSTANT Fz
-ASSUME /\ Fn > 0 /\ Fn < N
-       /\ Fz > 0 /\ Fz < Z
+ASSUME Fz >= 0 /\ Fz < Z
+\* K is the majority of each zone
+K == N \div 2 + 1
 
-CONSTANTS Commands, Txns, Objects, Access(_)
+CONSTANTS Objects, NumCommands
 
 (***************************************************************************)
 (* Definitions                                                             *)
 (***************************************************************************)
 Zones == 1..Z
 Nodes == Zones \X (1..N)
-Leaders == Zones \X 1
-vertical == {q \in SUBSET Nodes : /\ Cardinality(q) = N - Fn
-                                  /\ \A i,j \in q : i[1] = j[1]}
-
-\*Q1 == {q \in UNION onezone : /\ Cardinality(q) = Z - 1
-\*                             /\ 
-
-\*Q2 == {q \in {i \cup j : i,j \in vertical} : Cardinality(q) = 2 * (N - Fn)}
-
-\*Q1 == {q \in SUBSET Nodes : /\ Cardinality(q) = (N - K + 1) * (Z - 1)
-\*                            /\ Cardinality({i[1] : i \in q}) >= Z - 1
-\*                            /\ Cardinality({i[2] : i \in q}) >= N - K + 1}
-
-Q2 == {q \in SUBSET Nodes : /\ Cardinality(q) = (N - Fn) * (Fz + 1)
-                            /\ Cardinality({i[1] : i \in q}) = (Fz + 1)
-                            /\ ~ \E k \in SUBSET q : /\ \A i, j \in k : i[1] = j[1]
-                                                     /\ Cardinality(k) > N - Fn}
-
-Q1 == {q \in SUBSET Nodes : \A q2 \in Q2 : q \cap q2 # {}}
+Leaders == Zones \X {1}
 
 ASSUME IsFiniteSet(Nodes)
+
+vertical == {q \in SUBSET Nodes : /\ Cardinality(q) = K
+                                  /\ \A i,j \in q : i[1] = j[1]}
+
+SameZone(q) == /\ Cardinality(q) = K
+               /\ \A i,j \in q : i[1] = j[1]
+
+Q1 == {q \in SUBSET Nodes : /\ Cardinality(q) = K * (Z - Fz)
+                            /\ Cardinality({i[1] : i \in q}) = Z - Fz
+                            /\ Cardinality({z \in SUBSET q : SameZone(z)}) = Z - Fz}
+\*                            /\ ~ \E k \in SUBSET q : /\ \A i,j \in k : i[1] = j[1]
+\*                                                     /\ Cardinality(k) > K}
+
+Q2 == {q \in SUBSET Nodes : /\ Cardinality(q) = K * (Fz + 1)
+                            /\ Cardinality({i[1] : i \in q}) = Fz + 1
+                            /\ Cardinality({z \in SUBSET q : SameZone(z)}) = Fz + 1}
+\*                            /\ ~ \E k \in SUBSET q : /\ \A i, j \in k : i[1] = j[1]
+\*                                                     /\ Cardinality(k) > K}
+
+\*Q1 == {q \in SUBSET Nodes : \A q2 \in Q2 : q \cap q2 # {}}
 
 (***************************************************************************)
 (* Quorum assumption                                                       *)
@@ -61,237 +63,315 @@ ASSUME QuorumAssumption == /\ \A q \in Q1 : q \subseteq Nodes
 (***************************************************************************)
 (* Command and Txn access assumption                                       *)
 (***************************************************************************)
-ASSUME AccessAssumption == /\ \A c \in Commands : Access(c) \in Objects
-                           /\ \A t \in Txns : Access(t) \in SUBSET Objects
+\*ASSUME AccessAssumption == \A c \in Commands : Access(c) \in Objects
 
 (***************************************************************************)
 (* Ballot and Slot definition                                              *)
 (***************************************************************************)
-Ballots == Nat
-Slots == Objects \X (1..Cardinality(Commands))
+Ballots == Nat \X Nodes
+Slots == 1..NumCommands
 
 (***************************************************************************)
 (* All possible protocol messages:                                         *)
 (***************************************************************************)
-
-Messages ==     [type:{"prepare"}, n:Nodes, o:Objects, b:Ballots]
-         \union [type:{"promise"}, n:Nodes, o:Objects, b:Ballots, s:Slots]
-         \union [type:{"accept"}, n:Nodes, b:Ballots, s:Slots, c:Commands]
-         \union [type:{"accepted"}, n:Nodes, o:Objects, b:Ballots, s:Slots]
-         \union [type:{"commit"}, n:Nodes, o:Objects, b:Ballots, s:Slots, c:Commands]
+Messages ==     [type:{"1a"}, n:Nodes, o:Objects, b:Ballots]
+         \union [type:{"1b"}, n:Nodes, o:Objects, b:Ballots, s:(Slots \cup {0})]
+         \union [type:{"2a"}, n:Nodes, o:Objects, b:Ballots, s:Slots, v:Slots \X Nodes]
+         \union [type:{"2b"}, n:Nodes, o:Objects, b:Ballots, s:Slots]
+         \union [type:{"3"}, n:Nodes, o:Objects, b:Ballots, s:Slots, v:Slots \X Nodes]
 
 (***************************************************************************
 (* wpaxos pluscal *)
 --algorithm wpaxos {
 
     variable msgs = {};
-             proposed = {}; \* c \in Commands
+             \* number of commands already proposed
+             proposed = 0;
 
     define {
-        Q1Satisfied(b) == \E Q \in Q1 : \A n \in Q : \E m \in msgs : m.type = "ack" /\ m.n = n /\ m.b = b
-        Q2Satisfied(b) == \E Q \in Q2 : \A n \in Q : \E m \in msgs : m.type = "ack" /\ m.n = n /\ m.b = b
-        
-        MaxV(s, S) == CHOOSE i \in S : i.s = s /\ \A j \in S : i.b >= j.b
+        Q1Satisfied(b) == \E q \in Q1 : \A n \in q : \E m \in msgs : m.type = "1b" /\ m.n = n /\ m.b = b
+        Q2Satisfied(b) == \E q \in Q2 : \A n \in q : \E m \in msgs : m.type = "2b" /\ m.n = n /\ m.b = b
+                     
+\*        RECURSIVE more(_, _)
+\*        more(a, b) == IF a \in Nat /\ b \in Nat THEN a > b
+\*                      ELSE \/ Head(a) > Head(b)
+\*                           \/ Head(a) = Head(b) /\ more(a[2], b[2])
 
-        Committed(o, s, vote) == \E c \in Commands : \E b \in Ballots : \E q2 \in Q2 : \A n \in q2 : vote[n][s][b] = c
-\*        NextSlot(o, vote) == LET committed == {s \in Slots : Committed(o, s, vote)}
-\*                             IN IF (committed # {}) THEN SetMax(committed) + 1 ELSE 0
+        more(a, b) == \/ a[1] > b[1]
+                      \/ a[1] = b[1] /\ a[2][1] > b[2][1]
+                      \/ a[1] = b[1] /\ a[2][1] = b[2][1] /\ a[2][2] > b[2][2]
+                           
+        a \succ b == more(a, b)
+        
+        a \succeq b == a \succ b \/ a = b
     }
     
-    macro Send(m) {
-        msgs := msgs \union {m};
-    }
+    macro Send(m) { msgs := msgs \union {m}; }
 
-    macro HandlePrepare() {
-        with (msg \in msgs) {
-            when msg.type = "prepare" /\ msg.b > ballots[msg.o];
-            ballots[msg.o] := msg.b;
-            if (msg.o \in own) { own := own \ {msg.o} };
-            Send([type |-> "promise", n |-> self, o |-> msg.o, b |-> msg.b, s |-> slots[msg.o]]);
+    macro p1a() {
+        with (m \in msgs) {
+            when m.type = "1a";
+            when m.b \succeq ballots[m.o];
+            ballots[m.o] := m.b;
+            if (m.o \in own) { own := own \ {m.o} };
+            Send([type |-> "1b", 
+                     n |-> self, 
+                     o |-> m.o, 
+                     b |-> m.b, 
+                     s |-> slots[m.o]]);
         }
     }
 
-    macro HandlePromise() {
-        with (msg \in msgs) {
-            when msg.type = "promise" /\ msg.b = ballots[msg.o];
-            if (Q1Satisfied(ballots[msg.o])) {
-                own := own \union {msg.o};
-                slots[msg.o] := slots[msg.o] + 1;
-                Send([type |-> "accept", n |-> self, b |-> ballots[msg.o], s |-> slots[msg.o], c |-> MaxV(slots[msg.o], accepted[msg.o])]);
+    macro p1b() {
+        with (m \in msgs) {
+            when m.type = "1b";
+            when m.b = ballots[m.o];
+            if (Q1Satisfied(ballots[m.o])) {
+                own := own \union {m.o};
+                slots[m.o] := slots[m.o] + 1;
+\*                log[m.o][m.s] := [b |-> ballots[m.o], v |-> <<slots[m.o], self>>, commit |-> FALSE];
+                log[m.o] := Append(@, [b |-> ballots[m.o], v |-> <<slots[m.o], self>>, commit |-> FALSE]);
+                Send([type |-> "2a", 
+                         n |-> self, 
+                         b |-> ballots[m.o], 
+                         s |-> slots[m.o], 
+                         o |-> m.o, 
+                         v |-> <<slots[m.o], self>>]);
             }
         }
     }
 
-    macro HandleAccept() {
-        with (msg \in msgs) {
-            when msg.type = "accept" /\ msg.b >= ballots[Access(msg.c)];
-            ballots[Access(msg.c)] := msg.b;
-            accepted[Access(msg.c)] := @ \union {[s |-> msg.s, b |-> msg.b, c |-> msg.c]};
-            Send([type |-> "accepted", n |-> self, o |-> Access(msg.c), b |-> msg.b, s |-> msg.s]);
+    macro p2a() {
+        with (m \in msgs) {
+            when m.type = "2a";
+            when m.b \succeq ballots[m.o];
+            ballots[m.o] := m.b;
+            log[m.o][m.s] := [b |-> m.b, v |-> m.v, commit |-> FALSE];
+            Send([type |-> "2b", 
+                     n |-> self, 
+                     o |-> m.o, 
+                     b |-> m.b, 
+                     s |-> m.s]);
         }
     }
 
-    macro HandleAccepted() {
-        with (msg \in msgs) {
-            when msg.type = "accepted" /\ msg.b = ballots[msg.o];
-            if (Q2Satisfied(ballots[msg.o])) {
-                decided[msg.o][msg.s] := <<msg.b, msg>>;
+    macro p2b() {
+        with (m \in msgs) {
+            when m.type = "2b";
+            when m.b = ballots[m.o];
+            if (Q2Satisfied(ballots[m.o])) {
+                log[m.o][m.s].commit := TRUE;
+                Send([type |-> "3", 
+                         n |-> self, 
+                         o |-> m.o, 
+                         b |-> ballots[m.o], 
+                         s |-> m.s]);
             }
         }
     }
-
-    (************************)
-
+    
+    macro p3() {
+        with (m \in msgs) {
+            when m.type = "3";
+            log[m.o][m.s].commit := TRUE;
+        }
+    }
+    
     macro propose() {
-        with (c \in (Commands \ proposed)) {
-            proposed := proposed \union {c};
-            if (Access(c) \notin own) {
-                ballots[Access(c)] := @ + 1;
-                Send([type |-> "prepare", n |-> self, o |-> Access(c), b |-> ballots[Access(c)]]);
+        when proposed <= NumCommands;
+        proposed := proposed + 1;
+        with (o \in Objects) {
+            if (o \notin own) {
+                ballots[o] := <<ballots[o][1] + 1, self>>;
+                Send([type |-> "1a", 
+                         n |-> self, 
+                         o |-> o, 
+                         b |-> ballots[o]]);
             }
             else {
-                slots[Access(c)] := @ + 1;
-                log[Access(c)][slots[Access(c)]] := [cmd |-> c, commit |-> FALSE];
-                Send([type |-> "accept", n |-> self, o |-> Access(c), b |-> ballots[Access(c)]]);
+                slots[o] := slots[o] + 1;
+                log[o] := Append(@, [b |-> ballots[o], v |-> <<slots[o], self>>, commit |-> FALSE]);
+\*                log[o][slots[o]] := [b |-> ballots[o], 
+\*                                     v |-> <<slots[o], self>>, 
+\*                                commit |-> FALSE];
+                Send([type |-> "2a", 
+                         n |-> self, 
+                         o |-> o, 
+                         b |-> ballots[o], 
+                         s |-> Len(log[o]), 
+                         v |-> <<slots[o], self>>]);
             }
         }
     }
 
-    fair process (node \in Nodes)
-    variables ballots = [o \in Objects |-> 0]; \* highest ballot numbers
-              slots = [o \in Objects |-> 0]; \* highest slot numbers
-              log = [o \in Objects |-> [s \in Slots |-> <<>>]];
-              own = {}; \* objects I own
-              accepted = [o \in Objects |-> {}]; \* [s -> Slots, b -> Ballots, c -> Commands]
-              decided = [o \in Objects |-> [s \in Slots |-> <<>>]]; \* <<b, c>>
+    process (node \in Nodes)
+    variables \* highest ballot numbers
+              ballots = [o \in Objects |-> <<0, self>>];
+              \* highest slot numbers
+              slots = [o \in Objects |-> 0];
+              \* log is a sequence of records [b -> Ballots, v -> Value, commit -> {TRUE, FALSE}]
+              log = [o \in Objects |-> [s \in Slots |-> {}]];
+              \* objects I own
+              own = {};
     {
-        p: print(Q2);
         start: while(TRUE) {
             either propose: propose();
-            or HandlePrepare: HandlePrepare();
-            or HandlePromise: HandlePromise();
-            or HandleAccept: HandleAccept();
-            or HandleAccepted: HandleAccepted();
+            or p1a: p1a();
+            or p1b: p1b();
+            or p2a: p2a();
+            or p2b: p2b();
+            or p3: p3();
         }
     }
 }
-
 ***************************************************************************)
 \* BEGIN TRANSLATION
 VARIABLES msgs, proposed, pc
 
 (* define statement *)
-Q1Satisfied(b) == \E Q \in Q1 : \A n \in Q : \E m \in msgs : m.type = "ack" /\ m.n = n /\ m.b = b
-Q2Satisfied(b) == \E Q \in Q2 : \A n \in Q : \E m \in msgs : m.type = "ack" /\ m.n = n /\ m.b = b
+Q1Satisfied(b) == \E q \in Q1 : \A n \in q : \E m \in msgs : m.type = "1b" /\ m.n = n /\ m.b = b
+Q2Satisfied(b) == \E q \in Q2 : \A n \in q : \E m \in msgs : m.type = "2b" /\ m.n = n /\ m.b = b
 
-MaxV(s, S) == CHOOSE i \in S : i.s = s /\ \A j \in S : i.b >= j.b
 
-Committed(o, s, vote) == \E c \in Commands : \E b \in Ballots : \E q2 \in Q2 : \A n \in q2 : vote[n][s][b] = c
 
-VARIABLES ballots, slots, log, own, accepted, decided
 
-vars == << msgs, proposed, pc, ballots, slots, log, own, accepted, decided >>
+
+
+more(a, b) == \/ a[1] > b[1]
+              \/ a[1] = b[1] /\ a[2][1] > b[2][1]
+              \/ a[1] = b[1] /\ a[2][1] = b[2][1] /\ a[2][2] > b[2][2]
+
+a \succ b == more(a, b)
+
+a \succeq b == a \succ b \/ a = b
+
+VARIABLES ballots, slots, log, own
+
+vars == << msgs, proposed, pc, ballots, slots, log, own >>
 
 ProcSet == (Nodes)
 
 Init == (* Global variables *)
         /\ msgs = {}
-        /\ proposed = {}
+        /\ proposed = 0
         (* Process node *)
-        /\ ballots = [self \in Nodes |-> [o \in Objects |-> 0]]
+        /\ ballots = [self \in Nodes |-> [o \in Objects |-> <<0, self>>]]
         /\ slots = [self \in Nodes |-> [o \in Objects |-> 0]]
-        /\ log = [self \in Nodes |-> [o \in Objects |-> [s \in Slots |-> <<>>]]]
+        /\ log = [self \in Nodes |-> [o \in Objects |-> <<>>]]
         /\ own = [self \in Nodes |-> {}]
-        /\ accepted = [self \in Nodes |-> [o \in Objects |-> {}]]
-        /\ decided = [self \in Nodes |-> [o \in Objects |-> [s \in Slots |-> <<>>]]]
-        /\ pc = [self \in ProcSet |-> "p"]
-
-p(self) == /\ pc[self] = "p"
-           /\ PrintT((Q2))
-           /\ pc' = [pc EXCEPT ![self] = "start"]
-           /\ UNCHANGED << msgs, proposed, ballots, slots, log, own, accepted, 
-                           decided >>
+        /\ pc = [self \in ProcSet |-> "start"]
 
 start(self) == /\ pc[self] = "start"
                /\ \/ /\ pc' = [pc EXCEPT ![self] = "propose"]
-                  \/ /\ pc' = [pc EXCEPT ![self] = "HandlePrepare"]
-                  \/ /\ pc' = [pc EXCEPT ![self] = "HandlePromise"]
-                  \/ /\ pc' = [pc EXCEPT ![self] = "HandleAccept"]
-                  \/ /\ pc' = [pc EXCEPT ![self] = "HandleAccepted"]
-               /\ UNCHANGED << msgs, proposed, ballots, slots, log, own, 
-                               accepted, decided >>
+                  \/ /\ pc' = [pc EXCEPT ![self] = "p1a"]
+                  \/ /\ pc' = [pc EXCEPT ![self] = "p1b"]
+                  \/ /\ pc' = [pc EXCEPT ![self] = "p2a"]
+                  \/ /\ pc' = [pc EXCEPT ![self] = "p2b"]
+                  \/ /\ pc' = [pc EXCEPT ![self] = "p3"]
+               /\ UNCHANGED << msgs, proposed, ballots, slots, log, own >>
 
 propose(self) == /\ pc[self] = "propose"
-                 /\ \E c \in (Commands \ proposed):
-                      /\ proposed' = (proposed \union {c})
-                      /\ IF Access(c) \notin own[self]
-                            THEN /\ ballots' = [ballots EXCEPT ![self][Access(c)] = @ + 1]
-                                 /\ msgs' = (msgs \union {([type |-> "prepare", n |-> self, o |-> Access(c), b |-> ballots'[self][Access(c)]])})
-                                 /\ UNCHANGED << slots, log >>
-                            ELSE /\ slots' = [slots EXCEPT ![self][Access(c)] = @ + 1]
-                                 /\ log' = [log EXCEPT ![self][Access(c)][slots'[self][Access(c)]] = [cmd |-> c, commit |-> FALSE]]
-                                 /\ msgs' = (msgs \union {([type |-> "accept", n |-> self, o |-> Access(c), b |-> ballots[self][Access(c)]])})
-                                 /\ UNCHANGED ballots
+                 /\ proposed <= NumCommands
+                 /\ proposed' = proposed + 1
+                 /\ \E o \in Objects:
+                      IF o \notin own[self]
+                         THEN /\ ballots' = [ballots EXCEPT ![self][o] = <<ballots[self][o][1] + 1, self>>]
+                              /\ msgs' = (msgs \union {([type |-> "1a",
+                                                            n |-> self,
+                                                            o |-> o,
+                                                            b |-> ballots'[self][o]])})
+                              /\ UNCHANGED << slots, log >>
+                         ELSE /\ slots' = [slots EXCEPT ![self][o] = slots[self][o] + 1]
+                              /\ log' = [log EXCEPT ![self][o] = Append(@, [b |-> ballots[self][o], v |-> <<slots'[self][o], self>>, commit |-> FALSE])]
+                              /\ msgs' = (msgs \union {([type |-> "2a",
+                                                            n |-> self,
+                                                            o |-> o,
+                                                            b |-> ballots[self][o],
+                                                            s |-> Len(log'[self][o]),
+                                                            v |-> <<slots'[self][o], self>>])})
+                              /\ UNCHANGED ballots
                  /\ pc' = [pc EXCEPT ![self] = "start"]
-                 /\ UNCHANGED << own, accepted, decided >>
+                 /\ own' = own
 
-HandlePrepare(self) == /\ pc[self] = "HandlePrepare"
-                       /\ \E msg \in msgs:
-                            /\ msg.type = "prepare" /\ msg.b > ballots[self][msg.o]
-                            /\ ballots' = [ballots EXCEPT ![self][msg.o] = msg.b]
-                            /\ IF msg.o \in own[self]
-                                  THEN /\ own' = [own EXCEPT ![self] = own[self] \ {msg.o}]
-                                  ELSE /\ TRUE
-                                       /\ own' = own
-                            /\ msgs' = (msgs \union {([type |-> "promise", n |-> self, o |-> msg.o, b |-> msg.b, s |-> slots[self][msg.o]])})
-                       /\ pc' = [pc EXCEPT ![self] = "start"]
-                       /\ UNCHANGED << proposed, slots, log, accepted, decided >>
+p1a(self) == /\ pc[self] = "p1a"
+             /\ \E m \in msgs:
+                  /\ m.type = "1a"
+                  /\ m.b \succeq ballots[self][m.o]
+                  /\ ballots' = [ballots EXCEPT ![self][m.o] = m.b]
+                  /\ IF m.o \in own[self]
+                        THEN /\ own' = [own EXCEPT ![self] = own[self] \ {m.o}]
+                        ELSE /\ TRUE
+                             /\ own' = own
+                  /\ msgs' = (msgs \union {([type |-> "1b",
+                                                n |-> self,
+                                                o |-> m.o,
+                                                b |-> m.b,
+                                                s |-> slots[self][m.o]])})
+             /\ pc' = [pc EXCEPT ![self] = "start"]
+             /\ UNCHANGED << proposed, slots, log >>
 
-HandlePromise(self) == /\ pc[self] = "HandlePromise"
-                       /\ \E msg \in msgs:
-                            /\ msg.type = "promise" /\ msg.b = ballots[self][msg.o]
-                            /\ IF Q1Satisfied(ballots[self][msg.o])
-                                  THEN /\ own' = [own EXCEPT ![self] = own[self] \union {msg.o}]
-                                       /\ slots' = [slots EXCEPT ![self][msg.o] = slots[self][msg.o] + 1]
-                                       /\ msgs' = (msgs \union {([type |-> "accept", n |-> self, b |-> ballots[self][msg.o], s |-> slots'[self][msg.o], c |-> MaxV(slots'[self][msg.o], accepted[self][msg.o])])})
-                                  ELSE /\ TRUE
-                                       /\ UNCHANGED << msgs, slots, own >>
-                       /\ pc' = [pc EXCEPT ![self] = "start"]
-                       /\ UNCHANGED << proposed, ballots, log, accepted, 
-                                       decided >>
+p1b(self) == /\ pc[self] = "p1b"
+             /\ \E m \in msgs:
+                  /\ m.type = "1b"
+                  /\ m.b = ballots[self][m.o]
+                  /\ IF Q1Satisfied(ballots[self][m.o])
+                        THEN /\ own' = [own EXCEPT ![self] = own[self] \union {m.o}]
+                             /\ slots' = [slots EXCEPT ![self][m.o] = slots[self][m.o] + 1]
+                             /\ log' = [log EXCEPT ![self][m.o] = Append(@, [b |-> ballots[self][m.o], v |-> <<slots'[self][m.o], self>>, commit |-> FALSE])]
+                             /\ msgs' = (msgs \union {([type |-> "2a",
+                                                           n |-> self,
+                                                           b |-> ballots[self][m.o],
+                                                           s |-> slots'[self][m.o],
+                                                           o |-> m.o,
+                                                           v |-> <<slots'[self][m.o], self>>])})
+                        ELSE /\ TRUE
+                             /\ UNCHANGED << msgs, slots, log, own >>
+             /\ pc' = [pc EXCEPT ![self] = "start"]
+             /\ UNCHANGED << proposed, ballots >>
 
-HandleAccept(self) == /\ pc[self] = "HandleAccept"
-                      /\ \E msg \in msgs:
-                           /\ msg.type = "accept" /\ msg.b >= ballots[self][Access(msg.c)]
-                           /\ ballots' = [ballots EXCEPT ![self][Access(msg.c)] = msg.b]
-                           /\ accepted' = [accepted EXCEPT ![self][Access(msg.c)] = @ \union {[s |-> msg.s, b |-> msg.b, c |-> msg.c]}]
-                           /\ msgs' = (msgs \union {([type |-> "accepted", n |-> self, o |-> Access(msg.c), b |-> msg.b, s |-> msg.s])})
-                      /\ pc' = [pc EXCEPT ![self] = "start"]
-                      /\ UNCHANGED << proposed, slots, log, own, decided >>
+p2a(self) == /\ pc[self] = "p2a"
+             /\ \E m \in msgs:
+                  /\ m.type = "2a"
+                  /\ m.b \succeq ballots[self][m.o]
+                  /\ ballots' = [ballots EXCEPT ![self][m.o] = m.b]
+                  /\ log' = [log EXCEPT ![self][m.o][m.s] = [b |-> m.b, v |-> m.v, commit |-> FALSE]]
+                  /\ msgs' = (msgs \union {([type |-> "2b",
+                                                n |-> self,
+                                                o |-> m.o,
+                                                b |-> m.b,
+                                                s |-> m.s])})
+             /\ pc' = [pc EXCEPT ![self] = "start"]
+             /\ UNCHANGED << proposed, slots, own >>
 
-HandleAccepted(self) == /\ pc[self] = "HandleAccepted"
-                        /\ \E msg \in msgs:
-                             /\ msg.type = "accepted" /\ msg.b = ballots[self][msg.o]
-                             /\ IF Q2Satisfied(ballots[self][msg.o])
-                                   THEN /\ decided' = [decided EXCEPT ![self][msg.o][msg.s] = <<msg.b, msg>>]
-                                   ELSE /\ TRUE
-                                        /\ UNCHANGED decided
-                        /\ pc' = [pc EXCEPT ![self] = "start"]
-                        /\ UNCHANGED << msgs, proposed, ballots, slots, log, 
-                                        own, accepted >>
+p2b(self) == /\ pc[self] = "p2b"
+             /\ \E m \in msgs:
+                  /\ m.type = "2b"
+                  /\ m.b = ballots[self][m.o]
+                  /\ IF Q2Satisfied(ballots[self][m.o])
+                        THEN /\ log' = [log EXCEPT ![self][m.o][m.s].commit = TRUE]
+                             /\ msgs' = (msgs \union {([type |-> "3",
+                                                           n |-> self,
+                                                           o |-> m.o,
+                                                           b |-> ballots[self][m.o],
+                                                           s |-> m.s])})
+                        ELSE /\ TRUE
+                             /\ UNCHANGED << msgs, log >>
+             /\ pc' = [pc EXCEPT ![self] = "start"]
+             /\ UNCHANGED << proposed, ballots, slots, own >>
 
-node(self) == p(self) \/ start(self) \/ propose(self)
-                 \/ HandlePrepare(self) \/ HandlePromise(self)
-                 \/ HandleAccept(self) \/ HandleAccepted(self)
+p3(self) == /\ pc[self] = "p3"
+            /\ \E m \in msgs:
+                 /\ m.type = "3"
+                 /\ log' = [log EXCEPT ![self][m.o][m.s].commit = TRUE]
+            /\ pc' = [pc EXCEPT ![self] = "start"]
+            /\ UNCHANGED << msgs, proposed, ballots, slots, own >>
+
+node(self) == start(self) \/ propose(self) \/ p1a(self) \/ p1b(self)
+                 \/ p2a(self) \/ p2b(self) \/ p3(self)
 
 Next == (\E self \in Nodes: node(self))
-           \/ (* Disjunct to prevent deadlock on termination *)
-              ((\A self \in ProcSet: pc[self] = "Done") /\ UNCHANGED vars)
 
-Spec == /\ Init /\ [][Next]_vars
-        /\ \A self \in Nodes : WF_vars(node(self))
-
-Termination == <>(\A self \in ProcSet: pc[self] = "Done")
+Spec == Init /\ [][Next]_vars
 
 \* END TRANSLATION
 
@@ -303,6 +383,23 @@ Termination == <>(\A self \in ProcSet: pc[self] = "Done")
 (***************************************************************************)
 f ++ kv == [x \in DOMAIN f \union {kv[1]} |-> IF x = kv[1] THEN kv[2] ELSE f[x]]
 
-TypeOK == /\ msgs \subseteq Messages
+TypeOK == msgs \subseteq Messages
+          
+\*Safety == ~ (\A i,j \in Nodes,
+\*                  o \in Objects,
+\*                  s \in Slots :
+\*             /\ log[i][o][s] # <<>>
+\*             /\ log[i][o][s].commit = TRUE
+\*             /\ log[j][o][s].commit = TRUE
+\*             /\ log[i][o][s].v # log[j][o][s].v)
+             
+Safety == \A i, j \in Nodes, o \in Objects, s \in Slots :
+          /\ log[i][o][s] # <<>>
+          /\ log[j][o][s] # <<>>
+          /\ log[i][o][s].commit = TRUE
+          /\ log[j][o][s].commit = TRUE
+          => log[i][o][s].v = log[j][o][s].v
+             
+Inv == TypeOK /\ Safety
 
 =============================================================================

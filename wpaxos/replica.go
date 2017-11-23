@@ -2,7 +2,7 @@ package wpaxos
 
 import (
 	. "paxi"
-	"paxi/glog"
+	"paxi/log"
 )
 
 type Replica struct {
@@ -35,48 +35,48 @@ func (r *Replica) init(key Key) {
 }
 
 func (r *Replica) handleRequest(msg Request) {
-	glog.V(2).Infof("Replica %s received %v\n", r.ID, msg)
+	log.Debugf("Replica %s received %v\n", r.ID, msg)
 	key := msg.Command.Key
 	r.init(key)
 	r.paxi[key].handleRequest(msg)
 }
 
 func (r *Replica) handlePrepare(msg Prepare) {
-	glog.V(1).Infof("Replica %s ===[%v]===>>> Replica %s\n", LeaderID(msg.Ballot), msg, r.ID)
+	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", LeaderID(msg.Ballot), msg, r.ID)
 	key := msg.Key
 	r.init(key)
 	r.paxi[key].handlePrepare(msg)
 }
 
 func (r *Replica) handlePromise(msg Promise) {
-	glog.V(1).Infof("Replica %s ===[%v]===>>> Replica %s\n", msg.ID, msg, r.ID)
+	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", msg.ID, msg, r.ID)
 	key := msg.Key
 	r.paxi[key].handlePromise(msg)
-	glog.V(2).Infof("Number of keys: %d", r.keys())
+	log.Debugf("Number of keys: %d", r.keys())
 }
 
 func (r *Replica) handleAccept(msg Accept) {
-	glog.V(1).Infof("Replica %s ===[%v]===>>> Replica %s\n", LeaderID(msg.Ballot), msg, r.ID)
+	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", LeaderID(msg.Ballot), msg, r.ID)
 	key := msg.Key
 	r.init(key)
 	r.paxi[key].handleAccept(msg)
 }
 
 func (r *Replica) handleAccepted(msg Accepted) {
-	glog.V(1).Infof("Replica %s ===[%v]===>>> Replica %s\n", msg.ID, msg, r.ID)
+	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", msg.ID, msg, r.ID)
 	key := msg.Key
 	r.paxi[key].handleAccepted(msg)
 }
 
 func (r *Replica) handleCommit(msg Commit) {
-	glog.V(1).Infof("Replica %s ===[%v]===>>> Replica %s\n", LeaderID(msg.Ballot), msg, r.ID)
+	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", LeaderID(msg.Ballot), msg, r.ID)
 	key := msg.Key
 	r.init(key)
 	r.paxi[key].handleCommit(msg)
 }
 
 func (r *Replica) handleLeaderChange(msg LeaderChange) {
-	glog.V(1).Infof("Replica %s ===[%v]===>>> Replica %s\n", msg.From, msg, r.ID)
+	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", msg.From, msg, r.ID)
 	key := msg.Key
 	r.paxi[key].handleLeaderChange(msg)
 }

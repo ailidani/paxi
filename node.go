@@ -7,7 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"paxi/glog"
+	"paxi/log"
 	"reflect"
 	"strconv"
 	"sync"
@@ -81,7 +81,7 @@ func (n *Node) Register(m interface{}, f interface{}) {
 
 // Run start and run the node
 func (n *Node) Run() {
-	glog.Infof("node %v start running\n", n.ID)
+	log.Infof("node %v start running\n", n.ID)
 	if len(n.handles) > 0 {
 		go n.handle()
 	}
@@ -107,7 +107,7 @@ func (n *Node) serve() {
 			case http.MethodPut, http.MethodPost:
 				body, err := ioutil.ReadAll(r.Body)
 				if err != nil {
-					glog.Errorln("error reading body: ", err)
+					log.Errorln("error reading body: ", err)
 					http.Error(w, "cannot read body", http.StatusBadRequest)
 					return
 				}
@@ -116,7 +116,7 @@ func (n *Node) serve() {
 		} else {
 			body, err := ioutil.ReadAll(r.Body)
 			if err != nil {
-				glog.Errorln("error reading body: ", err)
+				log.Errorln("error reading body: ", err)
 				http.Error(w, "cannot read body", http.StatusBadRequest)
 				return
 			}
@@ -138,13 +138,13 @@ func (n *Node) serve() {
 			_, err := io.WriteString(w, string(reply.Command.Value))
 			// _, err := r.w.Write(reply.Command.Value)
 			if err != nil {
-				glog.Errorln(err)
+				log.Errorln(err)
 			}
 		}
 	})
 	err := http.ListenAndServe(n.http, mux)
 	if err != nil {
-		glog.Fatalln(err)
+		log.Fatalln(err)
 	}
 }
 
@@ -161,7 +161,7 @@ func (n *Node) handle() {
 		name := v.Type().String()
 		f, exists := n.handles[name]
 		if !exists {
-			glog.Fatalf("no registered handle function for message type %v", name)
+			log.Fatalf("no registered handle function for message type %v", name)
 		}
 		f.Call([]reflect.Value{v})
 	}

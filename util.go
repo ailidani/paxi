@@ -2,8 +2,8 @@ package paxi
 
 import (
 	"encoding/gob"
-	"log"
 	"net"
+	"paxi/log"
 	"strconv"
 	"time"
 )

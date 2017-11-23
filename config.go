@@ -3,7 +3,7 @@ package paxi
 import (
 	"encoding/json"
 	"os"
-	"paxi/glog"
+	"paxi/log"
 	"strconv"
 )
 
@@ -50,7 +50,7 @@ func MakeDefaultConfig() *Config {
 func (c *Config) String() string {
 	config, err := json.Marshal(c)
 	if err != nil {
-		glog.Errorln(err)
+		log.Errorln(err)
 	}
 	return string(config)
 	//return fmt.Sprintf("Config[MyID:%s,Address:%s]", c.ID.String(), c.Addrs[c.ID])

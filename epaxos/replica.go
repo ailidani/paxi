@@ -2,7 +2,7 @@ package epaxos
 
 import (
 	. "paxi"
-	"paxi/glog"
+	"paxi/log"
 )
 
 const HT_INIT_SIZE = 200000
@@ -136,62 +136,62 @@ func (r *Replica) messageLoop() {
 		case msg := <-r.MessageChan:
 			switch msg := msg.(type) {
 			case Request:
-				glog.V(2).Infof("Replica %s received %v\n", r.ID, msg)
+				log.Debugf("Replica %s received %v\n", r.ID, msg)
 				r.handleProposal(msg)
 
 			case Prepare:
-				glog.V(2).Infof("Replica %s ===[%v]===>>> Replica %s\n", msg.LeaderId, msg, r.ID)
+				log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", msg.LeaderId, msg, r.ID)
 				r.handlePrepare(&msg)
 				break
 
 			case PreAccept:
-				//glog.V(2).Infof("Received PreAccept for instance %d.%d\n", msg.LeaderId, msg.Instance)
-				glog.V(2).Infof("Replica %s ===[%v]===>>> Replica %s\n", msg.LeaderId, msg, r.ID)
+				//Debugf("Received PreAccept for instance %d.%d\n", msg.LeaderId, msg.Instance)
+				log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", msg.LeaderId, msg, r.ID)
 				r.handlePreAccept(&msg)
 				break
 
 			case Accept:
-				glog.V(2).Infof("Received Accept for instance %d.%d\n", msg.LeaderId, msg.Instance)
+				log.Debugf("Received Accept for instance %d.%d\n", msg.LeaderId, msg.Instance)
 				r.handleAccept(&msg)
 				break
 
 			case Commit:
-				glog.V(2).Infof("Received Commit for instance %d.%d\n", msg.LeaderId, msg.Instance)
+				log.Debugf("Received Commit for instance %d.%d\n", msg.LeaderId, msg.Instance)
 				r.handleCommit(&msg)
 				break
 
 			case CommitShort:
-				glog.V(2).Infof("Received CommitShort for instance %d.%d\n", msg.LeaderId, msg.Instance)
+				log.Debugf("Received CommitShort for instance %d.%d\n", msg.LeaderId, msg.Instance)
 				r.handleCommitShort(&msg)
 				break
 
 			case PrepareReply:
-				glog.V(2).Infof("Replica %s ===[%v]===>>> Replica %s\n", msg.Replica, msg, r.ID)
+				log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", msg.Replica, msg, r.ID)
 				r.handlePrepareReply(&msg)
 				break
 
 			case PreAcceptReply:
-				glog.V(2).Infof("Replica %s ===[%v]===>>> Replica %s\n", msg.Replica, msg, r.ID)
+				log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", msg.Replica, msg, r.ID)
 				r.handlePreAcceptReply(&msg)
 				break
 
 			case PreAcceptOK:
-				glog.V(2).Infof("Replica %s ===[%v]===>>> Replica %s\n", msg.Replica, msg, r.ID)
+				log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", msg.Replica, msg, r.ID)
 				r.handlePreAcceptOK(&msg)
 				break
 
 			case AcceptReply:
-				glog.V(2).Infof("Replica %s ===[%v]===>>> Replica %s\n", msg.Replica, msg, r.ID)
+				log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", msg.Replica, msg, r.ID)
 				r.handleAcceptReply(&msg)
 				break
 
 			case TryPreAccept:
-				glog.V(2).Infof("Replica %s ===[%v]===>>> Replica %s\n", msg.LeaderId, msg, r.ID)
+				log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", msg.LeaderId, msg, r.ID)
 				r.handleTryPreAccept(&msg)
 				break
 
 			case TryPreAcceptReply:
-				glog.V(2).Infof("Replica %s ===[%v]===>>> Replica %s\n", msg.Replica, msg, r.ID)
+				log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", msg.Replica, msg, r.ID)
 				r.handleTryPreAcceptReply(&msg)
 				break
 
@@ -340,7 +340,7 @@ func (r *Replica) handleProposal(msg Request) {
 	instance := r.crtInstance[r.ID]
 	r.crtInstance[r.ID]++
 
-	glog.V(2).Infof("Starting instance %d\n", instance)
+	log.Debugf("Starting instance %d\n", instance)
 
 	cmds := []Command{msg.Command}
 
@@ -477,11 +477,11 @@ func (r *Replica) handlePreAccept(msg *PreAccept) {
 		r.Send(msg.LeaderId, &PreAcceptOK{r.ID, msg.Instance})
 	}
 
-	glog.V(2).Infof("I've replied to the PreAccept\n")
+	log.Debugf("I've replied to the PreAccept\n")
 }
 
 func (r *Replica) handlePreAcceptReply(msg *PreAcceptReply) {
-	glog.V(2).Infof("Handling PreAccept reply\n")
+	log.Debugf("Handling PreAccept reply\n")
 	inst := r.InstanceSpace[msg.Replica][msg.Instance]
 
 	if inst.status != PREACCEPTED {
@@ -529,7 +529,7 @@ func (r *Replica) handlePreAcceptReply(msg *PreAcceptReply) {
 	//can we commit on the fast path?
 	if inst.lb.preAcceptQuorum.FastPath() && inst.lb.allEqual && allCommitted && isInitialBallot(inst.ballot) {
 		happy++
-		glog.V(2).Infof("Fast path for instance %d.%d\n", msg.Replica, msg.Instance)
+		log.Debugf("Fast path for instance %d.%d\n", msg.Replica, msg.Instance)
 		r.InstanceSpace[msg.Replica][msg.Instance].status = COMMITTED
 		r.updateCommitted(msg.Replica)
 		if inst.lb.proposals != nil {
@@ -570,12 +570,12 @@ func (r *Replica) handlePreAcceptOK(msg *PreAcceptOK) {
 
 	if inst.status != PREACCEPTED {
 		// we've moved on, this is a delayed reply
-		glog.V(2).Infoln(" we've moved on, this is a delayed reply")
+		log.Debugln(" we've moved on, this is a delayed reply")
 		return
 	}
 
 	if !isInitialBallot(inst.ballot) {
-		glog.V(2).Infof("is not initial ballot = %v\n", inst.ballot)
+		log.Debugf("is not initial ballot = %v\n", inst.ballot)
 		return
 	}
 

@@ -4,7 +4,6 @@ import (
 	"log"
 	"math/rand"
 	. "paxi"
-	"paxi/glog"
 	"testing"
 	"time"
 )
@@ -84,7 +83,6 @@ func TestClient(t *testing.T) {
 	}
 
 	end_time := time.Now()
-	glog.Warningf("Test took %v\n", end_time.Sub(start_time))
-	glog.Flush()
+	Infof("Test took %v\n", end_time.Sub(start_time))
 
 }

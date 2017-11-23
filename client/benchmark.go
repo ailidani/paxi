@@ -4,7 +4,7 @@ import (
 	"flag"
 	"math/rand"
 	. "paxi"
-	"paxi/glog"
+	"paxi/log"
 	"sync"
 	"time"
 )
@@ -59,14 +59,13 @@ func do(client *Client) {
 			key = Key(rand.Intn(*keys) + min)
 		}
 	}
-	// glog.V(2).Infof("key=%d", key)
 
 	if *synch {
 		start := time.Now()
 		client.Put(key, []byte{42})
 		t := time.Now().Sub(start)
 		latency = append(latency, t)
-		glog.V(1).Infof("%v, %d, %v", client.ID, key, float64(t.Nanoseconds())/1000000.0)
+		log.Debugf("%v, %d, %v", client.ID, key, float64(t.Nanoseconds())/1000000.0)
 	} else {
 		client.PutAsync(key, []byte{41})
 		counter++
@@ -74,7 +73,7 @@ func do(client *Client) {
 			tnow := time.Now().UnixNano()
 			tdiff := tnow - prevAsyncThrottleTime + 1000
 			treq := int64(1000000000 / *throttle) * int64(throttleUnit)
-			// glog.V(2).Infof("Client %v throttles down. Sleeping %f ms", client.ID, float64((treq-tdiff)/1000000.0))
+			// Debugf("Client %v throttles down. Sleeping %f ms", client.ID, float64((treq-tdiff)/1000000.0))
 			time.Sleep(time.Duration(treq - tdiff))
 			prevAsyncThrottleTime = time.Now().UnixNano()
 		}
@@ -113,13 +112,13 @@ func main() {
 	flag.Parse()
 
 	config := ConnectToMaster(*addr, true, NewID(uint8(*sid), uint8(*nid)))
-	glog.Infof("Received config %s\n", config)
+	log.Infof("Received config %s\n", config)
 
 	clients := make([]*Client, 0)
 
 	for i := 1; i <= *T; i++ {
 		config.ID = NewID(uint8(*sid), uint8(i))
-		glog.Infof("Client %s config %s\n", config.ID, config)
+		log.Infof("Client %s config %s\n", config.ID, config)
 		c := NewClient(config)
 		c.Start()
 		clients = append(clients, c)
@@ -146,23 +145,21 @@ func main() {
 
 		if *synch {
 			stat := Statistic(latency)
-			// glog.Warningln(stat.Data)
 			stat.WriteFile("latency")
 
-			glog.Warningf("Round took %v\n", end.Sub(start))
-			glog.Warningf("throughput %f\n", float64(len(latency))/end.Sub(start).Seconds())
-			glog.Warningln(stat)
+			log.Infof("Round took %v\n", end.Sub(start))
+			log.Infof("throughput %f\n", float64(len(latency))/end.Sub(start).Seconds())
+			log.Warningln(stat)
 
 			latency = make([]time.Duration, 0)
 		} else {
-			glog.Warningf("Total async operations: %d", counter)
+			log.Infof("Total async operations: %d", counter)
 		}
 
 	}
 
 	end_time := time.Now()
-	glog.Warningf("Test took %v\n", end_time.Sub(start_time))
-	glog.Flush()
+	log.Infof("Test took %v\n", end_time.Sub(start_time))
 
 	if *move {
 		stop <- true

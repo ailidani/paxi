@@ -3,10 +3,11 @@ package paxi
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"io"
 	"net"
 	"net/url"
-	"paxi/glog"
+	"paxi/log"
 	"sync"
 )
 
@@ -24,7 +25,7 @@ type Transport interface {
 func NewTransport(addr string) Transport {
 	uri, err := url.Parse(addr)
 	if err != nil {
-		glog.Error("error parsing address %s", addr)
+		log.Error("error parsing address %s", addr)
 	}
 
 	transport := new(transport)
@@ -85,27 +86,27 @@ func (t *transport) Dial() error {
 				size := uint64(len(m.Header) + len(m.Body))
 				err = binary.Write(&buf, binary.BigEndian, size)
 				if err != nil {
-					glog.Errorln(err)
+					log.Errorln(err)
 					m.Free()
 					return
 				}
 				if len(m.Header) > 0 {
 					_, err = buf.Write(m.Header)
 					if err != nil {
-						glog.Errorln(err)
+						log.Errorln(err)
 						m.Free()
 						return
 					}
 				}
 				_, err = buf.Write(m.Body)
 				if err != nil {
-					glog.Errorln(err)
+					log.Errorln(err)
 					m.Free()
 					return
 				}
 				_, err = conn.Write(buf.Bytes())
 				if err != nil {
-					glog.Errorln(err)
+					log.Errorln(err)
 					m.Free()
 					return
 				}
@@ -138,15 +139,15 @@ func (t *transport) Close() {
 	close(t.close)
 }
 
-/******************************
-/* Inta-process communication *
-/******************************/
+/*******************************
+/* Intra-process communication *
+/*******************************/
 
 var chans = make(map[string]chan *Message)
+var chansLock sync.RWMutex
 
 type channel struct {
 	*transport
-	sync.RWMutex
 }
 
 func (c *channel) Scheme() string {
@@ -154,8 +155,12 @@ func (c *channel) Scheme() string {
 }
 
 func (c *channel) Dial() error {
-	c.RLock()
-	defer c.RUnlock()
+	chansLock.RLock()
+	defer chansLock.RUnlock()
+	conn, ok := chans[c.uri.Host]
+	if !ok {
+		return errors.New("server not ready")
+	}
 	go func(conn chan<- *Message) {
 		for {
 			select {
@@ -169,13 +174,13 @@ func (c *channel) Dial() error {
 				conn <- m
 			}
 		}
-	}(chans[c.uri.Host])
+	}(conn)
 	return nil
 }
 
 func (c *channel) Listen() {
-	c.Lock()
-	defer c.Unlock()
+	chansLock.Lock()
+	defer chansLock.Unlock()
 	chans[c.uri.Host] = make(chan *Message, CHAN_BUFFER_SIZE)
 	go func(conn <-chan *Message) {
 		for {
@@ -199,13 +204,13 @@ type tcp struct {
 func (t *tcp) Listen() {
 	listener, err := net.Listen("tcp", t.uri.Host)
 	if err != nil {
-		glog.Fatalln("TCP Listener error: ", err)
+		log.Fatalln("TCP Listener error: ", err)
 	}
 	defer listener.Close()
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
-			glog.Errorln("TCP Accept error: ", err)
+			log.Errorln("TCP Accept error: ", err)
 			continue
 		}
 
@@ -220,18 +225,18 @@ func (t *tcp) Listen() {
 					var size uint64
 					err := binary.Read(conn, binary.BigEndian, &size)
 					if err != nil {
-						glog.Errorln(err)
+						log.Errorln(err)
 						return
 					}
 					if size < 0 || size > 65536 {
-						glog.Errorln("TCP reading size error: ", size)
+						log.Errorln("TCP reading size error: ", size)
 						return
 					}
 					m := NewMessage(int(size))
 					m.Body = m.Body[0:size]
 					_, err = io.ReadFull(conn, m.Body)
 					if err != nil {
-						glog.Errorln(err)
+						log.Errorln(err)
 						m.Free()
 						return
 					}
@@ -252,32 +257,32 @@ type udp struct {
 func (u *udp) Listen() {
 	conn, err := net.ListenPacket("udp", u.uri.Host)
 	if err != nil {
-		glog.Fatal("UDP Listener error: ", err)
+		log.Fatal("UDP Listener error: ", err)
 	}
 	defer conn.Close()
 	b := make([]byte, 1024)
 	for {
 		_, _, err := conn.ReadFrom(b)
 		if err != nil {
-			glog.Errorln("UDP connection read error: ", err)
+			log.Errorln("UDP connection read error: ", err)
 			continue
 		}
 		buf := bytes.NewBuffer(b)
 		var size uint64
 		err = binary.Read(buf, binary.BigEndian, &size)
 		if err != nil {
-			glog.Errorln(err)
+			log.Errorln(err)
 			continue
 		}
 		if size < 0 || size > 1500 {
-			glog.Errorln("Size error: ", size)
+			log.Errorln("Size error: ", size)
 			continue
 		}
 		m := NewMessage(int(size))
 		m.Body = m.Body[0:int(size)]
 		_, err = io.ReadFull(buf, m.Body)
 		if err != nil {
-			glog.Errorln(err)
+			log.Errorln(err)
 			m.Free()
 			continue
 		}

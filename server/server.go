@@ -2,12 +2,11 @@ package main
 
 import (
 	"flag"
-	"log"
 	. "paxi"
 	"paxi/cosmos"
 	"paxi/epaxos"
-	"paxi/glog"
 	"paxi/kpaxos"
+	"paxi/log"
 	"paxi/wpaxos"
 	"strconv"
 	"sync"
@@ -18,11 +17,12 @@ var sid = flag.Int("sid", 0, "Site ID. Default 0.")
 var nid = flag.Int("nid", 0, "Node ID. Default 0.")
 var master = flag.String("master", "127.0.0.1", "Master address.")
 
-var mock = flag.Bool("mock", false, "Mocking network by chan and goroutine.")
+var simulation = flag.Bool("simulation", false, "Mocking network by chan and goroutine.")
 var n = flag.Int("n", 3, "number of servers in each site")
 var m = flag.Int("m", 2, "number of sites")
 
-// mocking configuration with n servers in m sites
+// mockConfigs mocks configuration with n servers in m sites
+// not used yet
 func mockConfigs(n int, m int) []*Config {
 	addrs := make(map[ID]string, n*m)
 	http := make(map[ID]string, n*m)
@@ -51,7 +51,7 @@ func mockConfigs(n int, m int) []*Config {
 
 func replica(id ID) {
 	config := ConnectToMaster(*master, false, id)
-	glog.Infof("server %v received config from master\n", config.ID)
+	log.Infof("server %v received config from master\n", config.ID)
 
 	switch config.Algorithm {
 	case "wpaxos":
@@ -87,7 +87,7 @@ func mockNodes() {
 func main() {
 	flag.Parse()
 
-	if *mock {
+	if *simulation {
 		var wg sync.WaitGroup
 		wg.Add(1)
 		mockNodes()

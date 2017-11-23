@@ -32,20 +32,16 @@ func NewSocket(id ID, addrs map[ID]string) Socket {
 	socket.nodes[id] = NewTransport(addrs[id])
 	go socket.nodes[id].Listen()
 
-	done := len(addrs) - 1
-	for done > 0 {
-		for id, addr := range addrs {
-			if id == socket.id {
-				continue
-			}
-			socket.nodes[id] = NewTransport(addr)
-			err := socket.nodes[id].Dial()
-			if err != nil {
-				continue
-			}
-			done--
-
+	for id, addr := range addrs {
+		if id == socket.id {
+			continue
 		}
+		t := NewTransport(addr)
+		err := t.Dial()
+		for err != nil {
+			err = t.Dial()
+		}
+		socket.nodes[id] = t
 	}
 	return socket
 }

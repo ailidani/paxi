@@ -5,10 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/http/httputil"
-	"paxi/glog"
+	"paxi/log"
 	"strconv"
 	"sync"
 	"time"
@@ -63,20 +62,20 @@ func (c *Client) RESTGet(key Key) Value {
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		glog.Errorln(err)
+		log.Errorln(err)
 		return nil
 	}
 	req.Header.Set("id", c.ID.String())
 	req.Header.Set("cid", fmt.Sprintf("%v", c.cid))
 	rep, err := http.DefaultClient.Do(req)
 	if err != nil {
-		glog.Errorln(err)
+		log.Errorln(err)
 		return nil
 	}
 	defer rep.Body.Close()
 	dump, _ := httputil.DumpResponse(rep, true)
-	log.Println(rep.Status)
-	log.Printf("%q", dump)
+	log.Debugln(rep.Status)
+	log.Debugf("%q", dump)
 	if rep.StatusCode == http.StatusOK {
 		b, _ := ioutil.ReadAll(rep.Body)
 		return Value(b)
@@ -93,20 +92,20 @@ func (c *Client) RESTPut(key Key, value Value) {
 
 	req, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(value))
 	if err != nil {
-		glog.Errorln(err)
+		log.Errorln(err)
 		return
 	}
 	req.Header.Set("id", c.ID.String())
 	req.Header.Set("cid", fmt.Sprintf("%v", c.cid))
 	rep, err := http.DefaultClient.Do(req)
 	if err != nil {
-		glog.Errorln(err)
+		log.Errorln(err)
 		return
 	}
 	defer rep.Body.Close()
 	dump, _ := httputil.DumpResponse(rep, true)
-	log.Println(rep.Status)
-	log.Printf("%q", dump)
+	log.Debugln(rep.Status)
+	log.Debugf("%q", dump)
 }
 
 // Get post json get request to server url
@@ -152,7 +151,7 @@ func (c *Client) JSONGet(key Key) Value {
 	data, err := json.Marshal(*req)
 	rep, err := http.Post(url, "json", bytes.NewBuffer(data))
 	if err != nil {
-		glog.Errorln(err)
+		log.Errorln(err)
 		return nil
 	}
 	defer rep.Body.Close()
@@ -178,13 +177,13 @@ func (c *Client) JSONPut(key Key, value Value) {
 	data, err := json.Marshal(*req)
 	rep, err := http.Post(url, "application/json", bytes.NewBuffer(data))
 	if err != nil {
-		glog.Errorln(err)
+		log.Errorln(err)
 		return
 	}
 	defer rep.Body.Close()
 	dump, _ := httputil.DumpResponse(rep, true)
-	log.Println(rep.Status)
-	log.Printf("%q", dump)
+	log.Debugln(rep.Status)
+	log.Debugf("%q", dump)
 }
 
 // RequestDone returns the total number of succeed async reqeusts

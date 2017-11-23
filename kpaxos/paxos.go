@@ -3,7 +3,7 @@ package kpaxos
 import (
 	"math/rand"
 	. "paxi"
-	"paxi/glog"
+	"paxi/log"
 	"time"
 )
 
@@ -54,7 +54,7 @@ func (p *paxos) prepare() {
 			Key:    p.key,
 			Ballot: p.ballot,
 		})
-		glog.V(2).Infof("Replica %v sent %v", p.ID, Prepare{p.key, p.ballot})
+		log.Debugf("Replica %v sent %v", p.ID, Prepare{p.key, p.ballot})
 	}
 }
 
@@ -120,7 +120,7 @@ func (p *paxos) handlePrepare(msg Prepare) {
 
 func (p *paxos) handlePromise(msg Promise) {
 	if msg.Ballot < p.ballot || p.active {
-		glog.V(2).Infof("Replica %s Ignoring old Promise msg %v\n", p.ID, msg)
+		log.Debugf("Replica %s Ignoring old Promise msg %v\n", p.ID, msg)
 		return
 	}
 
@@ -182,12 +182,12 @@ func (p *paxos) handleAccept(msg Accept) {
 func (p *paxos) handleAccepted(msg Accepted) {
 	ins := p.cmds[msg.Slot]
 	if ins == nil {
-		glog.Warningf("Unknown Accepted msg %v\n", msg)
+		log.Warningf("Unknown Accepted msg %v\n", msg)
 		return
 	}
 
 	if ins.committed || msg.Ballot < ins.ballot {
-		glog.V(2).Infof("Ignore old Accepted msg %v\n", msg)
+		log.Debugf("Ignore old Accepted msg %v\n", msg)
 		return
 	}
 
@@ -216,7 +216,7 @@ func (p *paxos) handleAccepted(msg Accepted) {
 			ins.request.Reply(rep)
 		}
 	} else {
-		glog.Warningf("Replica %s put cmd %v in slot=%d back to queue.\n", p.ID, ins.request.Command, msg.Slot)
+		log.Warningf("Replica %s put cmd %v in slot=%d back to queue.\n", p.ID, ins.request.Command, msg.Slot)
 		p.MessageChan <- *ins.request
 		delete(p.cmds, msg.Slot)
 	}
