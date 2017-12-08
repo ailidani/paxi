@@ -3,10 +3,11 @@ package main
 import (
 	"flag"
 	"math/rand"
-	. "paxi"
-	"paxi/log"
 	"sync"
 	"time"
+
+	. "github.com/ailidani/paxi"
+	"github.com/ailidani/paxi/log"
 )
 
 var sid = flag.Int("sid", 0, "Site ID.")

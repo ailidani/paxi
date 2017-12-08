@@ -3,8 +3,9 @@ package paxi
 import (
 	"encoding/json"
 	"os"
-	"paxi/log"
 	"strconv"
+
+	"github.com/ailidani/paxi/log"
 )
 
 // default values
@@ -16,22 +17,22 @@ const (
 )
 
 type Config struct {
-	ID             ID            `json:"id"`
+	ID             ID            `json:"-"`
 	Addrs          map[ID]string `json:"address"`      // address for node communication
-	HTTPAddrs      map[ID]string `json:"http_address"` // address for client
-	Algorithm      string        `json:"algorithm"`
-	F              int           `json:"f"` // number of failure nodes
-	Threshold      int           `json:"threshold"`
-	BackOff        int           `json:"backoff"`
-	Thrifty        bool          `json:"thrifty"`
+	HTTPAddrs      map[ID]string `json:"http_address"` // address for client server communication
+	Algorithm      string        `json:"algorithm"`    // replication algorithm name
+	F              int           `json:"f"`            // number of failure zones in grid quorums
+	Threshold      int           `json:"threshold"`    // threshold for leader change, 0 means no check
+	BackOff        int           `json:"backoff"`      // random backoff interval
+	Thrifty        bool          `json:"thrifty"`      // only send messages to a quorum
 	ChanBufferSize int           `json:"chan_buffer_size"`
 	BufferSize     int           `json:"buffer_size"`
 	ConfigFile     string        `json:"file"`
-	Consistency    int           `json:"consistency"`
-	// Transport      string        `json:"transport"`
-	// RecvRoutines   int           `json:"recv_routines"`
-	// Codec          string        `json:"codec"`
-	// Batching       bool          `json:"batching"`
+	Transport      string        `json:"transport"`
+	Codec          string        `json:"codec"`
+	// for future implementation
+	// Batching bool `json:"batching"`
+	// Consistency int `json:"consistency"`
 }
 
 func MakeDefaultConfig() *Config {
@@ -39,10 +40,22 @@ func MakeDefaultConfig() *Config {
 	config := new(Config)
 	config.ID = NewID(1, 1)
 	config.Addrs = map[ID]string{id: "chan://*:" + strconv.Itoa(PORT)}
+	config.HTTPAddrs = map[ID]string{id: "http://localhost:" + strconv.Itoa(HTTP_PORT)}
 	config.Algorithm = "wpaxos"
 	config.ChanBufferSize = CHAN_BUFFER_SIZE
 	config.BufferSize = BUFFER_SIZE
 	config.ConfigFile = "config.json"
+	config.Transport = "chan"
+	config.Codec = "gob"
+	return config
+}
+
+// NewConfig creates config object with given node id and config file path
+func NewConfig(id ID, file string) *Config {
+	config := new(Config)
+	config.ID = id
+	config.ConfigFile = file
+	config.Load()
 	return config
 }
 
@@ -56,6 +69,7 @@ func (c *Config) String() string {
 	//return fmt.Sprintf("Config[MyID:%s,Address:%s]", c.ID.String(), c.Addrs[c.ID])
 }
 
+// Load load configurations from config file in JSON format
 func (c *Config) Load() error {
 	file, err := os.Open(c.ConfigFile)
 	if err != nil {
@@ -65,6 +79,7 @@ func (c *Config) Load() error {
 	return decoder.Decode(c)
 }
 
+// Save save configurations to file in JSON format
 func (c *Config) Save() error {
 	file, err := os.Create(c.ConfigFile)
 	if err != nil {

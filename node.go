@@ -7,64 +7,62 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"paxi/log"
 	"reflect"
 	"strconv"
 	"sync"
+
+	"github.com/ailidani/paxi/log"
 )
 
 var (
-	// NumSites total number of sites
-	NumSites int
+	// NumZones total number of sites
+	NumZones int
 	// NumNodes total number of nodes
 	NumNodes int
 	// NumLocalNodes number of nodes per site
 	NumLocalNodes int
-	// Q1Size phase one quorum size
-	Q1Size int
-	// Q2Size phase two quorum size
-	Q2Size int
+	// F number of zone failures
+	F int
 )
 
 // Node is the base class for every replica
 // it includes networking, state machine and client handshake logic
 type Node struct {
-	ID ID
-	Socket
-	http string
+	ID     ID
+	http   string
+	Config *Config
 
+	Socket
 	DB          *StateMachine
 	MessageChan chan interface{}
 	handles     map[string]reflect.Value
 
 	sync.RWMutex
-
-	BackOff int  // random backoff interval
-	Thrifty bool // only send messages to a quorum
 }
 
 // NewNode creates a new Node object from configuration
 func NewNode(config *Config) *Node {
 	node := new(Node)
 	node.ID = config.ID
-	node.Socket = NewSocket(config.ID, config.Addrs)
+	node.Config = config
+
+	// http string should be in form of ":8080"
 	url, _ := url.Parse(config.HTTPAddrs[config.ID])
 	node.http = ":" + url.Port()
+
+	node.Socket = NewSocket(config.ID, config.Addrs, config.Codec)
 	node.DB = NewStateMachine()
 	node.MessageChan = make(chan interface{}, config.ChanBufferSize)
 	node.handles = make(map[string]reflect.Value)
-	node.BackOff = config.BackOff
-	node.Thrifty = config.Thrifty
 
-	sites := make(map[uint8]int)
+	zones := make(map[uint8]int)
 	for id := range config.Addrs {
-		sites[id.Site()]++
+		zones[id.Site()]++
 	}
-	NumSites = len(sites)
+	NumZones = len(zones)
 	NumNodes = len(config.Addrs)
-	NumLocalNodes = sites[config.ID.Site()]
-	Q1Size = NumSites * (config.F + 1)
-	Q2Size = NumLocalNodes - config.F
+	NumLocalNodes = zones[config.ID.Site()]
+	F = config.F
 
 	return node
 }
@@ -89,6 +87,7 @@ func (n *Node) Run() {
 	n.serve()
 }
 
+// serve serves the http REST API request from clients
 func (n *Node) serve() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -148,12 +147,14 @@ func (n *Node) serve() {
 	}
 }
 
+// recv receives messages from socket and pass to message channel
 func (n *Node) recv() {
 	for {
 		n.MessageChan <- n.Recv()
 	}
 }
 
+// handle receives messages from message channel and calls handle function using refection
 func (n *Node) handle() {
 	for {
 		msg := <-n.MessageChan

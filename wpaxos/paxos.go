@@ -2,9 +2,10 @@ package wpaxos
 
 import (
 	"math/rand"
-	. "paxi"
-	"paxi/log"
 	"time"
+
+	. "github.com/ailidani/paxi"
+	"github.com/ailidani/paxi/log"
 )
 
 type instance struct {
@@ -43,7 +44,7 @@ func NewPaxos(replica *Replica, key Key) *paxos {
 		log:      make(map[int]*instance),
 		slot:     0,
 		commit:   0,
-		stat:     NewStat(replica.Threshold),
+		stat:     NewStat(replica.Config.Threshold),
 	}
 }
 
@@ -85,7 +86,7 @@ func (p *paxos) handleRequest(msg Request) {
 	if p.active {
 		p.accept(msg)
 		to := p.stat.hit(NewID(msg.ClientID.Site(), 1))
-		if p.Threshold > 0 && to != 0 && to.Site() != p.ID.Site() {
+		if p.Config.Threshold > 0 && to != 0 && to.Site() != p.ID.Site() {
 			p.Send(to, &LeaderChange{
 				Key:    p.key,
 				To:     to,
@@ -95,7 +96,7 @@ func (p *paxos) handleRequest(msg Request) {
 		}
 	} else if LeaderID(p.ballot) == p.ID {
 		p.requests = append(p.requests, msg)
-	} else if p.Threshold > 0 && p.ballot != 0 {
+	} else if p.Config.Threshold > 0 && p.ballot != 0 {
 		// p.Forward(LeaderID(p.ballot), msg)
 		rep := Reply{
 			OK:        false,
@@ -121,7 +122,7 @@ func (p *paxos) handlePrepare(msg Prepare) {
 			// p.prepare()
 			p.sleeping = true
 			go func() {
-				time.Sleep(time.Millisecond * time.Duration(rand.Intn(100)+p.BackOff))
+				time.Sleep(time.Millisecond * time.Duration(rand.Intn(100)+p.Config.BackOff))
 				p.prepare()
 				p.sleeping = false
 			}()
@@ -163,7 +164,7 @@ func (p *paxos) handlePromise(msg Promise) {
 		if !p.sleeping {
 			p.sleeping = true
 			go func() {
-				time.Sleep(time.Millisecond * time.Duration(rand.Intn(100)+p.BackOff))
+				time.Sleep(time.Millisecond * time.Duration(rand.Intn(100)+p.Config.BackOff))
 				p.prepare()
 				p.sleeping = false
 			}()

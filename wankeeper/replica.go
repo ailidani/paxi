@@ -1,7 +1,7 @@
 package wankeeper
 
 import (
-	. "paxi"
+	. "github.com/ailidani/paxi"
 )
 
 type Replica struct {

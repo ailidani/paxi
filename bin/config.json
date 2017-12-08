@@ -1,0 +1,18 @@
+{
+    "address": {
+        "0": "chan://*:1735"
+    },
+    "http_address": {
+        "0": "http://localhost:8080"
+    },
+    "algorithm": "wpaxos",
+    "f": 0,
+    "threshold": 0,
+    "backoff": 0,
+    "thrifty": false,
+    "chan_buffer_size": 1024,
+    "buffer_size": 10240000,
+    "file": "config.json",
+    "transport": "chan",
+    "codec": "gob"
+}

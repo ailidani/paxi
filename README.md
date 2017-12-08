@@ -1,14 +1,16 @@
 
 ## What is WPaxos?
 
-**WPaxos** is a multileader Paxos protocol that provides low-latency and high-throughput consensus across wide-area network (WAN) deployments. Unlike statically partitioned multiple Paxos deployments, WPaxos perpetually adapts to the changing access locality through object stealing. Multiple concurrent leaders coinciding in different zones steal ownership of objects from each other using phase-1 of Paxos, and then use phase-2 to commit update-requests on these objects locally until they are stolen by other leaders. To achieve zone-local phase-2 commits, WPaxos adopts the flexible quorums idea in a novel manner, and appoints phase-2 acceptors to be at the same zone as their respective leaders.
+**WPaxos** is a multileader Paxos protocol that provides low-latency and high-throughput consensus across wide-area network (WAN) deployments. Unlike statically partitioned multiple Paxos deployments, WPaxos perpetually adapts to the changing access locality through object stealing. Multiple concurrent leaders coinciding in different zones steal ownership of objects from each other using phase-1 of Paxos, and then use phase-2 to commit update-requests on these objects locally until they are stolen by other leaders. To achieve fast phase-2 commits, WPaxos adopts the flexible quorums idea in a novel manner, and appoints phase-2 acceptors to be close to their respective leaders.
 
-WPaxos (WAN Paxos) paper can be found in https://arxiv.org/abs/1703.08905.
+WPaxos (WAN Paxos) paper (first version) can be found in https://arxiv.org/abs/1703.08905.
 
 
 ## What is Paxi?
 
 **Paxi** is the framework that implements WPaxos and other Paxos protocol variants. Paxi provides most of the elements that any Paxos implementation or replication protocol needs, including network communication, state machine of a key-value store, client API and multiple types of quorum systems.
+
+Warning: Paxi project is still under heavy development, with more features and protocols to include. Paxi API may change too.
 
 
 ## What is included?
@@ -20,32 +22,28 @@ WPaxos (WAN Paxos) paper can be found in https://arxiv.org/abs/1703.08905.
 - [ ] [WanKeeper](http://ieeexplore.ieee.org/abstract/document/7980095/)
 
 
-# Build
+# How to build
 
 1. Install [Go 1.9](https://golang.org/dl/).
 2. [Download](https://github.com/wpaxos/paxi/archive/master.zip) WPaxos source code from GitHub page or use following command:
 ```
-go get github.com/wpaxos/paxi
+go get github.com/ailidani/paxi
 ```
 
-3. Move paxi directory to `$GOPATH/src/`
+3. Compile everything.
 ```
-mv paxi $GOPATH/src/
-```
-
-4. Compile everything.
-```
-cd paxi/bin
+cd github.com/ailidani/paxi/bin
 ./build.sh
 ```
 
 After compile, Golang will generate 4 executable files under `bin` folder.
-* `master` is the easy way to setup the cluster and distribute configurations to all replica nodes.
+* `master` is the easy way to distribute configurations to all replica nodes.
 * `server` is one replica instance.
 * `client` is a simple benchmark that generates read/write reqeust to servers.
+* `cmd` is a command line tool to test Get/Set requests.
 
 
-# Run
+# How to run
 
 Each executable file expects some parameters which can be seen by `-help` flag, e.g. `./master -help`.
 
@@ -69,6 +67,20 @@ Each executable file expects some parameters which can be seen by `-help` flag, 
 ./client -sid 1 -nid 1 -master 127.0.0.1 -T 10 -k 1000 -r 1 -c 50 -t 60 &
 ```
 
+# How to use implement algorithms in Paxi
 
----
-A new version of Paxi project under heavy development is also available in https://github.com/ailidani/paxi.
+Replication algorithm in Paxi follows the message passing model, where several message types and their handle function are registered.
+
+1. Define messages, register with gob in `init()` function if using gob codec.
+
+2. Define handle function for each message type.
+
+3. Register the messages with their handle function using `Node.Register(interface{}, func())` interface.
+
+For sending messages, use `Send(to ID, msg interface{})`, `Broadcast(msg interface{})` functions in Node.Socket.
+
+For data-store related functions check db.go file.
+
+For quorum types check quorum.go file.
+
+Client uses a simple RESTful API to submit requests. GET method with URL "http://ip:port/key" will read the value of given key. POST method with URL "http://ip:port/key" and body as the value, will write the value to key.

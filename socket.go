@@ -23,11 +23,11 @@ type socket struct {
 	codec Codec
 }
 
-func NewSocket(id ID, addrs map[ID]string) Socket {
+func NewSocket(id ID, addrs map[ID]string, codec string) Socket {
 	socket := new(socket)
 	socket.id = id
 	socket.nodes = make(map[ID]Transport)
-	socket.codec = NewCodec("gob")
+	socket.codec = NewCodec(codec)
 
 	socket.nodes[id] = NewTransport(addrs[id])
 	go socket.nodes[id].Listen()

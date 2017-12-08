@@ -1,6 +1,7 @@
 bin/*
 !bin/*.sh
 !bin/*.py
+!bin/*.json
 tla/*
-~tla/*.tla
+!tla/wpaxos.tla
 cosmos

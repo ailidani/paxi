@@ -1,7 +1,7 @@
 package wpaxos2
 
 import (
-	. "paxi"
+	. "github.com/ailidani/paxi"
 )
 
 type Replica struct {

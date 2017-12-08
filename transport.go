@@ -7,8 +7,9 @@ import (
 	"io"
 	"net"
 	"net/url"
-	"paxi/log"
 	"sync"
+
+	"github.com/ailidani/paxi/log"
 )
 
 // Transport = transport + pipe + client + server

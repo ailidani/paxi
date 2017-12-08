@@ -1,8 +1,9 @@
 package wpaxos2
 
 import (
-	. "paxi"
 	"time"
+
+	. "github.com/ailidani/paxi"
 )
 
 // TODO same as instance in wpaxos/paxos

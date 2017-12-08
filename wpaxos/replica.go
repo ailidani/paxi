@@ -1,22 +1,19 @@
 package wpaxos
 
 import (
-	. "paxi"
-	"paxi/log"
+	. "github.com/ailidani/paxi"
+	"github.com/ailidani/paxi/log"
 )
 
 type Replica struct {
 	*Node
 	paxi map[Key]*paxos
-
-	Threshold int
 }
 
 func NewReplica(config *Config) *Replica {
 	r := new(Replica)
 	r.Node = NewNode(config)
 	r.paxi = make(map[Key]*paxos)
-	r.Threshold = config.Threshold
 
 	r.Register(Request{}, r.handleRequest)
 	r.Register(Prepare{}, r.handlePrepare)

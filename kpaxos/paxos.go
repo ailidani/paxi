@@ -2,9 +2,10 @@ package kpaxos
 
 import (
 	"math/rand"
-	. "paxi"
-	"paxi/log"
 	"time"
+
+	. "github.com/ailidani/paxi"
+	"github.com/ailidani/paxi/log"
 )
 
 type instance struct {
@@ -103,7 +104,7 @@ func (p *paxos) handlePrepare(msg Prepare) {
 			// p.prepare()
 			p.sleeping = true
 			go func() {
-				time.Sleep(time.Millisecond * time.Duration(rand.Intn(100)+p.BackOff))
+				time.Sleep(time.Millisecond * time.Duration(rand.Intn(100)+p.Config.BackOff))
 				p.prepare()
 				p.sleeping = false
 			}()
@@ -145,7 +146,7 @@ func (p *paxos) handlePromise(msg Promise) {
 		if !p.sleeping {
 			p.sleeping = true
 			go func() {
-				time.Sleep(time.Millisecond * time.Duration(rand.Intn(100)+p.BackOff))
+				time.Sleep(time.Millisecond * time.Duration(rand.Intn(100)+p.Config.BackOff))
 				p.prepare()
 				p.sleeping = false
 			}()

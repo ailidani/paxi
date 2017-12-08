@@ -1,7 +1,7 @@
 package kpaxos
 
 import (
-	. "paxi"
+	. "github.com/ailidani/paxi"
 )
 
 type Replica struct {

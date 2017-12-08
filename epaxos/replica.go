@@ -1,8 +1,8 @@
 package epaxos
 
 import (
-	. "paxi"
-	"paxi/log"
+	. "github.com/ailidani/paxi"
+	"github.com/ailidani/paxi/log"
 )
 
 const HT_INIT_SIZE = 200000
@@ -506,7 +506,7 @@ func (r *Replica) handlePreAcceptReply(msg *PreAcceptReply) {
 
 	var equal bool
 	inst.seq, inst.deps, equal = r.mergeAttributes(inst.seq, inst.deps, msg.Seq, msg.Deps)
-	if (r.N <= 3 && !r.Thrifty) || inst.lb.preAcceptQuorum.Size() > 1 {
+	if (r.N <= 3 && !r.Config.Thrifty) || inst.lb.preAcceptQuorum.Size() > 1 {
 		inst.lb.allEqual = inst.lb.allEqual && equal
 		if !equal {
 			conflicted++
@@ -965,7 +965,7 @@ func (r *Replica) handlePrepareReply(preply *PrepareReply) {
 	if ir != nil {
 		//at least one replica has (pre-)accepted this instance
 		if ir.status == ACCEPTED ||
-			(!ir.leaderResponded && ir.preAcceptCount >= r.N/2 && (r.Thrifty || ir.status == PREACCEPTED_EQ)) {
+			(!ir.leaderResponded && ir.preAcceptCount >= r.N/2 && (r.Config.Thrifty || ir.status == PREACCEPTED_EQ)) {
 			//safe to go to Accept phase
 			inst.cmds = ir.cmds
 			inst.seq = ir.seq

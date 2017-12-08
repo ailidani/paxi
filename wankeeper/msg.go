@@ -3,7 +3,8 @@ package wankeeper
 import (
 	"encoding/gob"
 	"fmt"
-	. "paxi"
+
+	. "github.com/ailidani/paxi"
 )
 
 func init() {

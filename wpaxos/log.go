@@ -1,9 +1,10 @@
 package wpaxos
 
 import (
-	. "paxi"
-	"paxi/log"
 	"time"
+
+	. "github.com/ailidani/paxi"
+	"github.com/ailidani/paxi/log"
 )
 
 type entry struct {

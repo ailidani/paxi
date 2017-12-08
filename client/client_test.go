@@ -3,9 +3,10 @@ package main
 import (
 	"log"
 	"math/rand"
-	. "paxi"
 	"testing"
 	"time"
+
+	. "github.com/ailidani/paxi"
 )
 
 func dotest(client ID) {
@@ -83,6 +84,6 @@ func TestClient(t *testing.T) {
 	}
 
 	end_time := time.Now()
-	Infof("Test took %v\n", end_time.Sub(start_time))
+	log.Printf("Test took %v\n", end_time.Sub(start_time))
 
 }

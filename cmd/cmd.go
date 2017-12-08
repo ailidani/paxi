@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"log"
 	"os"
-	. "paxi"
 	"strconv"
+
+	. "github.com/ailidani/paxi"
 )
 
 var sid = flag.Int("sid", 1, "Site ID.")

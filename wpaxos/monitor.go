@@ -1,8 +1,9 @@
 package wpaxos
 
 import (
-	. "paxi"
 	"time"
+
+	. "github.com/ailidani/paxi"
 )
 
 type monitor struct {

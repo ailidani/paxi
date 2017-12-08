@@ -1,9 +1,10 @@
 package epaxos
 
 import (
-	. "paxi"
 	"sort"
 	"time"
+
+	. "github.com/ailidani/paxi"
 )
 
 const (

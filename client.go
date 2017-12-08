@@ -7,10 +7,11 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
-	"paxi/log"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/ailidani/paxi/log"
 )
 
 // Client main access point of client lib

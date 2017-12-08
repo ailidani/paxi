@@ -4,7 +4,8 @@ import (
 	"bytes"
 	"encoding/gob"
 	"encoding/json"
-	"paxi/log"
+
+	"github.com/ailidani/paxi/log"
 )
 
 // Codec interface provide methods for serialization and deserialization

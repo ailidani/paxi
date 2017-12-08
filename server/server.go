@@ -2,20 +2,21 @@ package main
 
 import (
 	"flag"
-	. "paxi"
-	"paxi/cosmos"
-	"paxi/epaxos"
-	"paxi/kpaxos"
-	"paxi/log"
-	"paxi/wpaxos"
 	"strconv"
 	"sync"
+
+	. "github.com/ailidani/paxi"
+	"github.com/ailidani/paxi/cosmos"
+	"github.com/ailidani/paxi/epaxos"
+	"github.com/ailidani/paxi/kpaxos"
+	"github.com/ailidani/paxi/log"
+	"github.com/ailidani/paxi/wpaxos"
 )
 
 var configFile = flag.String("config", "config.json", "Configuration file for paxi replica. Defaults to config.json.")
 var sid = flag.Int("sid", 0, "Site ID. Default 0.")
 var nid = flag.Int("nid", 0, "Node ID. Default 0.")
-var master = flag.String("master", "127.0.0.1", "Master address.")
+var master = flag.String("master", "", "Master address.")
 
 var simulation = flag.Bool("simulation", false, "Mocking network by chan and goroutine.")
 var n = flag.Int("n", 3, "number of servers in each site")
@@ -37,7 +38,7 @@ func mockConfigs(n int, m int) []*Config {
 	}
 
 	configs := make([]*Config, 0)
-	for id, _ := range addrs {
+	for id := range addrs {
 		c := MakeDefaultConfig()
 		c.Algorithm = "cosmos"
 		c.ID = id
@@ -50,7 +51,12 @@ func mockConfigs(n int, m int) []*Config {
 }
 
 func replica(id ID) {
-	config := ConnectToMaster(*master, false, id)
+	var config *Config
+	if *master == "" {
+		config = NewConfig(id, *configFile)
+	} else {
+		config = ConnectToMaster(*master, false, id)
+	}
 	log.Infof("server %v received config from master\n", config.ID)
 
 	switch config.Algorithm {
@@ -95,5 +101,4 @@ func main() {
 	}
 
 	replica(NewID(uint8(*sid), uint8(*nid)))
-
 }

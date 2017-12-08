@@ -3,9 +3,10 @@ package paxi
 import (
 	"encoding/gob"
 	"net"
-	"paxi/log"
 	"strconv"
 	"time"
+
+	"github.com/ailidani/paxi/log"
 )
 
 // Max of two int
