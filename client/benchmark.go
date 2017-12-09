@@ -10,7 +10,7 @@ import (
 	"github.com/ailidani/paxi/log"
 )
 
-var sid = flag.Int("sid", 0, "Site ID.")
+var sid = flag.Int("sid", 0, "Zone ID.")
 var nid = flag.Int("nid", 0, "Node ID.")
 var T = flag.Int("T", 1, "Number of threads (simulated clients).")
 var addr = flag.String("master", "127.0.0.1", "Master address.")

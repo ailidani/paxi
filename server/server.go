@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	. "github.com/ailidani/paxi"
-	"github.com/ailidani/paxi/cosmos"
 	"github.com/ailidani/paxi/epaxos"
 	"github.com/ailidani/paxi/kpaxos"
 	"github.com/ailidani/paxi/log"
@@ -43,10 +42,6 @@ func replica(id ID) {
 
 	case "kpaxos":
 		replica := kpaxos.NewReplica(config)
-		replica.Run()
-
-	case "cosmos":
-		replica := cosmos.NewReplica(config)
 		replica.Run()
 
 	default:
