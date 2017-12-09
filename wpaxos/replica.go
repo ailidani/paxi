@@ -10,7 +10,7 @@ type Replica struct {
 	paxi map[Key]*paxos
 }
 
-func NewReplica(config *Config) *Replica {
+func NewReplica(config Config) *Replica {
 	r := new(Replica)
 	r.Node = NewNode(config)
 	r.paxi = make(map[Key]*paxos)

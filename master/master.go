@@ -31,7 +31,7 @@ func main() {
 	in := make(chan paxi.Register)
 	out := make(chan paxi.Config)
 
-	config := new(paxi.Config)
+	config := paxi.MakeDefaultConfig()
 	config.Algorithm = *algorithm
 	config.F = *f
 	config.Threshold = *threshold

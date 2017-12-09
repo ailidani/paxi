@@ -89,7 +89,7 @@ func NewLeaderBookkeeping(proposals []Request, deps map[ID]int) *LeaderBookkeepi
 	return lb
 }
 
-func NewReplica(config *Config) *Replica {
+func NewReplica(config Config) *Replica {
 	N := len(config.Addrs)
 
 	r := &Replica{

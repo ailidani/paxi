@@ -30,7 +30,7 @@ var (
 type Node struct {
 	ID     ID
 	http   string
-	Config *Config
+	Config Config
 
 	Socket
 	DB          *StateMachine
@@ -41,7 +41,7 @@ type Node struct {
 }
 
 // NewNode creates a new Node object from configuration
-func NewNode(config *Config) *Node {
+func NewNode(config Config) *Node {
 	node := new(Node)
 	node.ID = config.ID
 	node.Config = config

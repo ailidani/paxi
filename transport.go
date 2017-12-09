@@ -26,7 +26,7 @@ type Transport interface {
 func NewTransport(addr string) Transport {
 	uri, err := url.Parse(addr)
 	if err != nil {
-		log.Error("error parsing address %s", addr)
+		log.Fatalf("error parsing address %s\n", addr)
 	}
 
 	transport := new(transport)
@@ -48,6 +48,8 @@ func NewTransport(addr string) Transport {
 		t := new(udp)
 		t.transport = transport
 		return t
+	default:
+		log.Fatalf("unknown scheme %s", uri.Scheme)
 	}
 	return nil
 }
