@@ -258,7 +258,7 @@ type udp struct {
 }
 
 func (u *udp) Listen() {
-	conn, err := net.ListenPacket("udp", ":"+t.uri.Port())
+	conn, err := net.ListenPacket("udp", ":"+u.uri.Port())
 	if err != nil {
 		log.Fatal("UDP Listener error: ", err)
 	}
