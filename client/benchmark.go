@@ -39,7 +39,7 @@ var latency = make([]time.Duration, 0)
 var min int
 var zipf *rand.Zipf
 
-func do(client *Client) {
+func do(client *Client, done chan<- bool) {
 	var key Key
 	switch *distribution {
 	case "normal":
@@ -79,6 +79,7 @@ func do(client *Client) {
 			prevAsyncThrottleTime = time.Now().UnixNano()
 		}
 	}
+	done <- true
 }
 
 func run(client *Client) {
@@ -87,22 +88,23 @@ func run(client *Client) {
 	zipf = rand.NewZipf(rand.New(rand.NewSource(seed)), *zs, *zv, uint64(*keys))
 	rand.Seed(seed)
 
+	done := make(chan bool, 1)
 	if *t > 0 {
 		timer := time.NewTimer(time.Second * time.Duration(*t))
 		for {
+			go do(client, done)
 			select {
 			case <-timer.C:
 				client.Stop()
 				cwait.Done()
 				return
 
-			default:
-				do(client)
+			case <-done:
 			}
 		}
 	} else {
 		for i := 0; i < *keys; i++ {
-			do(client)
+			do(client, done)
 		}
 		client.Wait()
 		cwait.Done()
