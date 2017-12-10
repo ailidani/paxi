@@ -22,7 +22,7 @@ type Config struct {
 	HTTPAddrs      map[ID]string `json:"http_address"` // address for client server communication
 	Algorithm      string        `json:"algorithm"`    // replication algorithm name
 	F              int           `json:"f"`            // number of failure zones in grid quorums
-	Threshold      int           `json:"threshold"`    // threshold for leader change, 0 means no check
+	Threshold      int           `json:"threshold"`    // threshold for leader change, 0 means immediate
 	BackOff        int           `json:"backoff"`      // random backoff interval
 	Thrifty        bool          `json:"thrifty"`      // only send messages to a quorum
 	ChanBufferSize int           `json:"chan_buffer_size"`
