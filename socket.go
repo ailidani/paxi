@@ -1,7 +1,5 @@
 package paxi
 
-import "strings"
-
 type Socket interface {
 
 	// Send put msg to outbound queue
@@ -31,9 +29,7 @@ func NewSocket(id ID, addrs map[ID]string, codec string) Socket {
 	socket.nodes = make(map[ID]Transport)
 	socket.codec = NewCodec(codec)
 
-	// addrs has format as scheme://ip:port
-	port := strings.Split(addrs[id], ":")[2]
-	socket.nodes[id] = NewTransport(":" + port)
+	socket.nodes[id] = NewTransport(addrs[id])
 	go socket.nodes[id].Listen()
 
 	for id, addr := range addrs {

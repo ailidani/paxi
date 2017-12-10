@@ -26,7 +26,7 @@ type Transport interface {
 func NewTransport(addr string) Transport {
 	uri, err := url.Parse(addr)
 	if err != nil {
-		log.Fatalf("error parsing address %s\n", addr)
+		log.Fatalf("error parsing address %s : %s\n", addr, err)
 	}
 
 	transport := new(transport)
@@ -205,7 +205,7 @@ type tcp struct {
 }
 
 func (t *tcp) Listen() {
-	listener, err := net.Listen("tcp", t.uri.Host)
+	listener, err := net.Listen("tcp", ":"+t.uri.Port())
 	if err != nil {
 		log.Fatalln("TCP Listener error: ", err)
 	}
@@ -258,7 +258,7 @@ type udp struct {
 }
 
 func (u *udp) Listen() {
-	conn, err := net.ListenPacket("udp", u.uri.Host)
+	conn, err := net.ListenPacket("udp", ":"+t.uri.Port())
 	if err != nil {
 		log.Fatal("UDP Listener error: ", err)
 	}
