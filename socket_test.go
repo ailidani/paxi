@@ -40,7 +40,7 @@ func run(address map[ID]string) error {
 	go func() {
 		sock1 := NewSocket(id1, address, "gob")
 		defer sock1.Close()
-		sock1.Multicast(id1.Site(), send)
+		sock1.Multicast(id1.Zone(), send)
 	}()
 	sock2 := NewSocket(id2, address, "gob")
 	defer sock2.Close()

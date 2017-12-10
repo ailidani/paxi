@@ -64,7 +64,7 @@ func (sock *socket) Multicast(sid uint8, msg interface{}) {
 		if id == sock.id {
 			continue
 		}
-		if id.Site() == sid {
+		if id.Zone() == sid {
 			sock.Send(id, msg)
 		}
 	}

@@ -57,11 +57,11 @@ func NewNode(config Config) *Node {
 
 	zones := make(map[uint8]int)
 	for id := range config.Addrs {
-		zones[id.Site()]++
+		zones[id.Zone()]++
 	}
 	NumZones = len(zones)
 	NumNodes = len(config.Addrs)
-	NumLocalNodes = zones[config.ID.Site()]
+	NumLocalNodes = zones[config.ID.Zone()]
 	F = config.F
 
 	return node

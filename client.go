@@ -50,7 +50,7 @@ func (c *Client) getNodeID(key Key) ID {
 	id, exists := c.index[key]
 	// if not exists, select first node in local site
 	if !exists {
-		id = NewID(c.ID.Site(), 1)
+		id = NewID(c.ID.Zone(), 1)
 	}
 	return id
 }

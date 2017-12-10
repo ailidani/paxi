@@ -71,7 +71,7 @@ func (p *paxos) accept(msg Request) {
 		timestamp: time.Now(),
 	}
 	p.cmds[p.slot].quorum.ACK(p.ID)
-	p.Multicast(p.ID.Site(), &Accept{
+	p.Multicast(p.ID.Zone(), &Accept{
 		Key:     p.key,
 		Ballot:  p.ballot,
 		Slot:    p.slot,

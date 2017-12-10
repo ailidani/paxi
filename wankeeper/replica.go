@@ -10,10 +10,10 @@ type Replica struct {
 	master bool
 }
 
-func NewReplica(config *Config) *Replica {
+func NewReplica(config Config) *Replica {
 	r := new(Replica)
 	r.Node = NewNode(config)
-	if config.ID.Site() == 1 {
+	if config.ID.Zone() == 1 {
 		r.master = true
 	}
 	r.Register(Request{}, r.handleRequest)

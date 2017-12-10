@@ -20,7 +20,7 @@ func (q *Quorum) ACK(id ID) {
 	if !q.acks[id] {
 		q.acks[id] = true
 		q.size++
-		q.zones[id.Site()]++
+		q.zones[id.Zone()]++
 	}
 }
 

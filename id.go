@@ -16,10 +16,10 @@ func NewID(sid uint8, nid uint8) ID {
 
 func (i ID) String() string {
 	//return strconv.FormatUint(uint64(i), 10)
-	return fmt.Sprintf("ID[%d:%d]", i.Site(), i.Node())
+	return fmt.Sprintf("ID[%d:%d]", i.Zone(), i.Node())
 }
 
-func (i ID) Site() uint8 {
+func (i ID) Zone() uint8 {
 	return uint8(uint16(i) >> 8)
 }
 

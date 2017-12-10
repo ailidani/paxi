@@ -74,7 +74,7 @@ func (p *paxos) accept(msg Request) {
 		timestamp: time.Now(),
 	}
 	p.log[p.slot].quorum.ACK(p.ID)
-	p.Multicast(p.ID.Site(), &Accept{
+	p.Broadcast(&Accept{
 		Key:      p.key,
 		Ballot:   p.ballot,
 		Slot:     p.slot,
@@ -85,8 +85,8 @@ func (p *paxos) accept(msg Request) {
 func (p *paxos) handleRequest(msg Request) {
 	if p.active {
 		p.accept(msg)
-		to := p.stat.hit(NewID(msg.ClientID.Site(), 1))
-		if p.Config.Threshold > 0 && to != 0 && to.Site() != p.ID.Site() {
+		to := p.stat.hit(NewID(msg.ClientID.Zone(), 1))
+		if p.Config.Threshold > 0 && to != 0 && to.Zone() != p.ID.Zone() {
 			p.Send(to, &LeaderChange{
 				Key:    p.key,
 				To:     to,
