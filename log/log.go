@@ -77,10 +77,10 @@ func setup() {
 	format := stdlog.Ldate | stdlog.Ltime | stdlog.Lmicroseconds | stdlog.Lshortfile
 	if log.dir != "" {
 		program := filepath.Base(os.Args[0])
-		// pid := os.Getpid()
-		// name := fmt.Sprintf("%s.%d", program, pid)
-		fname := filepath.Join(log.dir, program)
-		f, err := os.Create(fname)
+		pid := os.Getpid()
+		fname := fmt.Sprintf("%s.%d.log", program, pid)
+		path := filepath.Join(log.dir, fname)
+		f, err := os.Create(path)
 		if err != nil {
 			stdlog.Fatal(err)
 		}
