@@ -32,7 +32,3 @@ else
 	done < "${PID_FILE}"
 	rm "${PID_FILE}"
 fi
-
-rm logs/*
-
-#pkill -x client

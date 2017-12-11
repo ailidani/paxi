@@ -66,7 +66,7 @@ func do(client *Client, done chan<- bool) {
 		client.Put(key, []byte{42})
 		t := time.Now().Sub(start)
 		latency = append(latency, t)
-		log.Debugf("%v, %d, %v", client.ID, key, float64(t.Nanoseconds())/1000000.0)
+		log.Infof("%v, %d, %v", client.ID, key, float64(t.Nanoseconds())/1000000.0)
 	} else {
 		client.PutAsync(key, []byte{41})
 		counter++
