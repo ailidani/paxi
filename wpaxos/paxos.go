@@ -224,15 +224,17 @@ func (p *paxos) handleAccepted(msg Accepted) {
 				Slot:     msg.Slot,
 				Commands: ins.commands,
 			})
-			// rep := Reply{
-			// 	OK:        true,
-			// 	CommandID: ins.request.CommandID,
-			// 	LeaderID:  p.ID,
-			// 	ClientID:  ins.request.ClientID,
-			// 	Command:   ins.request.Command,
-			// 	Timestamp: ins.request.Timestamp,
-			// }
-			// ins.request.Reply(rep)
+			if p.Config.ReplyWhenCommit {
+				rep := Reply{
+					OK:        true,
+					CommandID: ins.request.CommandID,
+					LeaderID:  p.ID,
+					ClientID:  ins.request.ClientID,
+					Command:   ins.request.Command,
+					Timestamp: ins.request.Timestamp,
+				}
+				ins.request.Reply(rep)
+			}
 			p.exec()
 		}
 	} else {
@@ -293,9 +295,10 @@ func (p *paxos) exec() {
 		if !ok || !i.committed {
 			break
 		}
+		log.Debugf("execute cmd=%v in slot %d ", i.commands[0], p.commit)
 		value, err := p.DB.Execute(i.commands[0])
 		p.commit++
-		if i.request != nil {
+		if i.request != nil && !p.Config.ReplyWhenCommit {
 			reply := new(Reply)
 			reply.ClientID = i.request.ClientID
 			reply.CommandID = i.request.CommandID

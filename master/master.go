@@ -19,9 +19,10 @@ var threshold = flag.Int("threshold", 0, "Threshold for leader change, 0 means i
 var backOff = flag.Int("backoff", 100, "Random backoff time")
 var thrifty = flag.Bool("thrifty", false, "")
 var transport = flag.String("transport", "udp", "Transport protocols, including tcp, udp, chan (local)")
+var replywhencommit = flag.Bool("replywhencommit", false, "reply to client when request is committed, not executed")
 
-var ChanBufferSize = flag.Int("chanbufsize", paxi.CHAN_BUFFER_SIZE, "")
-var BufferSize = flag.Int("bufsize", paxi.BUFFER_SIZE, "")
+var chanbufsize = flag.Int("chanbufsize", paxi.CHAN_BUFFER_SIZE, "")
+var bufsize = flag.Int("bufsize", paxi.BUFFER_SIZE, "")
 
 func main() {
 	flag.Parse()
@@ -37,8 +38,8 @@ func main() {
 	config.Threshold = *threshold
 	config.BackOff = *backOff
 	config.Thrifty = *thrifty
-	config.ChanBufferSize = *ChanBufferSize
-	config.BufferSize = *BufferSize
+	config.ChanBufferSize = *chanbufsize
+	config.BufferSize = *bufsize
 
 	go func() {
 		addrs := make(map[paxi.ID]string, *n)

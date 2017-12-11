@@ -17,19 +17,20 @@ const (
 )
 
 type Config struct {
-	ID             ID            `json:"-"`
-	Addrs          map[ID]string `json:"address"`      // address for node communication
-	HTTPAddrs      map[ID]string `json:"http_address"` // address for client server communication
-	Algorithm      string        `json:"algorithm"`    // replication algorithm name
-	F              int           `json:"f"`            // number of failure zones in grid quorums
-	Threshold      int           `json:"threshold"`    // threshold for leader change, 0 means immediate
-	BackOff        int           `json:"backoff"`      // random backoff interval
-	Thrifty        bool          `json:"thrifty"`      // only send messages to a quorum
-	ChanBufferSize int           `json:"chan_buffer_size"`
-	BufferSize     int           `json:"buffer_size"`
-	ConfigFile     string        `json:"file"`
-	Transport      string        `json:"transport"`
-	Codec          string        `json:"codec"`
+	ID              ID            `json:"-"`
+	Addrs           map[ID]string `json:"address"`      // address for node communication
+	HTTPAddrs       map[ID]string `json:"http_address"` // address for client server communication
+	Algorithm       string        `json:"algorithm"`    // replication algorithm name
+	F               int           `json:"f"`            // number of failure zones in grid quorums
+	Threshold       int           `json:"threshold"`    // threshold for leader change, 0 means immediate
+	BackOff         int           `json:"backoff"`      // random backoff interval
+	Thrifty         bool          `json:"thrifty"`      // only send messages to a quorum
+	ChanBufferSize  int           `json:"chan_buffer_size"`
+	BufferSize      int           `json:"buffer_size"`
+	ConfigFile      string        `json:"file"`
+	Transport       string        `json:"transport"`
+	Codec           string        `json:"codec"`
+	ReplyWhenCommit bool          `json:"reply_when_commit` // reply to client when request is committed, instead of executed
 	// for future implementation
 	// Batching bool `json:"batching"`
 	// Consistency int `json:"consistency"`
