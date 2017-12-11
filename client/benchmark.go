@@ -16,19 +16,20 @@ var T = flag.Int("T", 1, "Number of threads (simulated clients).")
 var addr = flag.String("master", "127.0.0.1", "Master address.")
 
 var t = flag.Int("t", 0, "Total number of time in seconds.")
+var n = flag.Int("n", 1000, "Total number of requests.")
 var rounds = flag.Int("r", 1, "Split the total number of requests into this many rounds, and do rounds sequentially. Defaults to 1.")
 var synch = flag.Bool("sync", true, "Sync operations.")
 var writes = flag.Int("w", 100, "Percentage of updates (writes). Defaults to 100%.")
 
 var keys = flag.Int("k", 1000, "Key space")
-var distribution = flag.String("d", "normal", "Key distribution")
+var distribution = flag.String("d", "random", "Key distribution")
 var mu = flag.Float64("mu", 0, "Mu of normal distribution")
 var sigma = flag.Float64("sigma", 60, "Sigma of normal distribution")
 var move = flag.Bool("move", false, "Moving average (mu)")
 var zs = flag.Float64("zs", 2, "Zipfian s parameter")
 var zv = flag.Float64("zv", 1, "Zipfian v parameter")
 var conflicts = flag.Int("c", 100, "Percentage of conflicts")
-var throttle = flag.Int("th", 1000, "requests per second throttle")
+var throttle = flag.Int("throttle", 1000, "requests per second throttle")
 
 var counter = 0
 var throttleUnit = *throttle / 100
@@ -103,8 +104,9 @@ func run(client *Client) {
 			}
 		}
 	} else {
-		for i := 0; i < *keys; i++ {
-			do(client, done)
+		for i := 0; i < *n; i++ {
+			go do(client, done)
+			<-done
 		}
 		client.Wait()
 		cwait.Done()

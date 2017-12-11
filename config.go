@@ -67,7 +67,6 @@ func (c *Config) String() string {
 		log.Errorln(err)
 	}
 	return string(config)
-	//return fmt.Sprintf("Config[MyID:%s,Address:%s]", c.ID.String(), c.Addrs[c.ID])
 }
 
 // Load load configurations from config file in JSON format
