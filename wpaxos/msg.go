@@ -56,7 +56,7 @@ type Accept struct {
 	Key      Key
 	Ballot   int
 	Slot     int
-	Commands []Command
+	Commands []Command // batched commands
 }
 
 func (a Accept) String() string {

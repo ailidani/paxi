@@ -93,9 +93,10 @@ func (n *Node) serve() {
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		var req Request
 		req.c = make(chan Reply)
-		//req.ClientID, _ = IDFromString(r.Header.Get("id"))
+		req.ClientID, _ = IDFromString(r.Header.Get("id"))
 		cid, _ := strconv.Atoi(r.Header.Get("cid"))
 		req.CommandID = CommandID(cid)
+		req.Timestamp, _ = strconv.ParseInt(r.Header.Get("timestamp"), 10, 64)
 
 		if len(r.URL.Path) > 1 {
 			i, _ := strconv.Atoi(r.URL.Path[1:])

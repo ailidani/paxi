@@ -73,6 +73,7 @@ func (p *paxos) accept(msg Request) {
 		quorum:    NewQuorum(),
 		timestamp: time.Now(),
 	}
+	log.Infof("Q1 finished in %d", p.log[p.slot].timestamp.UnixNano()-msg.Timestamp)
 	p.log[p.slot].quorum.ACK(p.ID)
 	p.Broadcast(&Accept{
 		Key:      p.key,
@@ -267,10 +268,6 @@ func (p *paxos) handleCommit(msg Commit) {
 	} else {
 		p.log[msg.Slot].committed = true
 	}
-
-	// for p.log[p.commit+1] != nil && p.log[p.commit+1].committed {
-	// 	p.commit++
-	// }
 
 	p.exec()
 }
