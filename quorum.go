@@ -50,8 +50,8 @@ func (q *Quorum) Majority() bool {
 }
 
 func (q *Quorum) SiteMajority() bool {
-	for _, s := range q.zones {
-		if s >= NumLocalNodes/2 {
+	for _, n := range q.zones {
+		if n > NumLocalNodes/2 {
 			return true
 		}
 	}
@@ -65,7 +65,7 @@ func (q *Quorum) AllSites() bool {
 func (q *Quorum) Q1() bool {
 	z := 0
 	for _, n := range q.zones {
-		if n >= NumLocalNodes/2+1 {
+		if n > NumLocalNodes/2 {
 			z++
 		}
 	}
@@ -75,11 +75,35 @@ func (q *Quorum) Q1() bool {
 func (q *Quorum) Q2() bool {
 	z := 0
 	for _, n := range q.zones {
-		if n >= NumLocalNodes/2+1 {
+		if n > NumLocalNodes/2 {
 			z++
 		}
 	}
 	return z >= F+1
+}
+
+func (q *Quorum) GridRow() bool {
+	row := make(map[uint8]int)
+	for id, ok := range q.acks {
+		if ok {
+			row[id.Node()]++
+		}
+	}
+	for _, n := range row {
+		if n == NumZones {
+			return true
+		}
+	}
+	return false
+}
+
+func (q *Quorum) GridColumn() bool {
+	for _, n := range q.zones {
+		if n == NumLocalNodes {
+			return true
+		}
+	}
+	return false
 }
 
 func (q *Quorum) FastQuorum() bool {
