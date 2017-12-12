@@ -1,7 +1,6 @@
 package paxi
 
 import (
-	"fmt"
 	"strconv"
 )
 
@@ -15,8 +14,8 @@ func NewID(sid uint8, nid uint8) ID {
 }
 
 func (i ID) String() string {
-	//return strconv.FormatUint(uint64(i), 10)
-	return fmt.Sprintf("ID[%d:%d]", i.Zone(), i.Node())
+	return strconv.FormatUint(uint64(i), 10)
+	// return fmt.Sprintf("ID[%d:%d]", i.Zone(), i.Node())
 }
 
 func (i ID) Zone() uint8 {

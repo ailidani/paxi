@@ -1,5 +1,7 @@
 package paxi
 
+import "github.com/ailidani/paxi/log"
+
 type Socket interface {
 
 	// Send put msg to outbound queue
@@ -47,10 +49,14 @@ func NewSocket(id ID, addrs map[ID]string, codec string) Socket {
 }
 
 func (sock *socket) Send(to ID, msg interface{}) {
+	t, ok := sock.nodes[to]
+	if !ok {
+		log.Fatalf("transport of ID %v does not exists", to)
+	}
 	b := sock.codec.Encode(msg)
 	m := NewMessage(len(b))
 	m.Body = b
-	sock.nodes[to].Send(m)
+	t.Send(m)
 }
 
 func (sock *socket) Recv() interface{} {
