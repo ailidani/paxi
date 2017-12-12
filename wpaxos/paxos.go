@@ -98,16 +98,16 @@ func (p *paxos) handleRequest(msg Request) {
 	} else if LeaderID(p.ballot) == p.ID {
 		p.requests = append(p.requests, msg)
 	} else if p.Config.Threshold > 0 && p.ballot != 0 {
-		// p.Forward(LeaderID(p.ballot), msg)
-		rep := Reply{
-			OK:        false,
-			CommandID: msg.CommandID,
-			LeaderID:  LeaderID(p.ballot),
-			ClientID:  msg.ClientID,
-			Command:   msg.Command,
-			Timestamp: msg.Timestamp,
-		}
-		msg.Reply(rep)
+		go p.Forward(LeaderID(p.ballot), msg)
+		// rep := Reply{
+		// 	OK:        false,
+		// 	CommandID: msg.CommandID,
+		// 	LeaderID:  LeaderID(p.ballot),
+		// 	ClientID:  msg.ClientID,
+		// 	Command:   msg.Command,
+		// 	Timestamp: msg.Timestamp,
+		// }
+		// msg.Reply(rep)
 	} else {
 		p.requests = append(p.requests, msg)
 		p.NextBallot()

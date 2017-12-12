@@ -1,6 +1,7 @@
 package paxi
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -166,5 +167,55 @@ func (n *Node) handle() {
 			log.Fatalf("no registered handle function for message type %v", name)
 		}
 		f.Call([]reflect.Value{v})
+	}
+}
+
+func (n *Node) Forward(id ID, m Request) {
+	key := m.Command.Key
+	url := n.Config.HTTPAddrs[id] + "/" + strconv.Itoa(int(key))
+
+	if m.Command.IsRead() {
+		req, err := http.NewRequest(http.MethodGet, url, nil)
+		if err != nil {
+			log.Errorln(err)
+			return
+		}
+		req.Header.Set("id", m.ClientID.String())
+		rep, err := http.DefaultClient.Do(req)
+		if err != nil {
+			log.Errorln(err)
+		}
+		defer rep.Body.Close()
+		if rep.StatusCode == http.StatusOK {
+			b, _ := ioutil.ReadAll(rep.Body)
+			cmd := m.Command
+			cmd.Value = Value(b)
+			m.Reply(Reply{
+				OK:        true,
+				ClientID:  m.ClientID,
+				CommandID: m.CommandID,
+				Command:   cmd,
+			})
+		}
+	} else {
+		req, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(m.Command.Value))
+		if err != nil {
+			log.Errorln(err)
+			return
+		}
+		req.Header.Set("id", m.ClientID.String())
+		rep, err := http.DefaultClient.Do(req)
+		if err != nil {
+			log.Errorln(err)
+			return
+		}
+		defer rep.Body.Close()
+		if rep.StatusCode == http.StatusOK {
+			m.Reply(Reply{
+				OK:        true,
+				ClientID:  m.ClientID,
+				CommandID: m.CommandID,
+			})
+		}
 	}
 }
