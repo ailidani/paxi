@@ -49,37 +49,25 @@ func (q *Quorum) Majority() bool {
 	return q.size > NumNodes/2
 }
 
-func (q *Quorum) SiteMajority() bool {
+func (q *Quorum) FastQuorum() bool {
+	return q.size >= NumNodes-1
+}
+
+func (q *Quorum) FastPath() bool {
+	return q.size >= NumNodes*3/4
+}
+
+func (q *Quorum) AllZones() bool {
+	return len(q.zones) == NumZones
+}
+
+func (q *Quorum) ZoneMajority() bool {
 	for _, n := range q.zones {
 		if n > NumLocalNodes/2 {
 			return true
 		}
 	}
 	return false
-}
-
-func (q *Quorum) AllSites() bool {
-	return len(q.zones) == NumZones
-}
-
-func (q *Quorum) Q1() bool {
-	z := 0
-	for _, n := range q.zones {
-		if n > NumLocalNodes/2 {
-			z++
-		}
-	}
-	return z >= NumZones-F
-}
-
-func (q *Quorum) Q2() bool {
-	z := 0
-	for _, n := range q.zones {
-		if n > NumLocalNodes/2 {
-			z++
-		}
-	}
-	return z >= F+1
 }
 
 func (q *Quorum) GridRow() bool {
@@ -106,10 +94,22 @@ func (q *Quorum) GridColumn() bool {
 	return false
 }
 
-func (q *Quorum) FastQuorum() bool {
-	return q.size >= NumNodes-1
+func (q *Quorum) Q1() bool {
+	z := 0
+	for _, n := range q.zones {
+		if n > NumLocalNodes/2 {
+			z++
+		}
+	}
+	return z >= NumZones-F
 }
 
-func (q *Quorum) FastPath() bool {
-	return q.size >= NumNodes*3/4
+func (q *Quorum) Q2() bool {
+	z := 0
+	for _, n := range q.zones {
+		if n > NumLocalNodes/2 {
+			z++
+		}
+	}
+	return z >= F+1
 }
