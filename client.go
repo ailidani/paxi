@@ -32,7 +32,7 @@ type Client struct {
 }
 
 // NewClient creates a new Client from config
-func NewClient(config *Config) *Client {
+func NewClient(config Config) *Client {
 	c := new(Client)
 	c.ID = config.ID
 	c.N = len(config.Addrs)

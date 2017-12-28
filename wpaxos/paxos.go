@@ -44,7 +44,7 @@ func NewPaxos(replica *Replica, key Key) *paxos {
 		log:      make(map[int]*instance),
 		slot:     0,
 		commit:   0,
-		stat:     NewStat(replica.Config.Threshold),
+		stat:     NewStat(replica.Config().Threshold),
 	}
 }
 
@@ -53,7 +53,7 @@ func (p *paxos) prepare() {
 	if p.active == false {
 		p.NextBallot()
 		p.quorum = NewQuorum()
-		p.quorum.ACK(p.ID)
+		p.quorum.ACK(p.ID())
 		p.Broadcast(&Prepare{
 			Key:    p.key,
 			Ballot: p.ballot,
@@ -74,7 +74,7 @@ func (p *paxos) accept(msg Request) {
 		timestamp: time.Now(),
 	}
 	log.Infof("Q1 finished in %f", float64(p.log[p.slot].timestamp.UnixNano()-msg.Timestamp)/1000000.0)
-	p.log[p.slot].quorum.ACK(p.ID)
+	p.log[p.slot].quorum.ACK(p.ID())
 	p.Broadcast(&Accept{
 		Key:      p.key,
 		Ballot:   p.ballot,
@@ -87,17 +87,17 @@ func (p *paxos) handleRequest(msg Request) {
 	if p.active {
 		p.accept(msg)
 		to := p.stat.hit(NewID(msg.ClientID.Zone(), 1))
-		if p.Config.Threshold > 0 && to != 0 && to.Zone() != p.ID.Zone() {
+		if p.Config().Threshold > 0 && to != 0 && to.Zone() != p.ID().Zone() {
 			p.Send(to, &LeaderChange{
 				Key:    p.key,
 				To:     to,
-				From:   p.ID,
+				From:   p.ID(),
 				Ballot: p.ballot,
 			})
 		}
-	} else if LeaderID(p.ballot) == p.ID {
+	} else if LeaderID(p.ballot) == p.ID() {
 		p.requests = append(p.requests, msg)
-	} else if p.Config.Threshold > 0 && p.ballot != 0 {
+	} else if p.Config().Threshold > 0 && p.ballot != 0 {
 		go p.Forward(LeaderID(p.ballot), msg)
 		// rep := Reply{
 		// 	OK:        false,
@@ -110,7 +110,6 @@ func (p *paxos) handleRequest(msg Request) {
 		// msg.Reply(rep)
 	} else {
 		p.requests = append(p.requests, msg)
-		p.NextBallot()
 		p.prepare()
 	}
 }
@@ -123,7 +122,7 @@ func (p *paxos) handlePrepare(msg Prepare) {
 			// p.prepare()
 			p.sleeping = true
 			go func() {
-				time.Sleep(time.Millisecond * time.Duration(rand.Intn(100)+p.Config.BackOff))
+				time.Sleep(time.Millisecond * time.Duration(rand.Intn(100)+p.Config().BackOff))
 				p.prepare()
 				p.sleeping = false
 			}()
@@ -132,7 +131,7 @@ func (p *paxos) handlePrepare(msg Prepare) {
 
 	p.Send(LeaderID(msg.Ballot), &Promise{
 		Key:     p.key,
-		ID:      p.ID,
+		ID:      p.ID(),
 		Ballot:  p.ballot,
 		PreSlot: p.slot,
 	})
@@ -140,7 +139,7 @@ func (p *paxos) handlePrepare(msg Prepare) {
 
 func (p *paxos) handlePromise(msg Promise) {
 	if msg.Ballot < p.ballot || p.active {
-		log.Debugf("Replica %s Ignoring old Promise msg %v\n", p.ID, msg)
+		log.Debugf("Replica %s Ignoring old Promise msg %v\n", p.ID(), msg)
 		return
 	}
 
@@ -149,7 +148,7 @@ func (p *paxos) handlePromise(msg Promise) {
 		p.slot = msg.PreSlot
 	}
 
-	if msg.Ballot == p.ballot && LeaderID(msg.Ballot) == p.ID {
+	if msg.Ballot == p.ballot && LeaderID(msg.Ballot) == p.ID() {
 		p.quorum.ACK(msg.ID)
 		if p.quorum.Q1() {
 			p.active = true
@@ -165,7 +164,7 @@ func (p *paxos) handlePromise(msg Promise) {
 		if !p.sleeping {
 			p.sleeping = true
 			go func() {
-				time.Sleep(time.Millisecond * time.Duration(rand.Intn(100)+p.Config.BackOff))
+				time.Sleep(time.Millisecond * time.Duration(rand.Intn(100)+p.Config().BackOff))
 				p.prepare()
 				p.sleeping = false
 			}()
@@ -182,7 +181,7 @@ func (p *paxos) handleAccept(msg Accept) {
 
 		ins, exists := p.log[msg.Slot]
 		if exists && ins.request != nil {
-			p.MessageChan <- *p.log[msg.Slot].request
+			p.Retry(*p.log[msg.Slot].request)
 		}
 		p.log[msg.Slot] = &instance{
 			ballot:    msg.Ballot,
@@ -193,7 +192,7 @@ func (p *paxos) handleAccept(msg Accept) {
 
 	p.Send(LeaderID(msg.Ballot), &Accepted{
 		Key:    p.key,
-		ID:     p.ID,
+		ID:     p.ID(),
 		Ballot: p.ballot,
 		Slot:   msg.Slot,
 	})
@@ -226,11 +225,11 @@ func (p *paxos) handleAccepted(msg Accepted) {
 				Slot:     msg.Slot,
 				Commands: ins.commands,
 			})
-			if p.Config.ReplyWhenCommit {
+			if p.Config().ReplyWhenCommit {
 				rep := Reply{
 					OK:        true,
 					CommandID: ins.request.CommandID,
-					LeaderID:  p.ID,
+					LeaderID:  p.ID(),
 					ClientID:  ins.request.ClientID,
 					Command:   ins.request.Command,
 					Timestamp: ins.request.Timestamp,
@@ -240,8 +239,8 @@ func (p *paxos) handleAccepted(msg Accepted) {
 			p.exec()
 		}
 	} else {
-		log.Warningf("Replica %s put cmd %v in slot=%d back to queue.\n", p.ID, ins.request.Command, msg.Slot)
-		p.MessageChan <- *ins.request
+		log.Warningf("Replica %s put cmd %v in slot=%d back to queue.\n", p.ID(), ins.request.Command, msg.Slot)
+		p.Retry(*ins.request)
 		delete(p.log, msg.Slot)
 	}
 
@@ -275,7 +274,7 @@ func (p *paxos) handleCommit(msg Commit) {
 
 func (p *paxos) handleLeaderChange(msg LeaderChange) {
 	// msg.From == LeaderID(p.ballot) ???
-	if msg.To == p.ID {
+	if msg.To == p.ID() {
 		log.Debugf("Replica %s : change leader of key %d\n", p.ID, p.key)
 		p.ballot = Max(p.ballot, msg.Ballot)
 		p.prepare()
@@ -283,7 +282,7 @@ func (p *paxos) handleLeaderChange(msg LeaderChange) {
 }
 
 func (p *paxos) NextBallot() {
-	p.ballot = NextBallot(p.ballot, p.ID)
+	p.ballot = NextBallot(p.ballot, p.ID())
 }
 
 // TODO use exec() instead of reply on commit
@@ -294,9 +293,9 @@ func (p *paxos) exec() {
 			break
 		}
 		log.Debugf("execute cmd=%v in slot %d ", i.commands[0], p.commit)
-		value, err := p.DB.Execute(i.commands[0])
+		value, err := p.Execute(i.commands[0])
 		p.commit++
-		if i.request != nil && !p.Config.ReplyWhenCommit {
+		if i.request != nil && !p.Config().ReplyWhenCommit {
 			reply := new(Reply)
 			reply.ClientID = i.request.ClientID
 			reply.CommandID = i.request.CommandID

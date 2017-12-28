@@ -5,7 +5,7 @@ import (
 )
 
 type Replica struct {
-	*Node
+	Node
 	paxi map[Key]*paxos
 }
 
@@ -40,7 +40,7 @@ func (r *Replica) init(key Key) {
 	if _, exists := r.paxi[key]; !exists {
 		r.paxi[key] = NewPaxos(r.Node, key)
 		id := index(key)
-		if id == r.ID {
+		if id == r.ID() {
 			r.paxi[key].active = true
 		}
 		r.paxi[key].ballot = NextBallot(1, id)

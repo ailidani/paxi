@@ -25,20 +25,20 @@ type socket struct {
 	codec Codec
 }
 
-func NewSocket(id ID, addrs map[ID]string, codec string) Socket {
+func NewSocket(id ID, addrs map[ID]string, transport, codec string) Socket {
 	socket := new(socket)
 	socket.id = id
 	socket.nodes = make(map[ID]Transport)
 	socket.codec = NewCodec(codec)
 
-	socket.nodes[id] = NewTransport(addrs[id])
+	socket.nodes[id] = NewTransport(transport + "://" + addrs[id])
 	go socket.nodes[id].Listen()
 
 	for id, addr := range addrs {
 		if id == socket.id {
 			continue
 		}
-		t := NewTransport(addr)
+		t := NewTransport(transport + "://" + addr)
 		err := t.Dial()
 		for err != nil {
 			err = t.Dial()

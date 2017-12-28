@@ -1,16 +1,31 @@
 package paxi
 
 import (
+	"flag"
 	"strconv"
+
+	"github.com/ailidani/paxi/log"
 )
 
+var zid = flag.Int("zid", 1, "Zone ID.")
+var nid = flag.Int("nid", 1, "Node ID.")
+
 // ID represents a generic identifier which is canonically
-// stored as a uint64 but is typically represented as a
+// stored as a uint16 but is typically represented as a
 // base-16 string for input/output
 type ID uint16
 
-func NewID(sid uint8, nid uint8) ID {
-	return ID(uint16(sid)<<8 + uint16(nid))
+// GetID gets the current id specified in flag variables
+func GetID() ID {
+	if !flag.Parsed() {
+		log.Warningln("Using ID before parse flag")
+	}
+	return ID(uint16(*zid)<<8 + uint16(*nid))
+}
+
+// NewID generates a new ID based on given variable
+func NewID(zid, nid uint8) ID {
+	return ID(uint16(zid)<<8 + uint16(nid))
 }
 
 func (i ID) String() string {
@@ -18,10 +33,12 @@ func (i ID) String() string {
 	// return fmt.Sprintf("ID[%d:%d]", i.Zone(), i.Node())
 }
 
+// Zone returns Zond ID component
 func (i ID) Zone() uint8 {
 	return uint8(uint16(i) >> 8)
 }
 
+// Node returns Node ID component
 func (i ID) Node() uint8 {
 	return uint8(uint16(i))
 }

@@ -1,6 +1,7 @@
 package log
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"io"
@@ -49,8 +50,11 @@ func (s *severity) String() string {
 
 type logger struct {
 	sync.Once
-	sync.Mutex
 
+	sync.Mutex
+	buffer *buffer
+
+	*stdlog.Logger
 	debug   *stdlog.Logger
 	info    *stdlog.Logger
 	warning *stdlog.Logger
@@ -58,6 +62,45 @@ type logger struct {
 
 	severity severity
 	dir      string
+}
+
+type buffer struct {
+	bytes.Buffer
+	next *buffer
+}
+
+func (l *logger) getBuffer() *buffer {
+	l.Lock()
+	b := l.buffer
+	if b != nil {
+		l.buffer = b.next
+	}
+	l.Unlock()
+	if b == nil {
+		b = new(buffer)
+	} else {
+		b.next = nil
+		b.Reset()
+	}
+	return b
+}
+
+func (l *logger) print(args ...interface{}) {
+	buf := l.getBuffer()
+	fmt.Fprint(buf, args...)
+	if buf.Bytes()[buf.Len()-1] != '\n' {
+		buf.WriteByte('\n')
+	}
+}
+
+func (l *logger) println(args ...interface{}) {
+	buf := l.getBuffer()
+	fmt.Fprintln(buf, args...)
+}
+
+func (l *logger) printf(format string, args ...interface{}) {
+	buf := l.getBuffer()
+	fmt.Fprintf(buf, format, args...)
 }
 
 // the default logger
@@ -100,8 +143,6 @@ func setup() {
 func Debug(v ...interface{}) {
 	log.Once.Do(setup)
 	if log.severity == DEBUG {
-		log.Lock()
-		defer log.Unlock()
 		log.debug.Output(2, fmt.Sprint(v...))
 	}
 }
@@ -109,8 +150,6 @@ func Debug(v ...interface{}) {
 func Debugln(v ...interface{}) {
 	log.Once.Do(setup)
 	if log.severity == DEBUG {
-		log.Lock()
-		defer log.Unlock()
 		log.debug.Output(2, fmt.Sprintln(v...))
 	}
 }
@@ -118,8 +157,6 @@ func Debugln(v ...interface{}) {
 func Debugf(format string, v ...interface{}) {
 	log.Once.Do(setup)
 	if log.severity == DEBUG {
-		log.Lock()
-		defer log.Unlock()
 		log.debug.Output(2, fmt.Sprintf(format, v...))
 	}
 }
@@ -127,8 +164,6 @@ func Debugf(format string, v ...interface{}) {
 func Info(v ...interface{}) {
 	log.Once.Do(setup)
 	if log.severity <= INFO {
-		log.Lock()
-		defer log.Unlock()
 		log.info.Output(2, fmt.Sprint(v...))
 	}
 }
@@ -136,8 +171,6 @@ func Info(v ...interface{}) {
 func Infoln(v ...interface{}) {
 	log.Once.Do(setup)
 	if log.severity <= INFO {
-		log.Lock()
-		defer log.Unlock()
 		log.info.Output(2, fmt.Sprintln(v...))
 	}
 }
@@ -145,8 +178,6 @@ func Infoln(v ...interface{}) {
 func Infof(format string, v ...interface{}) {
 	log.Once.Do(setup)
 	if log.severity <= INFO {
-		log.Lock()
-		defer log.Unlock()
 		log.info.Output(2, fmt.Sprintf(format, v...))
 	}
 }
@@ -154,8 +185,6 @@ func Infof(format string, v ...interface{}) {
 func Warning(v ...interface{}) {
 	log.Once.Do(setup)
 	if log.severity <= WARNING {
-		log.Lock()
-		defer log.Unlock()
 		log.warning.Output(2, fmt.Sprint(v...))
 	}
 }
@@ -163,8 +192,6 @@ func Warning(v ...interface{}) {
 func Warningln(v ...interface{}) {
 	log.Once.Do(setup)
 	if log.severity <= WARNING {
-		log.Lock()
-		defer log.Unlock()
 		log.warning.Output(2, fmt.Sprintln(v...))
 	}
 }
@@ -172,53 +199,39 @@ func Warningln(v ...interface{}) {
 func Warningf(format string, v ...interface{}) {
 	log.Once.Do(setup)
 	if log.severity <= WARNING {
-		log.Lock()
-		defer log.Unlock()
 		log.warning.Output(2, fmt.Sprintf(format, v...))
 	}
 }
 
 func Error(v ...interface{}) {
 	log.Once.Do(setup)
-	log.Lock()
-	defer log.Unlock()
 	log.err.Output(2, fmt.Sprint(v...))
 }
 
 func Errorln(v ...interface{}) {
 	log.Once.Do(setup)
-	log.Lock()
-	defer log.Unlock()
 	log.err.Output(2, fmt.Sprintln(v...))
 }
 
 func Errorf(format string, v ...interface{}) {
 	log.Once.Do(setup)
-	log.Lock()
-	defer log.Unlock()
 	log.err.Output(2, fmt.Sprintf(format, v...))
 }
 
 func Fatal(v ...interface{}) {
 	log.Once.Do(setup)
-	log.Lock()
-	defer log.Unlock()
 	log.err.Output(2, fmt.Sprint(v...))
 	stdlog.Fatal(v)
 }
 
 func Fatalln(v ...interface{}) {
 	log.Once.Do(setup)
-	log.Lock()
-	defer log.Unlock()
 	log.err.Output(2, fmt.Sprintln(v...))
 	stdlog.Fatalln(v)
 }
 
 func Fatalf(format string, v ...interface{}) {
 	log.Once.Do(setup)
-	log.Lock()
-	defer log.Unlock()
 	log.err.Output(2, fmt.Sprintf(format, v...))
 	stdlog.Fatalf(format, v)
 }

@@ -47,14 +47,14 @@ func main() {
 		for i := 0; i < *n; i++ {
 			msg := <-in
 			id := msg.ID
-			addrs[id] = *transport + "://" + msg.Addr + ":" + strconv.Itoa(paxi.PORT+i+1)
+			addrs[id] = msg.Addr + ":" + strconv.Itoa(paxi.PORT+i+1)
 			http[id] = "http://" + msg.Addr + ":" + strconv.Itoa(paxi.HTTP_PORT+i+1)
 			log.Printf("Node %v address %s\n", id, addrs[id])
 		}
 		config.Addrs = addrs
 		config.HTTPAddrs = http
 		for i := 0; i < *n; i++ {
-			out <- *config
+			out <- config
 		}
 	}()
 
@@ -89,7 +89,7 @@ func main() {
 				in <- msg
 				c = <-out
 			} else {
-				c = *config
+				c = config
 			}
 			c.ID = msg.ID
 			err = encoder.Encode(c)

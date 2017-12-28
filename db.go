@@ -2,6 +2,7 @@ package paxi
 
 import (
 	"container/list"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
@@ -13,7 +14,6 @@ var (
 
 type Key int
 type Value []byte
-type Version int
 
 type Operation uint8
 
@@ -41,51 +41,66 @@ func (c Command) String() string {
 	return fmt.Sprintf("Put{key=%v, val=%v}", c.Key, c.Value)
 }
 
-func (c *Command) IsRead() bool {
+// IsRead return true if command operation is GET
+func (c Command) IsRead() bool {
 	return c.Operation == GET
 }
 
-// StateMachine maintains the multi-version key-value data store
-type StateMachine struct {
+// StateMachine interface provides execution of command against database
+// the implementation should be thread safe
+type StateMachine interface {
+	Execute(c Command) (Value, error)
+}
+
+// database maintains the multi-version key-value datastore
+type database struct {
 	lock *sync.RWMutex
 	// data  map[Key]map[Version]Value
 	data map[Key]*list.List
 	sync.RWMutex
 }
 
-func NewStateMachine() *StateMachine {
-	s := new(StateMachine)
-	s.lock = new(sync.RWMutex)
-	s.data = make(map[Key]*list.List)
-	return s
+// NewStateMachine returns database that impelements StateMachine interface
+func NewStateMachine() StateMachine {
+	db := new(database)
+	db.lock = new(sync.RWMutex)
+	db.data = make(map[Key]*list.List)
+	return db
 }
 
-func (s *StateMachine) Execute(c Command) (Value, error) {
+func (db *database) Execute(c Command) (Value, error) {
 	var v Value
-	s.RLock()
-	if s.data[c.Key] == nil {
-		s.data[c.Key] = list.New()
+	db.RLock()
+	if db.data[c.Key] == nil {
+		db.data[c.Key] = list.New()
 	}
-	tail := s.data[c.Key].Back()
+	tail := db.data[c.Key].Back()
 	if tail != nil {
 		v = tail.Value.(Value)
 	}
-	s.RUnlock()
+	db.RUnlock()
 	switch c.Operation {
 	case PUT:
-		s.Lock()
-		defer s.Unlock()
-		s.data[c.Key].PushBack(c.Value)
+		db.Lock()
+		defer db.Unlock()
+		db.data[c.Key].PushBack(c.Value)
 		return v, nil
 	case GET:
 		return v, nil
 	case DELETE:
-		s.Lock()
-		defer s.Unlock()
-		delete(s.data, c.Key)
+		db.Lock()
+		defer db.Unlock()
+		delete(db.data, c.Key)
 		return v, nil
 	}
 	return nil, ErrStateMachineExecution
+}
+
+func (db *database) String() string {
+	db.RLock()
+	defer db.RUnlock()
+	b, _ := json.Marshal(db.data)
+	return string(b)
 }
 
 func Conflict(gamma *Command, delta *Command) bool {

@@ -28,14 +28,7 @@ func VMax(v ...int) int {
 	return max
 }
 
-func NextBallot(ballot int, id ID) int {
-	return (ballot>>16+1)<<16 | int(id)
-}
-
-func LeaderID(ballot int) ID {
-	return ID(uint16(ballot))
-}
-
+// Schedule repeatedly call function with intervals
 func Schedule(what func(), delay time.Duration) chan bool {
 	stop := make(chan bool)
 
@@ -53,7 +46,7 @@ func Schedule(what func(), delay time.Duration) chan bool {
 	return stop
 }
 
-func ConnectToMaster(addr string, client bool, id ID) *Config {
+func ConnectToMaster(addr string, client bool, id ID) Config {
 	conn, err := net.Dial("tcp", addr+":"+strconv.Itoa(PORT))
 	if err != nil {
 		log.Fatalln(err)
@@ -71,5 +64,5 @@ func ConnectToMaster(addr string, client bool, id ID) *Config {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	return &config
+	return config
 }

@@ -10,7 +10,7 @@ if [ -z "${PID}" ]; then
     go build ../server/
     go build ../client/
     go build ../cmd/
-    ./master -n 9 -transport chan -algorithm wpaxos &
+    ./master -n 9 -transport chan -algorithm paxos &
     echo $! > ${PID_FILE}
     sleep 3
     ./server -log_dir=logs -master "127.0.0.1" -simulation &

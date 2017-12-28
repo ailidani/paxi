@@ -6,7 +6,7 @@ import (
 )
 
 type Replica struct {
-	*Node
+	Node
 	paxi map[Key]*paxos
 }
 

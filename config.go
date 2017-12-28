@@ -21,26 +21,27 @@ type Config struct {
 	Addrs           map[ID]string `json:"address"`      // address for node communication
 	HTTPAddrs       map[ID]string `json:"http_address"` // address for client server communication
 	Algorithm       string        `json:"algorithm"`    // replication algorithm name
-	F               int           `json:"f"`            // number of failure zones in grid quorums
+	F               int           `json:"f"`            // number of failure zones in general grid quorums
 	Threshold       int           `json:"threshold"`    // threshold for leader change, 0 means immediate
 	BackOff         int           `json:"backoff"`      // random backoff interval
 	Thrifty         bool          `json:"thrifty"`      // only send messages to a quorum
 	ChanBufferSize  int           `json:"chan_buffer_size"`
 	BufferSize      int           `json:"buffer_size"`
 	ConfigFile      string        `json:"file"`
-	Transport       string        `json:"transport"`
+	Transport       string        `json:"transport"` // not used
 	Codec           string        `json:"codec"`
 	ReplyWhenCommit bool          `json:"reply_when_commit` // reply to client when request is committed, instead of executed
+
 	// for future implementation
 	// Batching bool `json:"batching"`
 	// Consistency int `json:"consistency"`
 }
 
-func MakeDefaultConfig() *Config {
+func MakeDefaultConfig() Config {
 	id := NewID(0, 0)
 	config := new(Config)
 	config.ID = NewID(1, 1)
-	config.Addrs = map[ID]string{id: "chan://*:" + strconv.Itoa(PORT)}
+	config.Addrs = map[ID]string{id: "127.0.0.1:" + strconv.Itoa(PORT)}
 	config.HTTPAddrs = map[ID]string{id: "http://localhost:" + strconv.Itoa(HTTP_PORT)}
 	config.Algorithm = "wpaxos"
 	config.ChanBufferSize = CHAN_BUFFER_SIZE
@@ -48,16 +49,16 @@ func MakeDefaultConfig() *Config {
 	config.ConfigFile = "config.json"
 	config.Transport = "chan"
 	config.Codec = "gob"
-	return config
+	return *config
 }
 
 // NewConfig creates config object with given node id and config file path
-func NewConfig(id ID, file string) *Config {
+func NewConfig(id ID, file string) Config {
 	config := new(Config)
 	config.ID = id
 	config.ConfigFile = file
 	config.Load()
-	return config
+	return *config
 }
 
 // String is implemented to print the config

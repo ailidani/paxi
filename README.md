@@ -20,7 +20,10 @@ Warning: Paxi project is still under heavy development, with more features and p
 - [x] KPaxos (Static partitioned Paxos)
 - [ ] [Vertical Paxos](https://www.microsoft.com/en-us/research/wp-content/uploads/2009/08/Vertical-Paxos-and-Primary-Backup-Replication-.pdf)
 - [ ] [WanKeeper](http://ieeexplore.ieee.org/abstract/document/7980095/)
-
+- [ ] Transactions
+- [ ] Dynamic quorums
+- [ ] Fault injection
+- [ ] Linerizability checker
 
 # How to build
 
