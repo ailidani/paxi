@@ -21,4 +21,10 @@ func TestConfig(t *testing.T) {
 	if reflect.DeepEqual(c1, c2) {
 		t.Fail()
 	}
+
+	b := NewBenchmarkConfig()
+	err = b.Save()
+	if err != nil {
+		t.Error(err)
+	}
 }

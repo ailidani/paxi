@@ -57,20 +57,20 @@ Each executable file expects some parameters which can be seen by `-help` flag, 
 
 2. Start 6 servers with different zone id and node ids.
 ```
-./server -sid 1 -nid 1 -master 127.0.0.1 &
-./server -sid 1 -nid 2 -master 127.0.0.1 &
-./server -sid 2 -nid 1 -master 127.0.0.1 &
-./server -sid 2 -nid 2 -master 127.0.0.1 &
-./server -sid 3 -nid 1 -master 127.0.0.1 &
-./server -sid 3 -nid 2 -master 127.0.0.1 &
+./server -id 1.1 -master 127.0.0.1 &
+./server -id 1.2 -master 127.0.0.1 &
+./server -id 2.1 -master 127.0.0.1 &
+./server -id 2.2 -master 127.0.0.1 &
+./server -id 3.1 -master 127.0.0.1 &
+./server -id 3.2 -master 127.0.0.1 &
 ```
 
 3. Start benchmarking client with 10 threads, 1000 keys, 50 percent conflicting commands and run for 60 seconds in 1 round.
 ```
-./client -sid 1 -nid 1 -master 127.0.0.1 -T 10 -k 1000 -r 1 -c 50 -t 60 &
+./client -id 1.1 -master 127.0.0.1 -bconfig benchmark.json
 ```
 
-# How to use implement algorithms in Paxi
+# How to implement algorithms in Paxi
 
 Replication algorithm in Paxi follows the message passing model, where several message types and their handle function are registered.
 

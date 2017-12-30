@@ -21,47 +21,47 @@ type DB interface {
 var file = flag.String("bconfig", "benchmark.json", "benchmark configuration file")
 
 type bconfig struct {
-	t            int    // total number of running time in seconds
-	n            int    // total number of requests
-	k            int    // key sapce
-	w            int    // percentage of writes
-	concurrency  int    // number of simulated clients
-	distribution string // distribution
+	T            int    // total number of running time in seconds
+	N            int    // total number of requests
+	K            int    // key sapce
+	W            int    // percentage of writes
+	Concurrency  int    // number of simulated clients
+	Distribution string // distribution
 	// rounds       int    // repeat in many rounds sequentially
 
 	// random distribution
-	conflicts int // percetage of conflicting keys
-	min       int // min key
+	Conflicts int // percetage of conflicting keys
+	Min       int // min key
 
 	// normal distribution
-	mu    float64 // mu of normal distribution
-	sigma float64 // sigma of normal distribution
-	move  bool    // moving average (mu) of normal distribution
-	speed int     // moving speed in milliseconds intervals per key
+	Mu    float64 // mu of normal distribution
+	Sigma float64 // sigma of normal distribution
+	Move  bool    // moving average (mu) of normal distribution
+	Speed int     // moving speed in milliseconds intervals per key
 
 	// zipfian distribution
-	zipfian_s float64 // zipfian s parameter
-	zipfian_v float64 // zipfian v parameter
+	Zipfian_s float64 // zipfian s parameter
+	Zipfian_v float64 // zipfian v parameter
 
-	throttle int // requests per second throttle
+	Throttle int // requests per second throttle
 }
 
 func NewBenchmarkConfig() bconfig {
 	return bconfig{
-		t:            10,
-		n:            0,
-		k:            1000,
-		w:            100,
-		concurrency:  1,
-		distribution: "random",
-		conflicts:    100,
-		min:          0,
-		mu:           0,
-		sigma:        60,
-		move:         false,
-		speed:        500,
-		zipfian_s:    2,
-		zipfian_v:    1,
+		T:            10,
+		N:            0,
+		K:            1000,
+		W:            100,
+		Concurrency:  1,
+		Distribution: "random",
+		Conflicts:    100,
+		Min:          0,
+		Mu:           0,
+		Sigma:        60,
+		Move:         false,
+		Speed:        500,
+		Zipfian_s:    2,
+		Zipfian_v:    1,
 	}
 }
 
@@ -73,6 +73,16 @@ func (c *bconfig) Load() error {
 	}
 	decoder := json.NewDecoder(f)
 	return decoder.Decode(c)
+}
+
+// Save saves the benchmark parameters to configuration file
+func (c *bconfig) Save() error {
+	f, err := os.Create(*file)
+	if err != nil {
+		return err
+	}
+	encoder := json.NewEncoder(f)
+	return encoder.Encode(c)
 }
 
 type Benchmarker struct {
@@ -95,12 +105,12 @@ func NewBenchmarker(db DB) *Benchmarker {
 func (b *Benchmarker) Start() {
 	rand.Seed(time.Now().UTC().UnixNano())
 	r := rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
-	b.zipf = rand.NewZipf(r, b.zipfian_s, b.zipfian_v, uint64(b.k))
+	b.zipf = rand.NewZipf(r, b.Zipfian_s, b.Zipfian_v, uint64(b.K))
 
 	var stop chan bool
-	if b.move {
-		move := func() { b.mu = float64(int(b.mu+1) % b.k) }
-		stop = Schedule(move, time.Duration(b.speed)*time.Millisecond)
+	if b.Move {
+		move := func() { b.Mu = float64(int(b.Mu+1) % b.K) }
+		stop = Schedule(move, time.Duration(b.Speed)*time.Millisecond)
 	}
 
 	b.latency = make([]time.Duration, 1000)
@@ -110,11 +120,11 @@ func (b *Benchmarker) Start() {
 	keys := make(chan int, 1000)
 	results := make(chan time.Duration, 1000)
 	go b.collect(results)
-	for i := 0; i < b.concurrency; i++ {
+	for i := 0; i < b.Concurrency; i++ {
 		go b.worker(keys, results)
 	}
-	if b.t > 0 {
-		timer := time.NewTimer(time.Second * time.Duration(b.t))
+	if b.T > 0 {
+		timer := time.NewTimer(time.Second * time.Duration(b.T))
 	loop:
 		for {
 			select {
@@ -125,7 +135,7 @@ func (b *Benchmarker) Start() {
 			}
 		}
 	} else {
-		for i := 0; i < b.n; i++ {
+		for i := 0; i < b.N; i++ {
 			keys <- b.next()
 		}
 	}
@@ -139,7 +149,7 @@ func (b *Benchmarker) Start() {
 	log.Infof("Throughput %f\n", float64(len(b.latency))/t.Seconds())
 	log.Infoln(stat)
 
-	if b.move {
+	if b.Move {
 		stop <- true
 	}
 	close(keys)
@@ -149,21 +159,21 @@ func (b *Benchmarker) Start() {
 // generates key based on distribution
 func (b *Benchmarker) next() int {
 	var key int
-	switch b.distribution {
+	switch b.Distribution {
 	case "random":
-		if rand.Intn(100) < b.conflicts {
-			key = rand.Intn(b.k)
+		if rand.Intn(100) < b.Conflicts {
+			key = rand.Intn(b.K)
 		} else {
-			key = rand.Intn(b.k) + b.min
+			key = rand.Intn(b.K) + b.Min
 		}
 
 	case "normal":
-		key = int(rand.NormFloat64()*b.sigma + b.mu)
+		key = int(rand.NormFloat64()*b.Sigma + b.Mu)
 		for key < 0 {
-			key += b.k
+			key += b.K
 		}
-		for key > b.k {
-			key -= b.k
+		for key > b.K {
+			key -= b.K
 		}
 
 	case "zipfan":
@@ -178,7 +188,7 @@ func (b *Benchmarker) worker(keys <-chan int, results chan<- time.Duration) {
 		v := rand.Int()
 
 		s := time.Now()
-		if rand.Intn(100) < b.w {
+		if rand.Intn(100) < b.W {
 			b.db.Write(k, v)
 		} else {
 			b.db.Read(k)
