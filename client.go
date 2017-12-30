@@ -66,7 +66,7 @@ func (c *Client) RESTGet(key Key) Value {
 		log.Errorln(err)
 		return nil
 	}
-	req.Header.Set("id", c.ID.String())
+	req.Header.Set("id", fmt.Sprintf("%v", c.ID))
 	req.Header.Set("cid", strconv.FormatUint(uint64(c.cid), 10))
 	req.Header.Set("timestamp", strconv.FormatInt(time.Now().UnixNano(), 10))
 	rep, err := http.DefaultClient.Do(req)
@@ -97,7 +97,7 @@ func (c *Client) RESTPut(key Key, value Value) {
 		log.Errorln(err)
 		return
 	}
-	req.Header.Set("id", c.ID.String())
+	req.Header.Set("id", fmt.Sprintf("%v", c.ID))
 	req.Header.Set("cid", fmt.Sprintf("%v", c.cid))
 	req.Header.Set("timestamp", fmt.Sprintf("%d", time.Now().UnixNano()))
 	rep, err := http.DefaultClient.Do(req)

@@ -48,8 +48,8 @@ type bconfig struct {
 
 func NewBenchmarkConfig() bconfig {
 	return bconfig{
-		t:            0,
-		n:            1000,
+		t:            10,
+		n:            0,
 		k:            1000,
 		w:            100,
 		concurrency:  1,
@@ -115,10 +115,11 @@ func (b *Benchmarker) Start() {
 	}
 	if b.t > 0 {
 		timer := time.NewTimer(time.Second * time.Duration(b.t))
+	loop:
 		for {
 			select {
 			case <-timer.C:
-				break
+				break loop
 			default:
 				keys <- b.next()
 			}
@@ -128,8 +129,7 @@ func (b *Benchmarker) Start() {
 			keys <- b.next()
 		}
 	}
-	close(keys)
-	close(results)
+
 	b.db.Stop()
 	end_time := time.Now()
 	stat := Statistic(b.latency)
@@ -142,6 +142,8 @@ func (b *Benchmarker) Start() {
 	if b.move {
 		stop <- true
 	}
+	close(keys)
+	close(results)
 }
 
 // generates key based on distribution

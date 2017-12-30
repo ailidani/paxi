@@ -60,7 +60,7 @@ func NewNode(config Config) Node {
 	node.MessageChan = make(chan interface{}, config.ChanBufferSize)
 	node.handles = make(map[string]reflect.Value)
 
-	zones := make(map[uint8]int)
+	zones := make(map[int]int)
 	for id := range config.Addrs {
 		zones[id.Zone()]++
 	}
@@ -110,7 +110,7 @@ func (n *node) serve() {
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		var req Request
 		req.c = make(chan Reply)
-		req.ClientID, _ = IDFromString(r.Header.Get("id"))
+		req.ClientID = ID(r.Header.Get("id"))
 		cid, _ := strconv.Atoi(r.Header.Get("cid"))
 		req.CommandID = CommandID(cid)
 		req.Timestamp, _ = strconv.ParseInt(r.Header.Get("timestamp"), 10, 64)
@@ -148,7 +148,7 @@ func (n *node) serve() {
 			return
 		}
 		// r.w.Header().Set("ok", fmt.Sprintf("%v", reply.OK))
-		w.Header().Set("id", reply.ClientID.String())
+		w.Header().Set("id", fmt.Sprintf("%v", reply.ClientID))
 		w.Header().Set("cid", fmt.Sprintf("%v", reply.CommandID))
 		w.Header().Set("timestamp", fmt.Sprintf("%v", reply.Timestamp))
 		if reply.Command.IsRead() {
@@ -199,7 +199,7 @@ func (n *node) Forward(id ID, m Request) {
 			log.Errorln(err)
 			return
 		}
-		req.Header.Set("id", m.ClientID.String())
+		req.Header.Set("id", fmt.Sprintf("%v", m.ClientID))
 		rep, err := http.DefaultClient.Do(req)
 		if err != nil {
 			log.Errorln(err)
@@ -222,7 +222,7 @@ func (n *node) Forward(id ID, m Request) {
 			log.Errorln(err)
 			return
 		}
-		req.Header.Set("id", m.ClientID.String())
+		req.Header.Set("id", fmt.Sprintf("%v", m.ClientID))
 		rep, err := http.DefaultClient.Do(req)
 		if err != nil {
 			log.Errorln(err)

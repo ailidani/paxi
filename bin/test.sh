@@ -13,20 +13,20 @@ if [ -z "${PID}" ]; then
     ./master -n 6 -transport udp -algorithm paxos &
     echo $! > ${PID_FILE}
     sleep 3
-    ./server -log_dir=logs -sid 1 -nid 1 -master 127.0.0.1 &
+    ./server -log_dir=logs -id 1.1 -master 127.0.0.1 &
     echo $! >> ${PID_FILE}
-    ./server -log_dir=logs -sid 1 -nid 2 -master 127.0.0.1 &
+    ./server -log_dir=logs -id 1.2 -master 127.0.0.1 &
 	echo $! >> ${PID_FILE}
-	./server -log_dir=logs -sid 1 -nid 3 -master 127.0.0.1 &
+	./server -log_dir=logs -id 1.3 -master 127.0.0.1 &
 	echo $! >> ${PID_FILE}
-	./server -log_dir=logs -sid 2 -nid 1 -master 127.0.0.1 &
+	./server -log_dir=logs -id 2.1 -master 127.0.0.1 &
 	echo $! >> ${PID_FILE}
-	./server -log_dir=logs -sid 2 -nid 2 -master 127.0.0.1 &
+	./server -log_dir=logs -id 2.2 -master 127.0.0.1 &
 	echo $! >> ${PID_FILE}
-	./server -log_dir=logs -sid 2 -nid 3 -master 127.0.0.1 &
+	./server -log_dir=logs -id 2.3 -master 127.0.0.1 &
 	echo $! >> ${PID_FILE}
     # sleep 5
-    # ./client -sid 1 -nid 1 -T 1 -k 1000 -c 50 -t 60 -log_level info
+    # ./client -id 1.1 -T 1 -k 1000 -c 50 -t 60 -log_level info
     # ./cmd put 1 1
     # ./cmd put 2 2
     # ./cmd put 1 2

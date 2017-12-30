@@ -10,7 +10,7 @@ import (
 	"github.com/ailidani/paxi"
 )
 
-var master = flag.String("master", "127.0.0.1", "Master address.")
+var master = flag.String("master", "", "Master address.")
 
 func usage() string {
 	return fmt.Sprint("cmd {get key | put key value}")
@@ -18,7 +18,15 @@ func usage() string {
 
 func main() {
 	flag.Parse()
-	config := paxi.ConnectToMaster(*master, true, paxi.GetID())
+
+	id := paxi.GetID()
+	var config paxi.Config
+	if *master == "" {
+		config = paxi.NewConfig(id)
+	} else {
+		config = paxi.ConnectToMaster(*master, true, id)
+	}
+
 	client := paxi.NewClient(config)
 	client.Start()
 

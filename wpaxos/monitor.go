@@ -73,5 +73,5 @@ func (m *monitor) hit(key Key, id ID) ID {
 			}
 		}
 	}
-	return 0
+	return ""
 }

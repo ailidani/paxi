@@ -3,7 +3,7 @@ package paxi
 type Quorum struct {
 	size  int
 	acks  map[ID]bool
-	zones map[uint8]int
+	zones map[int]int
 	nacks map[ID]bool
 }
 
@@ -11,7 +11,7 @@ func NewQuorum() *Quorum {
 	return &Quorum{
 		size:  0,
 		acks:  make(map[ID]bool, NumNodes),
-		zones: make(map[uint8]int, NumZones),
+		zones: make(map[int]int, NumZones),
 		nacks: make(map[ID]bool, NumNodes),
 	}
 }
@@ -41,7 +41,7 @@ func (q *Quorum) Size() int {
 func (q *Quorum) Clear() {
 	q.size = 0
 	q.acks = make(map[ID]bool, NumNodes)
-	q.zones = make(map[uint8]int, NumZones)
+	q.zones = make(map[int]int, NumZones)
 	q.nacks = make(map[ID]bool, NumNodes)
 }
 
@@ -71,18 +71,7 @@ func (q *Quorum) ZoneMajority() bool {
 }
 
 func (q *Quorum) GridRow() bool {
-	row := make(map[uint8]int)
-	for id, ok := range q.acks {
-		if ok {
-			row[id.Node()]++
-		}
-	}
-	for _, n := range row {
-		if n == NumZones {
-			return true
-		}
-	}
-	return false
+	return q.AllZones()
 }
 
 func (q *Quorum) GridColumn() bool {

@@ -8,31 +8,30 @@ import (
 	"github.com/ailidani/paxi/log"
 )
 
-var master = flag.String("master", "127.0.0.1", "Master address.")
-var configFile = flag.String("config", "config.json", "Configuration file for paxi replica. Defaults to config.json.")
+var master = flag.String("master", "", "Master address.")
 
-// client implements Paxi.DB interface for benchmarking
-type client struct {
-	*paxi.Client
+// db implements Paxi.DB interface for benchmarking
+type db struct {
+	c *paxi.Client
 }
 
-func (c *client) Init() {
-	c.Start()
+func (d *db) Init() {
+	d.c.Start()
 }
 
-func (c *client) Stop() {
-	c.Stop()
+func (d *db) Stop() {
+	d.c.Stop()
 }
 
-func (c *client) Read(k int) int {
-	v := c.Get(paxi.Key(k))
+func (d *db) Read(k int) int {
+	v := d.c.Get(paxi.Key(k))
 	return int(binary.LittleEndian.Uint64(v))
 }
 
-func (c *client) Write(k, v int) {
+func (d *db) Write(k, v int) {
 	value := make([]byte, 8)
 	binary.LittleEndian.PutUint64(value, uint64(v))
-	c.Put(paxi.Key(k), value)
+	d.c.Put(paxi.Key(k), value)
 }
 
 func main() {
@@ -42,16 +41,16 @@ func main() {
 
 	var config paxi.Config
 	if *master == "" {
-		config = paxi.NewConfig(id, *configFile)
+		config = paxi.NewConfig(id)
 	} else {
 		config = paxi.ConnectToMaster(*master, true, id)
 		log.Infof("Received config %s\n", config)
 	}
 
-	c := new(client)
-	c.Client = paxi.NewClient(config)
+	d := new(db)
+	d.c = paxi.NewClient(config)
 
-	b := paxi.NewBenchmarker(c)
+	b := paxi.NewBenchmarker(d)
 	b.Load()
 	b.Start()
 }

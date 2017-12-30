@@ -6,27 +6,12 @@ import (
 	"testing"
 )
 
-var id1 = NewID(1, 1)
-var id2 = NewID(1, 2)
+var id1 = ID("1.1")
+var id2 = ID("1.2")
 
-var TCPAddress = map[ID]string{
-	id1: "tcp://127.0.0.1:1735",
-	id2: "tcp://127.0.0.1:1736",
-}
-
-var UDPAddress = map[ID]string{
-	id1: "udp://127.0.0.1:1735",
-	id2: "udp://127.0.0.1:1736",
-}
-
-var ChanAddress = map[ID]string{
-	id1: "chan://127.0.0.1:1735",
-	id2: "chan://127.0.0.1:1736",
-}
-
-var MixAddress = map[ID]string{
-	id1: "tcp://127.0.0.1:1735",
-	id2: "udp://127.0.0.1:1736",
+var Address = map[ID]string{
+	id1: "127.0.0.1:1735",
+	id2: "127.0.0.1:1736",
 }
 
 type MSG struct {
@@ -34,15 +19,15 @@ type MSG struct {
 	S string
 }
 
-func run(address map[ID]string) error {
+func run(transport string) error {
 	gob.Register(MSG{})
 	send := &MSG{42, "hello"}
 	go func() {
-		sock1 := NewSocket(id1, address, "gob")
+		sock1 := NewSocket(id1, Address, transport, "gob")
 		defer sock1.Close()
 		sock1.Multicast(id1.Zone(), send)
 	}()
-	sock2 := NewSocket(id2, address, "gob")
+	sock2 := NewSocket(id2, Address, transport, "gob")
 	defer sock2.Close()
 	recv := sock2.Recv()
 	if recv.(MSG) != *send {
@@ -53,23 +38,18 @@ func run(address map[ID]string) error {
 
 func TestSocket(t *testing.T) {
 	var err error
-	err = run(TCPAddress)
+	err = run("chan")
 	if err != nil {
 		t.Error()
 	}
 
-	err = run(UDPAddress)
+	err = run("udp")
 	if err != nil {
 		t.Error()
 	}
 
-	err = run(ChanAddress)
+	err = run("tcp")
 	if err != nil {
 		t.Error()
 	}
-
-	// err = run(MixAddress)
-	// if err != nil {
-	// 	t.Error()
-	// }
 }

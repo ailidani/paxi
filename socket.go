@@ -8,7 +8,7 @@ type Socket interface {
 	Send(to ID, msg interface{})
 
 	// Multicast send msg to all nodes in the same site
-	Multicast(sid uint8, msg interface{})
+	Multicast(zone int, msg interface{})
 
 	// Broadcast send to all peers
 	Broadcast(msg interface{})
@@ -65,12 +65,12 @@ func (sock *socket) Recv() interface{} {
 	return msg
 }
 
-func (sock *socket) Multicast(sid uint8, msg interface{}) {
+func (sock *socket) Multicast(zone int, msg interface{}) {
 	for id := range sock.nodes {
 		if id == sock.id {
 			continue
 		}
-		if id.Zone() == sid {
+		if id.Zone() == zone {
 			sock.Send(id, msg)
 		}
 	}

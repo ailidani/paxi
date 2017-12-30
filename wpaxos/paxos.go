@@ -58,7 +58,7 @@ func (p *paxos) prepare() {
 			Key:    p.key,
 			Ballot: p.ballot,
 		})
-		log.Debugf("Replica %v sent %v", p.ID, Prepare{p.key, p.ballot})
+		log.Debugf("Replica %v sent %v", p.ID(), Prepare{p.key, p.ballot})
 	}
 }
 
@@ -87,7 +87,7 @@ func (p *paxos) handleRequest(msg Request) {
 	if p.active {
 		p.accept(msg)
 		to := p.stat.hit(NewID(msg.ClientID.Zone(), 1))
-		if p.Config().Threshold > 0 && to != 0 && to.Zone() != p.ID().Zone() {
+		if p.Config().Threshold > 0 && to != "" && to.Zone() != p.ID().Zone() {
 			p.Send(to, &LeaderChange{
 				Key:    p.key,
 				To:     to,

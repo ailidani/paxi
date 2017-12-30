@@ -12,13 +12,12 @@ import (
 )
 
 var n = flag.Int("n", 1, "N number of replicas, default value 1.")
-var algorithm = flag.String("algorithm", "cosmos", "Consensus algorithm name")
-var consistency = flag.Int("c", 1, "Consistency level")
-var f = flag.Int("f", 0, "failure per site")
+var algorithm = flag.String("algorithm", "paxos", "Consensus algorithm name")
+var f = flag.Int("f", 0, "tolerate f zone failures")
 var threshold = flag.Int("threshold", 0, "Threshold for leader change, 0 means immediate")
 var backOff = flag.Int("backoff", 100, "Random backoff time")
 var thrifty = flag.Bool("thrifty", false, "")
-var transport = flag.String("transport", "udp", "Transport protocols, including tcp, udp, chan (local)")
+var transport = flag.String("transport", "tcp", "Transport protocols, including tcp, udp, chan (local)")
 var replywhencommit = flag.Bool("replywhencommit", false, "reply to client when request is committed, not executed")
 
 var chanbufsize = flag.Int("chanbufsize", paxi.CHAN_BUFFER_SIZE, "")

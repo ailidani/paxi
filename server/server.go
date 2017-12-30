@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"strconv"
 	"sync"
 
@@ -12,7 +13,6 @@ import (
 	"github.com/ailidani/paxi/wpaxos"
 )
 
-var configFile = flag.String("config", "config.json", "Configuration file for paxi replica. Defaults to config.json.")
 var master = flag.String("master", "", "Master address.")
 
 var simulation = flag.Bool("simulation", false, "Mocking network by chan and goroutine.")
@@ -22,7 +22,7 @@ var m = flag.Int("m", 3, "number of zones")
 func replica(id paxi.ID) {
 	var config paxi.Config
 	if *master == "" {
-		config = paxi.NewConfig(id, *configFile)
+		config = paxi.NewConfig(id)
 	} else {
 		config = paxi.ConnectToMaster(*master, false, id)
 	}
@@ -59,7 +59,7 @@ func mockConfig() paxi.Config {
 	p := 0
 	for i := 1; i <= *m; i++ {
 		for j := 1; j <= *n; j++ {
-			id := paxi.NewID(uint8(i), uint8(j))
+			id := paxi.ID(fmt.Sprintf("%d.%d", i, j))
 			addrs[id] = "127.0.0.1:" + strconv.Itoa(paxi.PORT+p)
 			http[id] = "http://127.0.0.1:" + strconv.Itoa(paxi.HTTP_PORT+p)
 			p++
@@ -75,7 +75,7 @@ func mockConfig() paxi.Config {
 func mockNodes() {
 	for i := 1; i <= *m; i++ {
 		for j := 1; j <= *n; j++ {
-			id := paxi.NewID(uint8(i), uint8(j))
+			id := paxi.ID(fmt.Sprintf("%d.%d", i, j))
 			go replica(id)
 		}
 	}
