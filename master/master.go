@@ -12,7 +12,7 @@ import (
 )
 
 var n = flag.Int("n", 1, "N number of replicas, default value 1.")
-var algorithm = flag.String("algorithm", "cosmos", "Consensus algorithm name")
+var algorithm = flag.String("algorithm", "wpaxos", "Consensus algorithm name")
 var consistency = flag.Int("c", 1, "Consistency level")
 var f = flag.Int("f", 0, "failure per site")
 var threshold = flag.Int("threshold", 0, "Threshold for leader change, 0 means immediate")
