@@ -75,13 +75,13 @@ func (c *Client) RESTGet(key Key) Value {
 		return nil
 	}
 	defer rep.Body.Close()
-	dump, _ := httputil.DumpResponse(rep, true)
-	log.Debugln(rep.Status)
-	log.Debugf("%q", dump)
 	if rep.StatusCode == http.StatusOK {
 		b, _ := ioutil.ReadAll(rep.Body)
+		log.Debugf("type=%s key=%v value=%x", "get", key, Value(b))
 		return Value(b)
 	}
+	dump, _ := httputil.DumpResponse(rep, true)
+	log.Debugf("%q", dump)
 	return nil
 }
 
@@ -106,9 +106,12 @@ func (c *Client) RESTPut(key Key, value Value) {
 		return
 	}
 	defer rep.Body.Close()
-	dump, _ := httputil.DumpResponse(rep, true)
-	log.Debugln(rep.Status)
-	log.Debugf("%q", dump)
+	if rep.StatusCode == http.StatusOK {
+		log.Debugf("type=%s key=%v value=%x", "put", key, value)
+	} else {
+		dump, _ := httputil.DumpResponse(rep, true)
+		log.Debugf("%q", dump)
+	}
 }
 
 // Get post json get request to server url

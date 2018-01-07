@@ -52,7 +52,7 @@ Each executable file expects some parameters which can be seen by `-help` flag, 
 
 1. Start master node with 6 replicas running WPaxos:
 ```
-./master.sh -n 6 -protocol "wpaxos"
+./master.sh -n 6 -algorithm "wpaxos"
 ```
 
 2. Start 6 servers with different zone id and node ids.

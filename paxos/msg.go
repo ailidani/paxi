@@ -17,54 +17,56 @@ func init() {
 
 // P1a prepare message
 type P1a struct {
-	Ballot int // <n, id>
+	Ballot paxi.Ballot
 }
 
 func (m P1a) String() string {
-	return fmt.Sprintf("P1a {b=%d}", m.Ballot)
+	return fmt.Sprintf("P1a {b=%v}", m.Ballot)
 }
 
 // P1b promise message
 type P1b struct {
-	Ballot  int
-	ID      paxi.ID      // from node id
-	Slot    int          // last slot
-	Command paxi.Command // cmd in last slot
+	Ballot        paxi.Ballot
+	ID            paxi.ID      // from node id
+	Slot          int          // last slot
+	Command       paxi.Command // value in last slot
+	CommandBallot paxi.Ballot  // value ballot
 }
 
 func (m P1b) String() string {
-	return fmt.Sprintf("P1b {b=%d, s=%d, cmd=%v}", m.Ballot, m.Slot, m.Command)
+	return fmt.Sprintf("P1b {b=%v, s=%d, c=%v, cb=%v}", m.Ballot, m.Slot, m.Command, m.CommandBallot)
 }
 
 // P2a accept message
 type P2a struct {
-	Ballot  int
+	Ballot  paxi.Ballot
 	Slot    int
 	Command paxi.Command
 }
 
 func (m P2a) String() string {
-	return fmt.Sprintf("P2a {b=%d, s=%d, cmd=%v}", m.Ballot, m.Slot, m.Command)
+	return fmt.Sprintf("P2a {b=%v, s=%d, c=%v}", m.Ballot, m.Slot, m.Command)
 }
 
 // P2b accepted message
 type P2b struct {
-	Ballot int
-	Slot   int
+	Ballot paxi.Ballot
 	ID     paxi.ID // from node id
+	Slot   int
+	// Command       paxi.Command
+	// CommandBallot paxi.Ballot
 }
 
 func (m P2b) String() string {
-	return fmt.Sprintf("P2b {b=%d, s=%d}", m.Ballot, m.Slot)
+	return fmt.Sprintf("P2b {b=%v, s=%d}", m.Ballot, m.Slot)
 }
 
 // P3 commit message
 type P3 struct {
-	Ballot  int
 	Slot    int
 	Command paxi.Command
 }
 
 func (m P3) String() string {
-	return fmt.Sprintf("P3 {b=%d, s=%d, cmd=%v}", m.Ballot, m.Slot, m.Command)
+	return fmt.Sprintf("P3 {s=%d, cmd=%v}", m.Slot, m.Command)
 }

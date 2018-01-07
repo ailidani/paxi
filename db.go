@@ -38,7 +38,7 @@ func (c Command) String() string {
 	if c.Operation == GET {
 		return fmt.Sprintf("Get{key=%v}", c.Key)
 	}
-	return fmt.Sprintf("Put{key=%v, val=%v}", c.Key, c.Value)
+	return fmt.Sprintf("Put{key=%v, val=%x}", c.Key, c.Value)
 }
 
 // IsRead return true if command operation is GET

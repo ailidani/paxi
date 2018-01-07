@@ -24,15 +24,16 @@ type Config struct {
 	Addrs           map[ID]string `json:"address"`      // address for node communication
 	HTTPAddrs       map[ID]string `json:"http_address"` // address for client server communication
 	Algorithm       string        `json:"algorithm"`    // replication algorithm name
+	Quorum          string        `json:"quorum"`       // type of the quorums
 	F               int           `json:"f"`            // number of failure zones in general grid quorums
-	Threshold       int           `json:"threshold"`    // threshold for leader change, 0 means immediate
-	BackOff         int           `json:"backoff"`      // random backoff interval
-	Thrifty         bool          `json:"thrifty"`      // only send messages to a quorum
-	ChanBufferSize  int           `json:"chan_buffer_size"`
-	BufferSize      int           `json:"buffer_size"`
-	Transport       string        `json:"transport"` // not used
+	Transport       string        `json:"transport"`    // not used
 	Codec           string        `json:"codec"`
 	ReplyWhenCommit bool          `json:"reply_when_commit"` // reply to client when request is committed, instead of executed
+	Threshold       int           `json:"threshold"`         // threshold for leader change, 0 means immediate
+	BackOff         int           `json:"backoff"`           // random backoff interval
+	Thrifty         bool          `json:"thrifty"`           // only send messages to a quorum
+	ChanBufferSize  int           `json:"chan_buffer_size"`
+	BufferSize      int           `json:"buffer_size"`
 
 	// for future implementation
 	// Batching bool `json:"batching"`
@@ -45,6 +46,7 @@ func MakeDefaultConfig() Config {
 	config.Addrs = map[ID]string{"1.1": "127.0.0.1:" + strconv.Itoa(PORT)}
 	config.HTTPAddrs = map[ID]string{"1.1": "http://localhost:" + strconv.Itoa(HTTP_PORT)}
 	config.Algorithm = "wpaxos"
+	config.Quorum = "fgrid"
 	config.ChanBufferSize = CHAN_BUFFER_SIZE
 	config.BufferSize = BUFFER_SIZE
 	config.Transport = "chan"

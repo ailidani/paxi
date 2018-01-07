@@ -7,9 +7,10 @@ import (
 	"github.com/ailidani/paxi/log"
 )
 
+// entry in log
 type entry struct {
-	ballot    int
-	cmd       paxi.Command
+	ballot    paxi.Ballot
+	command   paxi.Command
 	commit    bool
 	request   *paxi.Request
 	quorum    *paxi.Quorum
@@ -20,110 +21,182 @@ type entry struct {
 type Paxos struct {
 	paxi.Node
 
-	leader  bool           // am i leader for this ballot
-	ballot  int            // ballot number of <n, id>
-	slot    int            // max slot number
-	log     map[int]*entry // entire log ordered by slot
+	log     map[int]*entry // log ordered by slot
 	execute int            // next execute slot number
+	active  bool           // active leader
+	ballot  paxi.Ballot    // highest ballot number
+	slot    int            // highest slot number
 
-	quorum   *paxi.Quorum   // quorum for phase 1
-	requests []paxi.Request // pending requests during phase 1
+	quorum   *paxi.Quorum    // phase 1 quorum
+	requests []*paxi.Request // phase 1 pending requests
 }
 
 // NewPaxos creates new paxos instance
 func NewPaxos(n paxi.Node) *Paxos {
-	p := new(Paxos)
-	p.Node = n
-	p.log = make(map[int]*entry, paxi.BUFFER_SIZE)
-	p.log[0] = &entry{}
-	p.execute = 1
-	p.quorum = paxi.NewQuorum()
-	p.requests = make([]paxi.Request, 0)
-	return p
+	log := make(map[int]*entry, paxi.BUFFER_SIZE)
+	log[0] = &entry{}
+	return &Paxos{
+		Node:     n,
+		log:      log,
+		execute:  1,
+		quorum:   paxi.NewQuorum(),
+		requests: make([]*paxi.Request, 0),
+	}
 }
 
 func (p *Paxos) HandleRequest(r paxi.Request) {
 	log.Debugf("Replica %s received %v\n", p.ID(), r)
-	if !p.leader {
-		p.requests = append(p.requests, r)
-		if paxi.LeaderID(p.ballot) != p.ID() {
+	if !p.active {
+		p.requests = append(p.requests, &r)
+		if p.ballot.ID() != p.ID() {
 			p.P1a()
 		}
 	} else {
-		p.P2a(r)
+		p.P2a(&r)
 	}
 }
 
 // P1a starts phase 1 prepare
 func (p *Paxos) P1a() {
-	p.ballot = paxi.NextBallot(p.ballot, p.ID())
+	if p.active {
+		return
+	}
+	p.ballot.Next(p.ID())
+	p.quorum.Reset()
 	p.quorum.ACK(p.ID())
-	p.Broadcast(&P1a{Ballot: p.ballot})
+	m := P1a{Ballot: p.ballot}
+	log.Debugf("Replica %s broadcast [%v]\n", p.ID(), m)
+	p.Broadcast(&m)
 }
 
 // P2a starts phase 2 accept
-func (p *Paxos) P2a(r paxi.Request) {
+func (p *Paxos) P2a(r *paxi.Request) {
 	p.slot++
 	p.log[p.slot] = &entry{
 		ballot:    p.ballot,
-		cmd:       r.Command,
-		request:   &r,
+		command:   r.Command,
+		request:   r,
 		quorum:    paxi.NewQuorum(),
 		timestamp: time.Now(),
 	}
 	p.log[p.slot].quorum.ACK(p.ID())
-	p.Broadcast(&P2a{
+	m := P2a{
 		Ballot:  p.ballot,
 		Slot:    p.slot,
 		Command: r.Command,
-	})
+	}
+	log.Debugf("Replica %s broadcast [%v]\n", p.ID(), m)
+	p.Broadcast(&m)
 }
 
 func (p *Paxos) HandleP1a(m P1a) {
-	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", paxi.LeaderID(m.Ballot), m, p.ID())
+	// log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.Ballot.ID(), m, p.ID())
+
+	// new leader
 	if m.Ballot > p.ballot {
 		p.ballot = m.Ballot
-		p.leader = false
+		p.active = false
+		if len(p.requests) > 0 {
+			defer p.P1a()
+		}
 	}
-	p.Send(paxi.LeaderID(m.Ballot), &P1b{
-		Ballot:  m.Ballot,
-		ID:      p.ID(),
-		Slot:    p.slot,
-		Command: p.log[p.slot].cmd,
+
+	p.Send(m.Ballot.ID(), &P1b{
+		Ballot:        p.ballot,
+		ID:            p.ID(),
+		Slot:          p.slot,
+		Command:       p.log[p.slot].command,
+		CommandBallot: p.log[p.slot].ballot,
 	})
 }
 
 // HandleP1b handles p1b message
 func (p *Paxos) HandleP1b(m P1b) {
+	// old message
+	if m.Ballot < p.ballot || p.active {
+		// log.Debugf("Replica %s ignores old message [%v]\n", p.ID(), m)
+		return
+	}
+
 	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.ID, m, p.ID())
-	if !p.leader && m.Ballot == p.ballot {
-		// TODO update command
-		p.slot = paxi.Max(p.slot, m.Slot)
+
+	// update slot number
+	p.slot = paxi.Max(p.slot, m.Slot)
+	// update entry
+	if _, exists := p.log[m.Slot]; exists {
+		if !p.log[m.Slot].commit && m.CommandBallot > p.log[m.Slot].ballot {
+			p.log[m.Slot].command = m.Command
+			p.log[m.Slot].ballot = m.CommandBallot
+		}
+	} else {
+		p.log[m.Slot] = &entry{
+			ballot:  m.CommandBallot,
+			command: m.Command,
+			commit:  false,
+		}
+	}
+
+	// reject message
+	if m.Ballot > p.ballot {
+		p.ballot = m.Ballot
+		p.active = false // not necessary
+		p.P1a()
+	}
+
+	// ack message
+	if m.Ballot.ID() == p.ID() && m.Ballot == p.ballot {
 		p.quorum.ACK(m.ID)
-		if p.quorum.Majority() {
-			p.leader = true
+		if p.quorum.Q1() {
+			p.active = true
+			// propose any uncommitted entries
+			for i := p.execute; i <= p.slot; i++ {
+				if p.log[i].commit {
+					continue
+				}
+				p.log[i].ballot = p.ballot
+				p.log[i].quorum = paxi.NewQuorum()
+				p.log[i].quorum.ACK(p.ID())
+				m := P2a{
+					Ballot:  p.ballot,
+					Slot:    i,
+					Command: p.log[i].command,
+				}
+				log.Debugf("Replica %s broadcast [%v]\n", p.ID(), m)
+				p.Broadcast(&m)
+			}
+			// propose new commands
 			for _, req := range p.requests {
 				p.P2a(req)
 			}
-			p.requests = make([]paxi.Request, 0)
+			p.requests = make([]*paxi.Request, 0)
 		}
 	}
 }
 
 func (p *Paxos) HandleP2a(m P2a) {
-	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", paxi.LeaderID(m.Ballot), m, p.ID())
+	// log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.Ballot.ID(), m, p.ID())
+
 	if m.Ballot >= p.ballot {
 		p.ballot = m.Ballot
-		p.leader = false
+		p.active = false
+		// update slot number
 		p.slot = paxi.Max(p.slot, m.Slot)
-
-		p.log[m.Slot] = &entry{
-			ballot: m.Ballot,
-			cmd:    m.Command,
+		// update entry
+		if _, exists := p.log[m.Slot]; exists {
+			if !p.log[m.Slot].commit && m.Ballot > p.log[m.Slot].ballot {
+				p.log[m.Slot].command = m.Command
+				p.log[m.Slot].ballot = m.Ballot
+			}
+		} else {
+			p.log[m.Slot] = &entry{
+				ballot:  m.Ballot,
+				command: m.Command,
+				commit:  false,
+			}
 		}
 	}
 
-	p.Send(paxi.LeaderID(m.Ballot), &P2b{
+	p.Send(m.Ballot.ID(), &P2b{
 		Ballot: p.ballot,
 		Slot:   m.Slot,
 		ID:     p.ID(),
@@ -131,47 +204,53 @@ func (p *Paxos) HandleP2a(m P2a) {
 }
 
 func (p *Paxos) HandleP2b(m P2b) {
+	// old message
+	if m.Ballot < p.log[m.Slot].ballot || p.log[m.Slot] == nil || p.log[m.Slot].commit {
+		return
+	}
+
 	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.ID, m, p.ID())
-	if !p.log[m.Slot].commit && m.Ballot == p.ballot {
-		entry := p.log[m.Slot]
-		entry.quorum.ACK(m.ID)
-		if entry.quorum.Majority() {
-			entry.commit = true
-			p.Broadcast(&P3{
-				Ballot:  p.ballot,
+
+	// reject message
+	if m.Ballot > p.ballot {
+		p.ballot = m.Ballot
+		p.active = false
+	}
+
+	// ack message
+	if m.Ballot.ID() == p.ID() && m.Ballot == p.log[m.Slot].ballot {
+		p.log[m.Slot].quorum.ACK(m.ID)
+		if p.log[m.Slot].quorum.Q2() {
+			p.log[m.Slot].commit = true
+			m := P3{
 				Slot:    m.Slot,
-				Command: entry.cmd,
-			})
+				Command: p.log[m.Slot].command,
+			}
+			log.Debugf("Replica %s broadcast [%v]\n", p.ID(), m)
+			p.Broadcast(&m)
 
 			// TODO reply when commit??
 			p.exec()
 		}
 	}
-
-	if m.Ballot > p.ballot {
-		p.ballot = m.Ballot
-		p.leader = false
-		// TODO retry the entry
-	}
 }
 
 func (p *Paxos) HandleP3(m P3) {
-	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", paxi.LeaderID(m.Ballot), m, p.ID())
-	// is this needed?
-	if m.Ballot > p.ballot {
-		p.ballot = m.Ballot
-	}
+	// log.Debugf("Replica ===[%v]===>>> Replica %s\n", m, p.ID())
 
 	p.slot = paxi.Max(p.slot, m.Slot)
 
-	if p.log[m.Slot] == nil {
-		p.log[m.Slot] = &entry{
-			cmd:    m.Command,
-			ballot: m.Ballot,
-			commit: true,
+	if _, exists := p.log[m.Slot]; exists {
+		if p.log[m.Slot].command.Key != m.Command.Key {
+			log.Fatalln("commit cmd differnt from exists cmd")
 		}
-	} else {
+		// p.log[m.Slot].command = m.Command
 		p.log[m.Slot].commit = true
+	} else {
+		p.log[m.Slot] = &entry{
+			command: m.Command,
+			commit:  true,
+		}
 	}
 
 	p.exec()
@@ -179,23 +258,24 @@ func (p *Paxos) HandleP3(m P3) {
 
 func (p *Paxos) exec() {
 	for {
-		i, ok := p.log[p.execute]
-		if !ok || !i.commit {
+		e, ok := p.log[p.execute]
+		if !ok || !e.commit {
 			break
 		}
 
-		log.Debugf("Replica %s execute cmd=%v in slot %d ", p.ID(), i.cmd, p.execute)
-		value, err := p.Execute(i.cmd)
+		log.Debugf("Replica %s execute [s=%d, cmd=%v]\n", p.ID(), p.execute, e.command)
+		value, err := p.Execute(e.command)
 		p.execute++
 
-		if i.request != nil {
-			i.request.Command.Value = value
-			i.request.Reply(paxi.Reply{
-				ClientID:  i.request.ClientID,
-				CommandID: i.request.CommandID,
-				Command:   i.request.Command,
+		if e.request != nil {
+			e.request.Command.Value = value
+			e.request.Reply(paxi.Reply{
+				ClientID:  e.request.ClientID,
+				CommandID: e.request.CommandID,
+				Command:   e.request.Command,
 				Err:       err,
 			})
+			e.request = nil
 		}
 	}
 }

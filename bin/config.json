@@ -17,12 +17,13 @@
     },
     "algorithm": "paxos",
     "f": 0,
+    "quorum": "majority",
     "threshold": 0,
     "backoff": 0,
     "thrifty": false,
-    "chan_buffer_size": 1024,
-    "buffer_size": 1024,
-    "transport": "chan",
+    "chan_buffer_size": 102400,
+    "buffer_size": 102400,
+    "transport": "udp",
     "codec": "gob",
     "reply_when_commit": false
 }

@@ -27,6 +27,10 @@ func replica(id paxi.ID) {
 		config = paxi.ConnectToMaster(*master, false, id)
 	}
 
+	if *simulation {
+		config.Transport = "chan"
+	}
+
 	log.Infof("server %v started\n", config.ID)
 
 	switch config.Algorithm {

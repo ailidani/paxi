@@ -1,5 +1,7 @@
 package paxi
 
+import "github.com/ailidani/paxi/log"
+
 type Quorum struct {
 	size  int
 	acks  map[ID]bool
@@ -38,7 +40,7 @@ func (q *Quorum) Size() int {
 	return q.size
 }
 
-func (q *Quorum) Clear() {
+func (q *Quorum) Reset() {
 	q.size = 0
 	q.acks = make(map[ID]bool, NumNodes)
 	q.zones = make(map[int]int, NumZones)
@@ -83,7 +85,7 @@ func (q *Quorum) GridColumn() bool {
 	return false
 }
 
-func (q *Quorum) Q1() bool {
+func (q *Quorum) FGridQ1() bool {
 	z := 0
 	for _, n := range q.zones {
 		if n > NumLocalNodes/2 {
@@ -93,7 +95,7 @@ func (q *Quorum) Q1() bool {
 	return z >= NumZones-F
 }
 
-func (q *Quorum) Q2() bool {
+func (q *Quorum) FGridQ2() bool {
 	z := 0
 	for _, n := range q.zones {
 		if n > NumLocalNodes/2 {
@@ -101,4 +103,32 @@ func (q *Quorum) Q2() bool {
 		}
 	}
 	return z >= F+1
+}
+
+func (q *Quorum) Q1() bool {
+	switch QuorumType {
+	case "majority":
+		return q.Majority()
+	case "grid":
+		return q.GridRow()
+	case "fgrid":
+		return q.FGridQ1()
+	default:
+		log.Errorln("Unknown quorum type")
+		return false
+	}
+}
+
+func (q *Quorum) Q2() bool {
+	switch QuorumType {
+	case "majority":
+		return q.Majority()
+	case "grid":
+		return q.GridColumn()
+	case "fgrid":
+		return q.FGridQ2()
+	default:
+		log.Errorln("Unknown quorum type")
+		return false
+	}
 }

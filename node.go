@@ -23,6 +23,8 @@ var (
 	NumLocalNodes int
 	// F number of zone failures
 	F int
+	// QuorumType name of the quorums
+	QuorumType string
 )
 
 // Node is the primary access point for every replica
@@ -68,6 +70,7 @@ func NewNode(config Config) Node {
 	NumNodes = len(config.Addrs)
 	NumLocalNodes = zones[config.ID.Zone()]
 	F = config.F
+	QuorumType = config.Quorum
 
 	return node
 }

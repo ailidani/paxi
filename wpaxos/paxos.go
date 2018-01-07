@@ -216,9 +216,6 @@ func (p *paxos) handleAccepted(msg Accepted) {
 		if ins.quorum.Q2() {
 			log.Infof("Q2 finished in %f", float64(time.Now().Sub(ins.timestamp).Nanoseconds())/1000000.0)
 			ins.committed = true
-			for p.log[p.commit+1] != nil && p.log[p.commit+1].committed {
-				p.commit++
-			}
 			p.Broadcast(&Commit{
 				Key:      p.key,
 				Ballot:   ins.ballot,
