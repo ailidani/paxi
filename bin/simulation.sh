@@ -20,6 +20,8 @@ if [ -z "${PID}" ]; then
     echo $! >> ${PID_FILE}
     ./client -id 2.1 > c2 &
     echo $! >> ${PID_FILE}
+    ./client -id 3.1 > c3 &
+    echo $! >> ${PID_FILE}
 else
     echo "Servers are already started in this folder."
     exit 0

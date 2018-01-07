@@ -101,13 +101,37 @@ func (p *Paxos) HandleP1a(m P1a) {
 		}
 	}
 
+	l := make(map[int]CommandBallot)
+	for s := p.execute; s <= p.slot; s++ {
+		if p.log[s] == nil || p.log[s].commit {
+			continue
+		}
+		l[s] = CommandBallot{p.log[s].command, p.log[s].ballot}
+	}
+
 	p.Send(m.Ballot.ID(), &P1b{
-		Ballot:        p.ballot,
-		ID:            p.ID(),
-		Slot:          p.slot,
-		Command:       p.log[p.slot].command,
-		CommandBallot: p.log[p.slot].ballot,
+		Ballot: p.ballot,
+		ID:     p.ID(),
+		Log:    l,
 	})
+}
+
+func (p *Paxos) update(scb map[int]CommandBallot) {
+	for s, cb := range scb {
+		p.slot = paxi.Max(p.slot, s)
+		if e, exists := p.log[s]; exists {
+			if !e.commit && cb.Ballot > e.ballot {
+				e.ballot = cb.Ballot
+				e.command = cb.Command
+			}
+		} else {
+			p.log[s] = &entry{
+				ballot:  cb.Ballot,
+				command: cb.Command,
+				commit:  false,
+			}
+		}
+	}
 }
 
 // HandleP1b handles p1b message
@@ -120,21 +144,7 @@ func (p *Paxos) HandleP1b(m P1b) {
 
 	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.ID, m, p.ID())
 
-	// update slot number
-	p.slot = paxi.Max(p.slot, m.Slot)
-	// update entry
-	if _, exists := p.log[m.Slot]; exists {
-		if !p.log[m.Slot].commit && m.CommandBallot > p.log[m.Slot].ballot {
-			p.log[m.Slot].command = m.Command
-			p.log[m.Slot].ballot = m.CommandBallot
-		}
-	} else {
-		p.log[m.Slot] = &entry{
-			ballot:  m.CommandBallot,
-			command: m.Command,
-			commit:  false,
-		}
-	}
+	p.update(m.Log)
 
 	// reject message
 	if m.Ballot > p.ballot {
@@ -150,7 +160,8 @@ func (p *Paxos) HandleP1b(m P1b) {
 			p.active = true
 			// propose any uncommitted entries
 			for i := p.execute; i <= p.slot; i++ {
-				if p.log[i].commit {
+				// TODO nil gap?
+				if p.log[i] == nil || p.log[i].commit {
 					continue
 				}
 				p.log[i].ballot = p.ballot
@@ -205,7 +216,7 @@ func (p *Paxos) HandleP2a(m P2a) {
 
 func (p *Paxos) HandleP2b(m P2b) {
 	// old message
-	if m.Ballot < p.log[m.Slot].ballot || p.log[m.Slot] == nil || p.log[m.Slot].commit {
+	if m.Ballot < p.log[m.Slot].ballot || p.log[m.Slot].commit {
 		return
 	}
 
@@ -241,10 +252,10 @@ func (p *Paxos) HandleP3(m P3) {
 	p.slot = paxi.Max(p.slot, m.Slot)
 
 	if _, exists := p.log[m.Slot]; exists {
-		if p.log[m.Slot].command.Key != m.Command.Key {
-			log.Fatalln("commit cmd differnt from exists cmd")
-		}
-		// p.log[m.Slot].command = m.Command
+		// if p.log[m.Slot].command.Key != m.Command.Key {
+		// 	log.Fatalln("commit cmd differnt from exists cmd")
+		// }
+		p.log[m.Slot].command = m.Command
 		p.log[m.Slot].commit = true
 	} else {
 		p.log[m.Slot] = &entry{

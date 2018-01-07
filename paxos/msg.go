@@ -24,17 +24,24 @@ func (m P1a) String() string {
 	return fmt.Sprintf("P1a {b=%v}", m.Ballot)
 }
 
+type CommandBallot struct {
+	Command paxi.Command
+	Ballot  paxi.Ballot
+}
+
+func (cb CommandBallot) String() string {
+	return fmt.Sprintf("c=%v b=%v", cb.Command, cb.Ballot)
+}
+
 // P1b promise message
 type P1b struct {
-	Ballot        paxi.Ballot
-	ID            paxi.ID      // from node id
-	Slot          int          // last slot
-	Command       paxi.Command // value in last slot
-	CommandBallot paxi.Ballot  // value ballot
+	Ballot paxi.Ballot
+	ID     paxi.ID               // from node id
+	Log    map[int]CommandBallot // uncommitted logs
 }
 
 func (m P1b) String() string {
-	return fmt.Sprintf("P1b {b=%v, s=%d, c=%v, cb=%v}", m.Ballot, m.Slot, m.Command, m.CommandBallot)
+	return fmt.Sprintf("P1b {b=%v, log=%v}", m.Ballot, m.Log)
 }
 
 // P2a accept message
@@ -53,8 +60,6 @@ type P2b struct {
 	Ballot paxi.Ballot
 	ID     paxi.ID // from node id
 	Slot   int
-	// Command       paxi.Command
-	// CommandBallot paxi.Ballot
 }
 
 func (m P2b) String() string {
