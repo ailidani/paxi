@@ -11,6 +11,7 @@ import (
 	"github.com/ailidani/paxi/log"
 	"github.com/ailidani/paxi/paxos"
 	"github.com/ailidani/paxi/wpaxos"
+	"github.com/ailidani/paxi/wpaxos2"
 )
 
 var master = flag.String("master", "", "Master address.")
@@ -41,6 +42,10 @@ func replica(id paxi.ID) {
 
 	case "wpaxos":
 		replica := wpaxos.NewReplica(config)
+		replica.Run()
+
+	case "wpaxos2":
+		replica := wpaxos2.NewReplica(config)
 		replica.Run()
 
 	// case "epaxos":

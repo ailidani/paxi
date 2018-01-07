@@ -20,14 +20,14 @@ type index struct {
 	i, j int
 }
 
-type log struct {
+type clog struct {
 	grid [][]*entry
 	next index
 }
 
-func NewLog() *log {
-	log := new(log)
-	log.grid = make([][]*entry, 0)
-	log.next = index{0, 0}
-	return log
+func NewLog() *clog {
+	clog := new(clog)
+	clog.grid = make([][]*entry, 0)
+	clog.next = index{0, 0}
+	return clog
 }
