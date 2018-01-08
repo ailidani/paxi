@@ -257,8 +257,18 @@ func (p *Paxos) HandleP2b(m P2b) {
 			log.Debugf("Replica %s broadcast [%v]\n", p.ID(), m)
 			p.Broadcast(&m)
 
-			// TODO reply when commit??
-			p.exec()
+			if p.Config().ReplyWhenCommit {
+				r := p.log[m.Slot].request
+				r.Reply(paxi.Reply{
+					OK:        true,
+					CommandID: r.CommandID,
+					ClientID:  r.ClientID,
+					Command:   r.Command,
+					Timestamp: r.Timestamp,
+				})
+			} else {
+				p.exec()
+			}
 		}
 	}
 }
