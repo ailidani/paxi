@@ -8,7 +8,8 @@ import (
 
 type Replica struct {
 	paxi.Node
-	paxi map[paxi.Key]*paxos.Paxos
+	paxi  map[paxi.Key]*paxos.Paxos
+	stats map[paxi.Key]*stat
 
 	key paxi.Key // current working key
 }
@@ -17,6 +18,7 @@ func NewReplica(config paxi.Config) *Replica {
 	r := new(Replica)
 	r.Node = paxi.NewNode(config)
 	r.paxi = make(map[paxi.Key]*paxos.Paxos)
+	r.stats = make(map[paxi.Key]*stat)
 
 	r.Register(paxi.Request{}, r.handleRequest)
 	r.Register(Prepare{}, r.handlePrepare)
@@ -31,6 +33,7 @@ func NewReplica(config paxi.Config) *Replica {
 func (r *Replica) init(key paxi.Key) {
 	if _, exists := r.paxi[key]; !exists {
 		r.paxi[key] = paxos.NewPaxos(r)
+		r.stats[key] = newStat(r.Config().Interval)
 	}
 }
 
@@ -38,7 +41,26 @@ func (r *Replica) handleRequest(m paxi.Request) {
 	log.Debugf("Replica %s received %v\n", r.ID(), m)
 	r.key = m.Command.Key
 	r.init(r.key)
-	r.paxi[r.key].HandleRequest(m)
+
+	p := r.paxi[r.key]
+	if p.Config().Adaptive {
+		if p.IsLeader() || p.Ballot() == 0 {
+			p.HandleRequest(m)
+			to := r.stats[r.key].hit(m.ClientID)
+			if p.Config().Adaptive && to != "" && to.Zone() != r.ID().Zone() {
+				p.Send(to, &LeaderChange{
+					Key:    r.key,
+					To:     to,
+					From:   r.ID(),
+					Ballot: p.Ballot(),
+				})
+			}
+		} else {
+			go r.Forward(p.Leader(), m)
+		}
+	} else {
+		p.HandleRequest(m)
+	}
 }
 
 func (r *Replica) handlePrepare(m Prepare) {

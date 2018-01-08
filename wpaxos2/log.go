@@ -3,16 +3,16 @@ package wpaxos2
 import (
 	"time"
 
-	. "github.com/ailidani/paxi"
+	"github.com/ailidani/paxi"
 )
 
 // TODO same as instance in wpaxos/paxos
 type entry struct {
 	ballot    int
-	cmds      []Command
+	cmds      []paxi.Command
 	committed bool
-	request   *Request
-	quorum    *Quorum
+	request   *paxi.Request
+	quorum    *paxi.Quorum
 	timestamp time.Time
 }
 

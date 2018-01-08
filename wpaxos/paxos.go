@@ -44,7 +44,7 @@ func NewPaxos(replica *Replica, key Key) *paxos {
 		log:      make(map[int]*instance),
 		slot:     0,
 		commit:   0,
-		stat:     NewStat(replica.Config().Threshold),
+		stat:     NewStat(replica.Config().Interval),
 	}
 }
 
@@ -87,7 +87,7 @@ func (p *paxos) handleRequest(msg Request) {
 	if p.active {
 		p.accept(msg)
 		to := p.stat.hit(NewID(msg.ClientID.Zone(), 1))
-		if p.Config().Threshold > 0 && to != "" && to.Zone() != p.ID().Zone() {
+		if p.Config().Interval > 0 && to != "" && to.Zone() != p.ID().Zone() {
 			p.Send(to, &LeaderChange{
 				Key:    p.key,
 				To:     to,
@@ -97,7 +97,7 @@ func (p *paxos) handleRequest(msg Request) {
 		}
 	} else if LeaderID(p.ballot) == p.ID() {
 		p.requests = append(p.requests, msg)
-	} else if p.Config().Threshold > 0 && p.ballot != 0 {
+	} else if p.Config().Interval > 0 && p.ballot != 0 {
 		go p.Forward(LeaderID(p.ballot), msg)
 		// rep := Reply{
 		// 	OK:        false,

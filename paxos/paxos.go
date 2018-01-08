@@ -44,10 +44,27 @@ func NewPaxos(n paxi.Node) *Paxos {
 	}
 }
 
+// IsLeader indecates if this node is current leader
+func (p *Paxos) IsLeader() bool {
+	return p.active
+}
+
+// Leader returns leader id of the current ballot
+func (p *Paxos) Leader() paxi.ID {
+	return p.ballot.ID()
+}
+
+// Ballot returns current ballot
+func (p *Paxos) Ballot() paxi.Ballot {
+	return p.ballot
+}
+
+// HandleRequest handles request and start phase 1 or phase 2
 func (p *Paxos) HandleRequest(r paxi.Request) {
 	log.Debugf("Replica %s received %v\n", p.ID(), r)
 	if !p.active {
 		p.requests = append(p.requests, &r)
+		// current phase 1 pending
 		if p.ballot.ID() != p.ID() {
 			p.P1a()
 		}

@@ -29,7 +29,8 @@ type Config struct {
 	Transport       string        `json:"transport"`    // not used
 	Codec           string        `json:"codec"`
 	ReplyWhenCommit bool          `json:"reply_when_commit"` // reply to client when request is committed, instead of executed
-	Threshold       int           `json:"threshold"`         // threshold for leader change, 0 means immediate
+	Adaptive        bool          `json:"adaptive"`          // adaptive leader change, if true paxos forward request to current leader
+	Interval        int           `json:"interval"`          // interval for leader change, 0 means immediate
 	BackOff         int           `json:"backoff"`           // random backoff interval
 	Thrifty         bool          `json:"thrifty"`           // only send messages to a quorum
 	ChanBufferSize  int           `json:"chan_buffer_size"`
