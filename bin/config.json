@@ -16,14 +16,14 @@
         "3.1": "http://localhost:8082"
     },
     "algorithm": "wpaxos2",
-    "f": 0,
     "quorum": "fgrid",
+    "f": 0,
     "adaptive": true,
-    "interval": 500,
+    "interval": 1000,
     "backoff": 0,
     "thrifty": false,
-    "chan_buffer_size": 102400,
-    "buffer_size": 102400,
+    "chan_buffer_size": 1024,
+    "buffer_size": 1024,
     "transport": "udp",
     "codec": "gob",
     "reply_when_commit": false

@@ -116,7 +116,7 @@ func (r *Replica) Broadcast(msg interface{}) {
 	case *paxos.P3:
 		r.Node.Broadcast(&Commit{r.key, *m})
 	default:
-		log.Errorf("Unknown message type %T\n", m)
+		r.Node.Broadcast(msg)
 	}
 }
 
@@ -128,7 +128,7 @@ func (r *Replica) Send(to paxi.ID, msg interface{}) {
 	case *paxos.P2b:
 		r.Node.Send(to, &Accepted{r.key, *m})
 	default:
-		log.Errorf("Unknown message type %T\n", m)
+		r.Node.Send(to, msg)
 	}
 }
 

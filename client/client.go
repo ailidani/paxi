@@ -25,6 +25,9 @@ func (d *db) Stop() {
 
 func (d *db) Read(k int) int {
 	v := d.c.Get(paxi.Key(k))
+	if len(v) == 0 {
+		return 0
+	}
 	return int(binary.LittleEndian.Uint64(v))
 }
 

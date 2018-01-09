@@ -13,10 +13,11 @@ var config = flag.String("config", "config.json", "Configuration file for paxi r
 
 // default values
 const (
-	PORT             = 1735
-	HTTP_PORT        = 8080
+	PORT      = 1735
+	HTTP_PORT = 8080
+	// TODO merge below two value with with config
 	CHAN_BUFFER_SIZE = 1024 * 1
-	BUFFER_SIZE      = 1024 * 10000
+	BUFFER_SIZE      = 1024 * 1
 )
 
 type Config struct {
@@ -48,6 +49,7 @@ func MakeDefaultConfig() Config {
 	config.HTTPAddrs = map[ID]string{"1.1": "http://localhost:" + strconv.Itoa(HTTP_PORT)}
 	config.Algorithm = "wpaxos"
 	config.Quorum = "fgrid"
+	config.Adaptive = true
 	config.ChanBufferSize = CHAN_BUFFER_SIZE
 	config.BufferSize = BUFFER_SIZE
 	config.Transport = "chan"

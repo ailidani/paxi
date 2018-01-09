@@ -196,6 +196,8 @@ func (n *node) Forward(id ID, m Request) {
 	key := m.Command.Key
 	url := n.config.HTTPAddrs[id] + "/" + strconv.Itoa(int(key))
 
+	log.Debugf("Node %v forwarding request %v to %s", n.ID(), m, url)
+
 	if m.Command.IsRead() {
 		req, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
