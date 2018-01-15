@@ -11,7 +11,7 @@ const BF_K = 4
 var bf_PT uint32
 
 type Replica struct {
-	*Node
+	Node
 	N                int // total number of replicas
 	Peers            map[ID]string
 	InstanceSpace    map[ID][]*Instance
@@ -136,17 +136,17 @@ func (r *Replica) messageLoop() {
 		case msg := <-r.MessageChan:
 			switch msg := msg.(type) {
 			case Request:
-				log.Debugf("Replica %s received %v\n", r.ID, msg)
+				log.Debugf("Replica %s received %v\n", r.ID(), msg)
 				r.handleProposal(msg)
 
 			case Prepare:
-				log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", msg.LeaderId, msg, r.ID)
+				log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", msg.LeaderId, msg, r.ID())
 				r.handlePrepare(&msg)
 				break
 
 			case PreAccept:
 				//Debugf("Received PreAccept for instance %d.%d\n", msg.LeaderId, msg.Instance)
-				log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", msg.LeaderId, msg, r.ID)
+				log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", msg.LeaderId, msg, r.ID())
 				r.handlePreAccept(&msg)
 				break
 
@@ -166,32 +166,32 @@ func (r *Replica) messageLoop() {
 				break
 
 			case PrepareReply:
-				log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", msg.Replica, msg, r.ID)
+				log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", msg.Replica, msg, r.ID())
 				r.handlePrepareReply(&msg)
 				break
 
 			case PreAcceptReply:
-				log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", msg.Replica, msg, r.ID)
+				log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", msg.Replica, msg, r.ID())
 				r.handlePreAcceptReply(&msg)
 				break
 
 			case PreAcceptOK:
-				log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", msg.Replica, msg, r.ID)
+				log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", msg.Replica, msg, r.ID())
 				r.handlePreAcceptOK(&msg)
 				break
 
 			case AcceptReply:
-				log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", msg.Replica, msg, r.ID)
+				log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", msg.Replica, msg, r.ID())
 				r.handleAcceptReply(&msg)
 				break
 
 			case TryPreAccept:
-				log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", msg.LeaderId, msg, r.ID)
+				log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", msg.LeaderId, msg, r.ID())
 				r.handleTryPreAccept(&msg)
 				break
 
 			case TryPreAcceptReply:
-				log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", msg.Replica, msg, r.ID)
+				log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", msg.Replica, msg, r.ID())
 				r.handleTryPreAcceptReply(&msg)
 				break
 
@@ -245,7 +245,7 @@ func (r *Replica) updateConflicts(cmds []Command, id ID, instance int, seq int) 
 func (r *Replica) updateAttributes(cmds []Command, seq int, deps map[ID]int, replica ID, instance int) (int, map[ID]int, bool) {
 	changed := false
 	for id := range r.Peers {
-		if r.ID != replica && id == replica {
+		if r.ID() != replica && id == replica {
 			continue
 		}
 		for _, cmd := range cmds {
@@ -281,7 +281,7 @@ func (r *Replica) mergeAttributes(seq1 int, deps1 map[ID]int, seq2 int, deps2 ma
 		}
 	}
 	for id := range r.Peers {
-		if id == r.ID {
+		if id == r.ID() {
 			continue
 		}
 		if deps1[id] != deps2[id] {
@@ -317,7 +317,7 @@ func bfFromCommands(cmds []Command) *Bloomfilter {
 /* Ballot helper functions */
 
 func (r *Replica) makeUniqueBallot(ballot int) int {
-	return (ballot << 4) | int(r.ID)
+	return (ballot << 4) | int(r.ID())
 }
 
 func (r *Replica) makeBallotLargerThan(ballot int) int {
@@ -337,14 +337,14 @@ func replicaIDFromBallot(ballot int) ID {
 *********************************/
 
 func (r *Replica) handleProposal(msg Request) {
-	instance := r.crtInstance[r.ID]
-	r.crtInstance[r.ID]++
+	instance := r.crtInstance[r.ID()]
+	r.crtInstance[r.ID()]++
 
 	log.Debugf("Starting instance %d\n", instance)
 
 	cmds := []Command{msg.Command}
 
-	r.startPhase1(r.ID, instance, 0, []Request{msg}, cmds)
+	r.startPhase1(r.ID(), instance, 0, []Request{msg}, cmds)
 }
 
 func (r *Replica) startPhase1(replica ID, instance int, ballot int, proposals []Request, cmds []Command) {
@@ -354,9 +354,9 @@ func (r *Replica) startPhase1(replica ID, instance int, ballot int, proposals []
 		deps[id] = -1
 	}
 
-	seq, deps, _ = r.updateAttributes(cmds, seq, deps, r.ID, instance)
+	seq, deps, _ = r.updateAttributes(cmds, seq, deps, r.ID(), instance)
 
-	r.InstanceSpace[r.ID][instance] = &Instance{
+	r.InstanceSpace[r.ID()][instance] = &Instance{
 		cmds:   cmds,
 		ballot: ballot,
 		status: PREACCEPTED,
@@ -364,19 +364,19 @@ func (r *Replica) startPhase1(replica ID, instance int, ballot int, proposals []
 		deps:   deps,
 		lb:     NewLeaderBookkeeping(proposals, deps),
 	}
-	r.InstanceSpace[r.ID][instance].lb.preAcceptQuorum.ACK(r.ID)
-	r.InstanceSpace[r.ID][instance].lb.prepareQuorum.ACK(r.ID)
-	r.InstanceSpace[r.ID][instance].lb.acceptQuorum.ACK(r.ID)
+	r.InstanceSpace[r.ID()][instance].lb.preAcceptQuorum.ACK(r.ID())
+	r.InstanceSpace[r.ID()][instance].lb.prepareQuorum.ACK(r.ID())
+	r.InstanceSpace[r.ID()][instance].lb.acceptQuorum.ACK(r.ID())
 
-	r.updateConflicts(cmds, r.ID, instance, seq)
+	r.updateConflicts(cmds, r.ID(), instance, seq)
 
 	if seq >= r.maxSeq {
 		r.maxSeq = seq + 1
 	}
 
 	pa := &PreAccept{
-		LeaderId: r.ID,
-		Replica:  r.ID,
+		LeaderId: r.ID(),
+		Replica:  r.ID(),
 		Instance: instance,
 		Ballot:   ballot,
 		Command:  cmds,
@@ -474,7 +474,7 @@ func (r *Replica) handlePreAccept(msg *PreAccept) {
 		}
 		r.Send(msg.LeaderId, reply)
 	} else {
-		r.Send(msg.LeaderId, &PreAcceptOK{r.ID, msg.Instance})
+		r.Send(msg.LeaderId, &PreAcceptOK{r.ID(), msg.Instance})
 	}
 
 	log.Debugf("I've replied to the PreAccept\n")
@@ -506,7 +506,7 @@ func (r *Replica) handlePreAcceptReply(msg *PreAcceptReply) {
 
 	var equal bool
 	inst.seq, inst.deps, equal = r.mergeAttributes(inst.seq, inst.deps, msg.Seq, msg.Deps)
-	if (r.N <= 3 && !r.Config.Thrifty) || inst.lb.preAcceptQuorum.Size() > 1 {
+	if (r.N <= 3 && !r.Config().Thrifty) || inst.lb.preAcceptQuorum.Size() > 1 {
 		inst.lb.allEqual = inst.lb.allEqual && equal
 		if !equal {
 			conflicted++
@@ -538,7 +538,7 @@ func (r *Replica) handlePreAcceptReply(msg *PreAcceptReply) {
 				reply := Reply{
 					OK:        true,
 					CommandID: p.CommandID,
-					LeaderID:  r.ID,
+					LeaderID:  r.ID(),
 					ClientID:  p.ClientID,
 					Command:   p.Command,
 					Timestamp: p.Timestamp,
@@ -547,7 +547,7 @@ func (r *Replica) handlePreAcceptReply(msg *PreAcceptReply) {
 			}
 		}
 		commit := &Commit{
-			r.ID, r.ID, msg.Instance, inst.cmds, inst.seq, inst.deps,
+			r.ID(), r.ID(), msg.Instance, inst.cmds, inst.seq, inst.deps,
 		}
 		r.Broadcast(commit)
 
@@ -558,7 +558,7 @@ func (r *Replica) handlePreAcceptReply(msg *PreAcceptReply) {
 		slow++
 		inst.status = ACCEPTED
 		accept := &Accept{
-			r.ID, r.ID, msg.Instance, inst.ballot, len(inst.cmds), inst.seq, inst.deps,
+			r.ID(), r.ID(), msg.Instance, inst.ballot, len(inst.cmds), inst.seq, inst.deps,
 		}
 		r.Broadcast(accept)
 	}
@@ -566,7 +566,7 @@ func (r *Replica) handlePreAcceptReply(msg *PreAcceptReply) {
 }
 
 func (r *Replica) handlePreAcceptOK(msg *PreAcceptOK) {
-	inst := r.InstanceSpace[r.ID][msg.Instance]
+	inst := r.InstanceSpace[r.ID()][msg.Instance]
 
 	if inst.status != PREACCEPTED {
 		// we've moved on, this is a delayed reply
@@ -599,15 +599,15 @@ func (r *Replica) handlePreAcceptOK(msg *PreAcceptOK) {
 	if inst.lb.preAcceptQuorum.FastPath() && inst.lb.allEqual && allCommitted && isInitialBallot(inst.ballot) {
 
 		happy++
-		r.InstanceSpace[r.ID][msg.Instance].status = COMMITTED
-		r.updateCommitted(r.ID)
+		r.InstanceSpace[r.ID()][msg.Instance].status = COMMITTED
+		r.updateCommitted(r.ID())
 		if inst.lb.proposals != nil {
 			// give clients the all clear
 			for _, p := range inst.lb.proposals {
 				reply := Reply{
 					OK:        true,
 					CommandID: p.CommandID,
-					LeaderID:  r.ID,
+					LeaderID:  r.ID(),
 					ClientID:  p.ClientID,
 					Command:   p.Command,
 					Timestamp: p.Timestamp,
@@ -616,7 +616,7 @@ func (r *Replica) handlePreAcceptOK(msg *PreAcceptOK) {
 			}
 		}
 		commit := &Commit{
-			r.ID, r.ID, msg.Instance, inst.cmds, inst.seq, inst.deps,
+			r.ID(), r.ID(), msg.Instance, inst.cmds, inst.seq, inst.deps,
 		}
 		r.Broadcast(commit)
 	} else if inst.lb.preAcceptQuorum.Majority() {
@@ -626,7 +626,7 @@ func (r *Replica) handlePreAcceptOK(msg *PreAcceptOK) {
 		slow++
 		inst.status = ACCEPTED
 		accept := &Accept{
-			r.ID, r.ID, msg.Instance, inst.ballot, len(inst.cmds), inst.seq, inst.deps,
+			r.ID(), r.ID(), msg.Instance, inst.ballot, len(inst.cmds), inst.seq, inst.deps,
 		}
 		r.Broadcast(accept)
 	}
@@ -716,7 +716,7 @@ func (r *Replica) handleAcceptReply(msg *AcceptReply) {
 				reply := Reply{
 					OK:        true,
 					CommandID: p.CommandID,
-					LeaderID:  r.ID,
+					LeaderID:  r.ID(),
 					ClientID:  p.ClientID,
 					Command:   p.Command,
 					Timestamp: p.Timestamp,
@@ -747,7 +747,7 @@ func (r *Replica) handleCommit(msg *Commit) {
 			//someone committed a NO-OP, but we have proposals for this instance
 			//try in a different instance
 			for _, p := range inst.lb.proposals {
-				r.MessageChan <- p
+				r.Retry(p)
 			}
 			inst.lb = nil
 		}
@@ -791,7 +791,7 @@ func (r *Replica) handleCommitShort(commit *CommitShort) {
 		if inst.lb != nil && inst.lb.proposals != nil {
 			//try command in a different instance
 			for _, p := range inst.lb.proposals {
-				r.MessageChan <- p
+				r.Retry(p)
 			}
 			inst.lb = nil
 		}
@@ -842,13 +842,13 @@ func (r *Replica) startRecoveryForInstance(replica ID, instance int) {
 		inst.lb.recoveryInst = &RecoveryInstance{inst.cmds, inst.status, inst.seq, inst.deps, 0, false}
 		inst.lb.maxRecvBallot = inst.ballot
 	} else if inst.status >= PREACCEPTED {
-		inst.lb.recoveryInst = &RecoveryInstance{inst.cmds, inst.status, inst.seq, inst.deps, 1, (r.ID == replica)}
+		inst.lb.recoveryInst = &RecoveryInstance{inst.cmds, inst.status, inst.seq, inst.deps, 1, (r.ID() == replica)}
 	}
 
 	//compute larger ballot
 	inst.ballot = r.makeBallotLargerThan(inst.ballot)
 
-	r.Broadcast(&Prepare{r.ID, replica, instance, inst.ballot})
+	r.Broadcast(&Prepare{r.ID(), replica, instance, inst.ballot})
 }
 
 func (r *Replica) handlePrepare(prepare *Prepare) {
@@ -865,7 +865,7 @@ func (r *Replica) handlePrepare(prepare *Prepare) {
 			nildeps,
 			nil, 0, 0, nil}
 		preply = &PrepareReply{
-			r.ID,
+			r.ID(),
 			prepare.Replica,
 			prepare.Instance,
 			true,
@@ -882,7 +882,7 @@ func (r *Replica) handlePrepare(prepare *Prepare) {
 			inst.ballot = prepare.Ballot
 		}
 		preply = &PrepareReply{
-			r.ID,
+			r.ID(),
 			prepare.Replica,
 			prepare.Instance,
 			ok,
@@ -922,7 +922,7 @@ func (r *Replica) handlePrepareReply(preply *PrepareReply) {
 			preply.Seq,
 			preply.Deps,
 			nil, 0, 0, nil}
-		commit := &Commit{r.ID, preply.Replica, preply.Instance, inst.cmds, preply.Seq, preply.Deps}
+		commit := &Commit{r.ID(), preply.Replica, preply.Instance, inst.cmds, preply.Seq, preply.Deps}
 		r.Broadcast(commit)
 		//TODO: check if we should send notifications to clients
 		return
@@ -965,14 +965,14 @@ func (r *Replica) handlePrepareReply(preply *PrepareReply) {
 	if ir != nil {
 		//at least one replica has (pre-)accepted this instance
 		if ir.status == ACCEPTED ||
-			(!ir.leaderResponded && ir.preAcceptCount >= r.N/2 && (r.Config.Thrifty || ir.status == PREACCEPTED_EQ)) {
+			(!ir.leaderResponded && ir.preAcceptCount >= r.N/2 && (r.Config().Thrifty || ir.status == PREACCEPTED_EQ)) {
 			//safe to go to Accept phase
 			inst.cmds = ir.cmds
 			inst.seq = ir.seq
 			inst.deps = ir.deps
 			inst.status = ACCEPTED
 			inst.lb.preparing = false
-			accept := &Accept{r.ID, preply.Replica, preply.Instance, inst.ballot, len(inst.cmds), inst.seq, inst.deps}
+			accept := &Accept{r.ID(), preply.Replica, preply.Instance, inst.ballot, len(inst.cmds), inst.seq, inst.deps}
 			r.Broadcast(accept)
 		} else if !ir.leaderResponded && ir.preAcceptCount >= (r.N/2+1)/2 {
 			//send TryPreAccepts
@@ -990,7 +990,7 @@ func (r *Replica) handlePrepareReply(preply *PrepareReply) {
 					return
 				} else {
 					inst.lb.nacks = 1
-					inst.lb.possibleQuorum[r.ID] = false
+					inst.lb.possibleQuorum[r.ID()] = false
 				}
 			} else {
 				inst.cmds = ir.cmds
@@ -998,11 +998,11 @@ func (r *Replica) handlePrepareReply(preply *PrepareReply) {
 				inst.deps = ir.deps
 				inst.status = PREACCEPTED
 				inst.lb.preAcceptQuorum = NewQuorum()
-				inst.lb.preAcceptQuorum.ACK(r.ID)
+				inst.lb.preAcceptQuorum.ACK(r.ID())
 			}
 			inst.lb.preparing = false
 			inst.lb.tryingToPreAccept = true
-			try := &TryPreAccept{r.ID, preply.Replica, preply.Instance, inst.ballot, inst.cmds, inst.seq, inst.deps}
+			try := &TryPreAccept{r.ID(), preply.Replica, preply.Instance, inst.ballot, inst.cmds, inst.seq, inst.deps}
 			r.Broadcast(try)
 		} else {
 			//start Phase1 in the initial leader's instance
@@ -1022,7 +1022,7 @@ func (r *Replica) handlePrepareReply(preply *PrepareReply) {
 			0,
 			noop_deps,
 			inst.lb, 0, 0, nil}
-		accept := &Accept{r.ID, preply.Replica, preply.Instance, inst.ballot, 0, 0, noop_deps}
+		accept := &Accept{r.ID(), preply.Replica, preply.Instance, inst.ballot, 0, 0, noop_deps}
 		r.Broadcast(accept)
 	}
 }
@@ -1032,7 +1032,7 @@ func (r *Replica) handleTryPreAccept(tpa *TryPreAccept) {
 	if inst != nil && inst.ballot > tpa.Ballot {
 		// ballot number too small
 		r.Send(tpa.LeaderId, &TryPreAcceptReply{
-			r.ID,
+			r.ID(),
 			tpa.Replica,
 			tpa.Instance,
 			false,
@@ -1045,7 +1045,7 @@ func (r *Replica) handleTryPreAccept(tpa *TryPreAccept) {
 	if conflict, confRep, confInst := r.findPreAcceptConflicts(tpa.Command, tpa.Replica, tpa.Instance, tpa.Seq, tpa.Deps); conflict {
 		// there is a conflict, can't pre-accept
 		r.Send(tpa.LeaderId, &TryPreAcceptReply{
-			r.ID,
+			r.ID(),
 			tpa.Replica,
 			tpa.Instance,
 			false,
@@ -1075,7 +1075,7 @@ func (r *Replica) handleTryPreAccept(tpa *TryPreAccept) {
 				nil, 0, 0,
 				nil}
 		}
-		r.Send(tpa.LeaderId, &TryPreAcceptReply{r.ID, tpa.Replica, tpa.Instance, true, inst.ballot, 0, 0, 0})
+		r.Send(tpa.LeaderId, &TryPreAcceptReply{r.ID(), tpa.Replica, tpa.Instance, true, inst.ballot, 0, 0, 0})
 	}
 }
 
@@ -1143,7 +1143,7 @@ func (r *Replica) handleTryPreAcceptReply(tpar *TryPreAcceptReply) {
 			inst.status = ACCEPTED
 			inst.lb.tryingToPreAccept = false
 			inst.lb.acceptQuorum = NewQuorum()
-			r.Broadcast(&Accept{r.ID, tpar.Replica, tpar.Instance, inst.ballot, len(inst.cmds), inst.seq, inst.deps})
+			r.Broadcast(&Accept{r.ID(), tpar.Replica, tpar.Instance, inst.ballot, len(inst.cmds), inst.seq, inst.deps})
 			return
 		}
 	} else {

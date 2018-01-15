@@ -1,0 +1,18 @@
+{
+    "T": 60,
+    "N": 0,
+    "K": 1000,
+    "W": 50,
+    "Concurrency": 1,
+    "Distribution": "random",
+    "LinearizabilityCheck": true,
+    "Conflicts": 100,
+    "Min": 0,
+    "Mu": 0,
+    "Sigma": 60,
+    "Move": false,
+    "Speed": 500,
+    "Zipfian_s": 2,
+    "Zipfian_v": 1,
+    "Throttle": 0
+}

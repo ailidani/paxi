@@ -10,28 +10,32 @@ if [ -z "${PID}" ]; then
     go build ../server/
     go build ../client/
     go build ../cmd/
-    ./master -n 6 -transport udp -algorithm wpaxos &
-    echo $! > ${PID_FILE}
-    sleep 3
-    ./server -log_dir=logs -sid 1 -nid 1 -master 127.0.0.1 &
+    # ./master -n 6 -transport udp -algorithm paxos &
+    # echo $! > ${PID_FILE}
+    # sleep 3
+    ./server -log_dir=logs -id 1.1 &
     echo $! >> ${PID_FILE}
-    ./server -log_dir=logs -sid 1 -nid 2 -master 127.0.0.1 &
+    ./server -log_dir=logs -id 1.2 &
 	echo $! >> ${PID_FILE}
-	./server -log_dir=logs -sid 1 -nid 3 -master 127.0.0.1 &
+	./server -log_dir=logs -id 1.3 &
 	echo $! >> ${PID_FILE}
-	./server -log_dir=logs -sid 2 -nid 1 -master 127.0.0.1 &
+	./server -log_dir=logs -id 2.1 &
 	echo $! >> ${PID_FILE}
-	./server -log_dir=logs -sid 2 -nid 2 -master 127.0.0.1 &
+	./server -log_dir=logs -id 2.2 &
 	echo $! >> ${PID_FILE}
-	./server -log_dir=logs -sid 2 -nid 3 -master 127.0.0.1 &
+	./server -log_dir=logs -id 2.3 &
+	echo $! >> ${PID_FILE}
+	./server -log_dir=logs -id 3.1 &
+	echo $! >> ${PID_FILE}
+	./server -log_dir=logs -id 3.2 &
+	echo $! >> ${PID_FILE}
+	./server -log_dir=logs -id 3.3 &
 	echo $! >> ${PID_FILE}
     sleep 5
-    ./client -sid 1 -nid 1 -T 1 -k 1000 -c 50 -t 60 -log_level info
-    # ./cmd put 1 1
-    # ./cmd put 2 2
-    # ./cmd put 1 2
-    # ./cmd get 1
-    # ./cmd get 1
+    ./client -id 1.1 > c1 &
+    echo $! >> ${PID_FILE}
+    ./client -id 2.1 > c2 &
+    echo $! >> ${PID_FILE}
 else
     echo "Servers are already started in this folder."
     exit 0

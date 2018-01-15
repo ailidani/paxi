@@ -5,7 +5,7 @@ import (
 )
 
 type Replica struct {
-	*Node
+	Node
 	paxi map[Key]*paxos
 }
 
@@ -24,15 +24,15 @@ func NewReplica(config Config) *Replica {
 
 func index(key Key) ID {
 	if key < 200 {
-		return NewID(1, 1)
+		return ID("1.1")
 	} else if key >= 200 && key < 400 {
-		return NewID(2, 1)
+		return ID("2.1")
 	} else if key >= 400 && key < 600 {
-		return NewID(3, 1)
+		return ID("3.1")
 	} else if key >= 600 && key < 800 {
-		return NewID(4, 1)
+		return ID("4.1")
 	} else {
-		return NewID(5, 1)
+		return ID("5.1")
 	}
 }
 
@@ -40,7 +40,7 @@ func (r *Replica) init(key Key) {
 	if _, exists := r.paxi[key]; !exists {
 		r.paxi[key] = NewPaxos(r.Node, key)
 		id := index(key)
-		if id == r.ID {
+		if id == r.ID() {
 			r.paxi[key].active = true
 		}
 		r.paxi[key].ballot = NextBallot(1, id)

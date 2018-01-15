@@ -35,5 +35,5 @@ func (s *stat) hit(id ID) ID {
 			}
 		}
 	}
-	return 0
+	return ""
 }

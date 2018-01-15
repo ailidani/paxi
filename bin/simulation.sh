@@ -10,10 +10,17 @@ if [ -z "${PID}" ]; then
     go build ../server/
     go build ../client/
     go build ../cmd/
-    ./master -n 9 -transport chan -algorithm wpaxos &
-    echo $! > ${PID_FILE}
+    # ./master -n 9 -transport chan -algorithm paxos &
+    # echo $! > ${PID_FILE}
+    # sleep 3
+    ./server -log_dir=logs -simulation &
+    echo $! >> ${PID_FILE}
     sleep 3
-    ./server -log_dir=logs -master "127.0.0.1" -simulation &
+    ./client -id 1.1 > c1 &
+    echo $! >> ${PID_FILE}
+    ./client -id 2.1 > c2 &
+    echo $! >> ${PID_FILE}
+    ./client -id 3.1 > c3 &
     echo $! >> ${PID_FILE}
 else
     echo "Servers are already started in this folder."

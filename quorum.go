@@ -1,9 +1,11 @@
 package paxi
 
+import "github.com/ailidani/paxi/log"
+
 type Quorum struct {
 	size  int
 	acks  map[ID]bool
-	zones map[uint8]int
+	zones map[int]int
 	nacks map[ID]bool
 }
 
@@ -11,7 +13,7 @@ func NewQuorum() *Quorum {
 	return &Quorum{
 		size:  0,
 		acks:  make(map[ID]bool, NumNodes),
-		zones: make(map[uint8]int, NumZones),
+		zones: make(map[int]int, NumZones),
 		nacks: make(map[ID]bool, NumNodes),
 	}
 }
@@ -38,10 +40,10 @@ func (q *Quorum) Size() int {
 	return q.size
 }
 
-func (q *Quorum) Clear() {
+func (q *Quorum) Reset() {
 	q.size = 0
 	q.acks = make(map[ID]bool, NumNodes)
-	q.zones = make(map[uint8]int, NumZones)
+	q.zones = make(map[int]int, NumZones)
 	q.nacks = make(map[ID]bool, NumNodes)
 }
 
@@ -71,18 +73,7 @@ func (q *Quorum) ZoneMajority() bool {
 }
 
 func (q *Quorum) GridRow() bool {
-	row := make(map[uint8]int)
-	for id, ok := range q.acks {
-		if ok {
-			row[id.Node()]++
-		}
-	}
-	for _, n := range row {
-		if n == NumZones {
-			return true
-		}
-	}
-	return false
+	return q.AllZones()
 }
 
 func (q *Quorum) GridColumn() bool {
@@ -94,7 +85,7 @@ func (q *Quorum) GridColumn() bool {
 	return false
 }
 
-func (q *Quorum) Q1() bool {
+func (q *Quorum) FGridQ1() bool {
 	z := 0
 	for _, n := range q.zones {
 		if n > NumLocalNodes/2 {
@@ -104,7 +95,7 @@ func (q *Quorum) Q1() bool {
 	return z >= NumZones-F
 }
 
-func (q *Quorum) Q2() bool {
+func (q *Quorum) FGridQ2() bool {
 	z := 0
 	for _, n := range q.zones {
 		if n > NumLocalNodes/2 {
@@ -112,4 +103,36 @@ func (q *Quorum) Q2() bool {
 		}
 	}
 	return z >= F+1
+}
+
+func (q *Quorum) Q1() bool {
+	switch QuorumType {
+	case "majority":
+		return q.Majority()
+	case "grid":
+		return q.GridRow()
+	case "fgrid":
+		return q.FGridQ1()
+	case "group":
+		return q.ZoneMajority()
+	default:
+		log.Errorln("Unknown quorum type")
+		return false
+	}
+}
+
+func (q *Quorum) Q2() bool {
+	switch QuorumType {
+	case "majority":
+		return q.Majority()
+	case "grid":
+		return q.GridColumn()
+	case "fgrid":
+		return q.FGridQ2()
+	case "group":
+		return q.ZoneMajority()
+	default:
+		log.Errorln("Unknown quorum type")
+		return false
+	}
 }

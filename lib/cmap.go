@@ -15,26 +15,26 @@ func NewCMap() *CMap {
 	}
 }
 
-func (c *CMap) get(key interface{}) interface{} {
+func (c *CMap) Get(key interface{}) interface{} {
 	c.RLock()
 	defer c.RUnlock()
 	return c.data[key]
 }
 
-func (c *CMap) set(key, value interface{}) {
+func (c *CMap) Set(key, value interface{}) {
 	c.Lock()
 	defer c.Unlock()
 	c.data[key] = value
 }
 
-func (c *CMap) exist(key interface{}) bool {
+func (c *CMap) Exist(key interface{}) bool {
 	c.RLock()
 	defer c.RUnlock()
 	_, exist := c.data[key]
 	return exist
 }
 
-func (c *CMap) keys() []interface{} {
+func (c *CMap) Keys() []interface{} {
 	c.RLock()
 	defer c.RUnlock()
 	keys := make([]interface{}, len(c.data))

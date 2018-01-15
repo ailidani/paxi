@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"reflect"
 	"strconv"
-	"sync"
 
 	"github.com/ailidani/paxi/log"
 )
@@ -24,39 +23,46 @@ var (
 	NumLocalNodes int
 	// F number of zone failures
 	F int
+	// QuorumType name of the quorums
+	QuorumType string
 )
 
-// Node is the base class for every replica
-// it includes networking, state machine and client handshake logic
-type Node struct {
-	ID     ID
-	http   string
-	Config Config
+// Node is the primary access point for every replica
+// it includes networking, state machine and RESTful API server
+type Node interface {
+	Socket
+	StateMachine
+	ID() ID
+	Config() Config
+	Run()
+	Retry(r Request)
+	Forward(id ID, r Request)
+	Register(m interface{}, f interface{})
+}
+
+// node implements Node interface
+type node struct {
+	id     ID
+	config Config
 
 	Socket
-	DB          *StateMachine
+	StateMachine
 	MessageChan chan interface{}
 	handles     map[string]reflect.Value
-
-	sync.RWMutex
 }
 
 // NewNode creates a new Node object from configuration
-func NewNode(config Config) *Node {
-	node := new(Node)
-	node.ID = config.ID
-	node.Config = config
+func NewNode(config Config) Node {
+	node := new(node)
+	node.id = config.ID
+	node.config = config
 
-	// http string should be in form of ":8080"
-	url, _ := url.Parse(config.HTTPAddrs[config.ID])
-	node.http = ":" + url.Port()
-
-	node.Socket = NewSocket(config.ID, config.Addrs, config.Codec)
-	node.DB = NewStateMachine()
+	node.Socket = NewSocket(config.ID, config.Addrs, config.Transport, config.Codec)
+	node.StateMachine = NewStateMachine()
 	node.MessageChan = make(chan interface{}, config.ChanBufferSize)
 	node.handles = make(map[string]reflect.Value)
 
-	zones := make(map[uint8]int)
+	zones := make(map[int]int)
 	for id := range config.Addrs {
 		zones[id.Zone()]++
 	}
@@ -64,12 +70,25 @@ func NewNode(config Config) *Node {
 	NumNodes = len(config.Addrs)
 	NumLocalNodes = zones[config.ID.Zone()]
 	F = config.F
+	QuorumType = config.Quorum
 
 	return node
 }
 
+func (n *node) ID() ID {
+	return n.id
+}
+
+func (n *node) Config() Config {
+	return n.config
+}
+
+func (n *node) Retry(r Request) {
+	n.MessageChan <- r
+}
+
 // Register a handle function for each message type
-func (n *Node) Register(m interface{}, f interface{}) {
+func (n *node) Register(m interface{}, f interface{}) {
 	t := reflect.TypeOf(m)
 	fn := reflect.ValueOf(f)
 	if fn.Kind() != reflect.Func || fn.Type().NumIn() != 1 || fn.Type().In(0) != t {
@@ -79,8 +98,8 @@ func (n *Node) Register(m interface{}, f interface{}) {
 }
 
 // Run start and run the node
-func (n *Node) Run() {
-	log.Infof("node %v start running\n", n.ID)
+func (n *node) Run() {
+	log.Infof("node %v start running\n", n.id)
 	if len(n.handles) > 0 {
 		go n.handle()
 	}
@@ -89,12 +108,12 @@ func (n *Node) Run() {
 }
 
 // serve serves the http REST API request from clients
-func (n *Node) serve() {
+func (n *node) serve() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		var req Request
 		req.c = make(chan Reply)
-		req.ClientID, _ = IDFromString(r.Header.Get("id"))
+		req.ClientID = ID(r.Header.Get("id"))
 		cid, _ := strconv.Atoi(r.Header.Get("cid"))
 		req.CommandID = CommandID(cid)
 		req.Timestamp, _ = strconv.ParseInt(r.Header.Get("timestamp"), 10, 64)
@@ -132,7 +151,7 @@ func (n *Node) serve() {
 			return
 		}
 		// r.w.Header().Set("ok", fmt.Sprintf("%v", reply.OK))
-		w.Header().Set("id", reply.ClientID.String())
+		w.Header().Set("id", fmt.Sprintf("%v", reply.ClientID))
 		w.Header().Set("cid", fmt.Sprintf("%v", reply.CommandID))
 		w.Header().Set("timestamp", fmt.Sprintf("%v", reply.Timestamp))
 		if reply.Command.IsRead() {
@@ -143,21 +162,24 @@ func (n *Node) serve() {
 			}
 		}
 	})
-	err := http.ListenAndServe(n.http, mux)
+	// http string should be in form of ":8080"
+	url, _ := url.Parse(n.config.HTTPAddrs[n.id])
+	port := ":" + url.Port()
+	err := http.ListenAndServe(port, mux)
 	if err != nil {
 		log.Fatalln(err)
 	}
 }
 
 // recv receives messages from socket and pass to message channel
-func (n *Node) recv() {
+func (n *node) recv() {
 	for {
 		n.MessageChan <- n.Recv()
 	}
 }
 
 // handle receives messages from message channel and calls handle function using refection
-func (n *Node) handle() {
+func (n *node) handle() {
 	for {
 		msg := <-n.MessageChan
 		v := reflect.ValueOf(msg)
@@ -170,9 +192,11 @@ func (n *Node) handle() {
 	}
 }
 
-func (n *Node) Forward(id ID, m Request) {
+func (n *node) Forward(id ID, m Request) {
 	key := m.Command.Key
-	url := n.Config.HTTPAddrs[id] + "/" + strconv.Itoa(int(key))
+	url := n.config.HTTPAddrs[id] + "/" + strconv.Itoa(int(key))
+
+	log.Debugf("Node %v forwarding request %v to %s", n.ID(), m, url)
 
 	if m.Command.IsRead() {
 		req, err := http.NewRequest(http.MethodGet, url, nil)
@@ -180,7 +204,7 @@ func (n *Node) Forward(id ID, m Request) {
 			log.Errorln(err)
 			return
 		}
-		req.Header.Set("id", m.ClientID.String())
+		req.Header.Set("id", fmt.Sprintf("%v", m.ClientID))
 		rep, err := http.DefaultClient.Do(req)
 		if err != nil {
 			log.Errorln(err)
@@ -203,7 +227,7 @@ func (n *Node) Forward(id ID, m Request) {
 			log.Errorln(err)
 			return
 		}
-		req.Header.Set("id", m.ClientID.String())
+		req.Header.Set("id", fmt.Sprintf("%v", m.ClientID))
 		rep, err := http.DefaultClient.Do(req)
 		if err != nil {
 			log.Errorln(err)

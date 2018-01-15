@@ -13,7 +13,7 @@ func NewMMap() *MMap {
 	}
 }
 
-func (m *MMap) keys() []interface{} {
+func (m *MMap) Keys() []interface{} {
 	m.RLock()
 	defer m.RUnlock()
 	keys := make([]interface{}, len(m.data))
@@ -25,7 +25,7 @@ func (m *MMap) keys() []interface{} {
 	return keys
 }
 
-func (m *MMap) secondaryKeys(key interface{}) []interface{} {
+func (m *MMap) SecondaryKeys(key interface{}) []interface{} {
 	m.RLock()
 	defer m.RUnlock()
 	keys := make([]interface{}, len(m.data))
@@ -37,13 +37,13 @@ func (m *MMap) secondaryKeys(key interface{}) []interface{} {
 	return keys
 }
 
-func (m *MMap) get(key interface{}, version interface{}) interface{} {
+func (m *MMap) Get(key interface{}, version interface{}) interface{} {
 	m.RLock()
 	defer m.RUnlock()
 	return m.data[key][version]
 }
 
-func (m *MMap) put(key interface{}, key2 interface{}, value interface{}) {
+func (m *MMap) Put(key interface{}, key2 interface{}, value interface{}) {
 	m.Lock()
 	defer m.Unlock()
 	m.data[key][key2] = value

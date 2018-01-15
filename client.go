@@ -16,7 +16,7 @@ import (
 
 // Client main access point of client lib
 type Client struct {
-	ID        ID // client id use the same size id as servers in local site
+	ID        ID // client id use the same id as servers in local site
 	N         int
 	addrs     map[ID]string
 	http      map[ID]string
@@ -32,7 +32,7 @@ type Client struct {
 }
 
 // NewClient creates a new Client from config
-func NewClient(config *Config) *Client {
+func NewClient(config Config) *Client {
 	c := new(Client)
 	c.ID = config.ID
 	c.N = len(config.Addrs)
@@ -66,7 +66,7 @@ func (c *Client) RESTGet(key Key) Value {
 		log.Errorln(err)
 		return nil
 	}
-	req.Header.Set("id", c.ID.String())
+	req.Header.Set("id", fmt.Sprintf("%v", c.ID))
 	req.Header.Set("cid", strconv.FormatUint(uint64(c.cid), 10))
 	req.Header.Set("timestamp", strconv.FormatInt(time.Now().UnixNano(), 10))
 	rep, err := http.DefaultClient.Do(req)
@@ -75,13 +75,13 @@ func (c *Client) RESTGet(key Key) Value {
 		return nil
 	}
 	defer rep.Body.Close()
-	dump, _ := httputil.DumpResponse(rep, true)
-	log.Debugln(rep.Status)
-	log.Debugf("%q", dump)
 	if rep.StatusCode == http.StatusOK {
 		b, _ := ioutil.ReadAll(rep.Body)
+		log.Debugf("type=%s key=%v value=%x", "get", key, Value(b))
 		return Value(b)
 	}
+	dump, _ := httputil.DumpResponse(rep, true)
+	log.Debugf("%q", dump)
 	return nil
 }
 
@@ -97,7 +97,7 @@ func (c *Client) RESTPut(key Key, value Value) {
 		log.Errorln(err)
 		return
 	}
-	req.Header.Set("id", c.ID.String())
+	req.Header.Set("id", fmt.Sprintf("%v", c.ID))
 	req.Header.Set("cid", fmt.Sprintf("%v", c.cid))
 	req.Header.Set("timestamp", fmt.Sprintf("%d", time.Now().UnixNano()))
 	rep, err := http.DefaultClient.Do(req)
@@ -106,9 +106,12 @@ func (c *Client) RESTPut(key Key, value Value) {
 		return
 	}
 	defer rep.Body.Close()
-	dump, _ := httputil.DumpResponse(rep, true)
-	log.Debugln(rep.Status)
-	log.Debugf("%q", dump)
+	if rep.StatusCode == http.StatusOK {
+		log.Debugf("type=%s key=%v value=%x", "put", key, value)
+	} else {
+		dump, _ := httputil.DumpResponse(rep, true)
+		log.Debugf("%q", dump)
+	}
 }
 
 // Get post json get request to server url

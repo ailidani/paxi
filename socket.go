@@ -8,7 +8,7 @@ type Socket interface {
 	Send(to ID, msg interface{})
 
 	// Multicast send msg to all nodes in the same site
-	Multicast(sid uint8, msg interface{})
+	Multicast(zone int, msg interface{})
 
 	// Broadcast send to all peers
 	Broadcast(msg interface{})
@@ -25,20 +25,20 @@ type socket struct {
 	codec Codec
 }
 
-func NewSocket(id ID, addrs map[ID]string, codec string) Socket {
+func NewSocket(id ID, addrs map[ID]string, transport, codec string) Socket {
 	socket := new(socket)
 	socket.id = id
 	socket.nodes = make(map[ID]Transport)
 	socket.codec = NewCodec(codec)
 
-	socket.nodes[id] = NewTransport(addrs[id])
+	socket.nodes[id] = NewTransport(transport + "://" + addrs[id])
 	go socket.nodes[id].Listen()
 
 	for id, addr := range addrs {
 		if id == socket.id {
 			continue
 		}
-		t := NewTransport(addr)
+		t := NewTransport(transport + "://" + addr)
 		err := t.Dial()
 		for err != nil {
 			err = t.Dial()
@@ -65,12 +65,12 @@ func (sock *socket) Recv() interface{} {
 	return msg
 }
 
-func (sock *socket) Multicast(sid uint8, msg interface{}) {
+func (sock *socket) Multicast(zone int, msg interface{}) {
 	for id := range sock.nodes {
 		if id == sock.id {
 			continue
 		}
-		if id.Zone() == sid {
+		if id.Zone() == zone {
 			sock.Send(id, msg)
 		}
 	}
