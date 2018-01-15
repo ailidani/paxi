@@ -1,3 +1,7 @@
+[![GoDoc](https://godoc.org/github.com/ailidani/paxi?status.svg)](https://godoc.org/github.com/ailidani/paxi)
+[![Go Report Card](https://goreportcard.com/badge/github.com/ailidani/paxi)](https://goreportcard.com/report/github.com/ailidani/paxi)
+
+
 ## What is Paxi?
 
 **Paxi** is the framework that implements WPaxos and other Paxos protocol variants. Paxi provides most of the elements that any Paxos implementation or replication protocol needs, including network communication, state machine of a key-value store, client API and multiple types of quorum systems.
