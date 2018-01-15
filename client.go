@@ -16,7 +16,7 @@ import (
 
 // Client main access point of client lib
 type Client struct {
-	ID        ID // client id use the same size id as servers in local site
+	ID        ID // client id use the same id as servers in local site
 	N         int
 	addrs     map[ID]string
 	http      map[ID]string

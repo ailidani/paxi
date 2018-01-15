@@ -21,12 +21,13 @@ type DB interface {
 var file = flag.String("bconfig", "benchmark.json", "benchmark configuration file")
 
 type bconfig struct {
-	T            int    // total number of running time in seconds
-	N            int    // total number of requests
-	K            int    // key sapce
-	W            int    // percentage of writes
-	Concurrency  int    // number of simulated clients
-	Distribution string // distribution
+	T                    int    // total number of running time in seconds
+	N                    int    // total number of requests
+	K                    int    // key sapce
+	W                    int    // percentage of writes
+	Concurrency          int    // number of simulated clients
+	Distribution         string // distribution
+	LinearizabilityCheck bool   // run linearizability checker at the end of benchmark
 	// rounds       int    // repeat in many rounds sequentially
 
 	// random distribution
@@ -48,20 +49,21 @@ type bconfig struct {
 
 func NewBenchmarkConfig() bconfig {
 	return bconfig{
-		T:            10,
-		N:            0,
-		K:            1000,
-		W:            100,
-		Concurrency:  1,
-		Distribution: "random",
-		Conflicts:    100,
-		Min:          0,
-		Mu:           0,
-		Sigma:        60,
-		Move:         false,
-		Speed:        500,
-		Zipfian_s:    2,
-		Zipfian_v:    1,
+		T:                    10,
+		N:                    0,
+		K:                    1000,
+		W:                    100,
+		Concurrency:          1,
+		Distribution:         "random",
+		LinearizabilityCheck: false,
+		Conflicts:            100,
+		Min:                  0,
+		Mu:                   0,
+		Sigma:                60,
+		Move:                 false,
+		Speed:                500,
+		Zipfian_s:            2,
+		Zipfian_v:            1,
 	}
 }
 
@@ -88,6 +90,7 @@ func (c *bconfig) Save() error {
 type Benchmarker struct {
 	db DB // read/write operation interface
 	bconfig
+	History
 
 	cwait   sync.WaitGroup  // wait for all clients to finish
 	latency []time.Duration // latency per operation for each round
@@ -98,11 +101,12 @@ func NewBenchmarker(db DB) *Benchmarker {
 	b := new(Benchmarker)
 	b.db = db
 	b.bconfig = NewBenchmarkConfig()
+	b.History = NewHistory()
 	return b
 }
 
-// Start starts the main logic of benchmarking
-func (b *Benchmarker) Start() {
+// Run starts the main logic of benchmarking
+func (b *Benchmarker) Run() {
 	rand.Seed(time.Now().UTC().UnixNano())
 	r := rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 	b.zipf = rand.NewZipf(r, b.Zipfian_s, b.Zipfian_v, uint64(b.K))
@@ -111,14 +115,16 @@ func (b *Benchmarker) Start() {
 	if b.Move {
 		move := func() { b.Mu = float64(int(b.Mu+1) % b.K) }
 		stop = Schedule(move, time.Duration(b.Speed)*time.Millisecond)
+		defer close(stop)
 	}
 
 	b.latency = make([]time.Duration, 1000)
 	start_time := time.Now()
 	b.db.Init()
 
-	keys := make(chan int, 1000)
+	keys := make(chan int, b.Concurrency)
 	results := make(chan time.Duration, 1000)
+	defer close(results)
 	go b.collect(results)
 	for i := 0; i < b.Concurrency; i++ {
 		go b.worker(keys, results)
@@ -142,6 +148,7 @@ func (b *Benchmarker) Start() {
 
 	b.db.Stop()
 	end_time := time.Now()
+	close(keys)
 	stat := Statistic(b.latency)
 	stat.WriteFile("latency")
 	t := end_time.Sub(start_time)
@@ -149,11 +156,13 @@ func (b *Benchmarker) Start() {
 	log.Infof("Throughput %f\n", float64(len(b.latency))/t.Seconds())
 	log.Infoln(stat)
 
-	if b.Move {
-		stop <- true
+	if b.LinearizabilityCheck {
+		if b.History.Linearizable() {
+			log.Infoln("The execution is linearizable.")
+		} else {
+			log.Infoln("The execution is NOT linearizable.")
+		}
 	}
-	close(keys)
-	close(results)
 }
 
 // generates key based on distribution
@@ -185,15 +194,21 @@ func (b *Benchmarker) next() int {
 
 func (b *Benchmarker) worker(keys <-chan int, results chan<- time.Duration) {
 	for k := range keys {
-		v := rand.Int()
-
-		s := time.Now()
+		var s time.Time
+		var e time.Time
 		if rand.Intn(100) < b.W {
+			v := rand.Int()
+			s = time.Now()
 			b.db.Write(k, v)
+			e = time.Now()
+			b.History.Add(k, v, nil, s.UnixNano(), e.UnixNano())
 		} else {
-			b.db.Read(k)
+			s = time.Now()
+			v := b.db.Read(k)
+			e = time.Now()
+			b.History.Add(k, nil, v, s.UnixNano(), e.UnixNano())
 		}
-		t := time.Now().Sub(s)
+		t := e.Sub(s)
 		results <- t
 	}
 }

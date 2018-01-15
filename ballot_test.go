@@ -9,8 +9,8 @@ func TestBallot(t *testing.T) {
 	id := NewID(2, 1)
 	b := NewBallot(n, id)
 
-	b.Next()
-	b.Next()
+	b.Next(id)
+	b.Next(id)
 
 	if b.N() != n+2 {
 		t.Errorf("Ballot.N() %v != %v", b.N(), n+1)

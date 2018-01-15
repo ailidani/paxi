@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/ailidani/paxi"
+	"github.com/ailidani/paxi/epaxos"
 	"github.com/ailidani/paxi/kpaxos"
 	"github.com/ailidani/paxi/log"
 	"github.com/ailidani/paxi/paxos"
@@ -48,9 +49,9 @@ func replica(id paxi.ID) {
 		replica := wpaxos2.NewReplica(config)
 		replica.Run()
 
-	// case "epaxos":
-	// 	replica := epaxos.NewReplica(config)
-	// 	replica.Run()
+	case "epaxos":
+		replica := epaxos.NewReplica(config)
+		replica.Run()
 
 	case "kpaxos":
 		replica := kpaxos.NewReplica(config)

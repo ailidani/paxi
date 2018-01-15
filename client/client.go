@@ -55,5 +55,5 @@ func main() {
 
 	b := paxi.NewBenchmarker(d)
 	b.Load()
-	b.Start()
+	b.Run()
 }
