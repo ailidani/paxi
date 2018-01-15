@@ -280,7 +280,7 @@ func (p *Paxos) HandleP3(m P3) {
 
 	if _, exists := p.log[m.Slot]; exists {
 		// if p.log[m.Slot].command.Key != m.Command.Key {
-		// 	log.Fatalln("commit cmd differnt from exists cmd")
+		// 	log.Fatalln("commit cmd different from exists cmd")
 		// }
 		p.log[m.Slot].command = m.Command
 		p.log[m.Slot].commit = true

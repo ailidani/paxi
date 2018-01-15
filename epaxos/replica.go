@@ -1,7 +1,7 @@
 package epaxos
 
 import (
-	. "github.com/ailidani/paxi"
+	"github.com/ailidani/paxi"
 	"github.com/ailidani/paxi/log"
 )
 
@@ -10,18 +10,20 @@ const BF_K = 4
 
 var bf_PT uint32
 
+type id int
+
 type Replica struct {
-	Node
+	paxi.Node
 	N                int // total number of replicas
-	Peers            map[ID]string
-	InstanceSpace    map[ID][]*Instance
-	crtInstance      map[ID]int
-	CommittedUpTo    map[ID]int
-	ExecutedUpTo     map[ID]int
-	conflicts        map[ID]map[Key]int
-	maxSeqPerKey     map[Key]int
+	Peers            map[id]string
+	InstanceSpace    map[id][]*Instance
+	crtInstance      map[id]int
+	CommittedUpTo    map[id]int
+	ExecutedUpTo     map[id]int
+	conflicts        map[id]map[paxi.Key]int
+	maxSeqPerKey     map[paxi.Key]int
 	maxSeq           int
-	latestCPReplica  ID
+	latestCPReplica  id
 	latestCPInstance int
 
 	Shutdown           bool
@@ -29,11 +31,11 @@ type Replica struct {
 }
 
 type Instance struct {
-	cmds    []Command
+	cmds    []paxi.Command
 	ballot  int
 	status  int8
 	seq     int
-	deps    map[ID]int
+	deps    map[id]int
 	lb      *LeaderBookkeeping
 	index   int
 	lowlink int
@@ -41,29 +43,29 @@ type Instance struct {
 }
 
 type instanceId struct {
-	replica  ID
+	replica  id
 	instance int
 }
 
 type RecoveryInstance struct {
-	cmds            []Command
+	cmds            []paxi.Command
 	status          int8
 	seq             int
-	deps            map[ID]int
+	deps            map[id]int
 	preAcceptCount  int
 	leaderResponded bool
 }
 
 type LeaderBookkeeping struct {
-	proposals         []Request
+	proposals         []paxi.Request
 	maxRecvBallot     int
-	prepareQuorum     *Quorum
+	prepareQuorum     *paxi.Quorum
 	allEqual          bool
-	preAcceptQuorum   *Quorum
-	acceptQuorum      *Quorum
+	preAcceptQuorum   *paxi.Quorum
+	acceptQuorum      *paxi.Quorum
 	nacks             int
-	originalDeps      map[ID]int
-	committedDeps     map[ID]int
+	originalDeps      map[id]int
+	committedDeps     map[id]int
 	recoveryInst      *RecoveryInstance
 	preparing         bool
 	tryingToPreAccept bool
@@ -71,17 +73,17 @@ type LeaderBookkeeping struct {
 	tpaOKs            int    //???
 }
 
-func NewLeaderBookkeeping(proposals []Request, deps map[ID]int) *LeaderBookkeeping {
+func NewLeaderBookkeeping(proposals []paxi.Request, deps map[id]int) *LeaderBookkeeping {
 	lb := &LeaderBookkeeping{
 		proposals:       proposals,
 		maxRecvBallot:   0,
-		prepareQuorum:   NewQuorum(),
+		prepareQuorum:   paxi.NewQuorum(),
 		allEqual:        true,
-		preAcceptQuorum: NewQuorum(),
-		acceptQuorum:    NewQuorum(),
+		preAcceptQuorum: paxi.NewQuorum(),
+		acceptQuorum:    paxi.NewQuorum(),
 		nacks:           0,
 		originalDeps:    deps,
-		committedDeps:   make(map[ID]int),
+		committedDeps:   make(map[id]int),
 	}
 	for id := range deps {
 		lb.committedDeps[id] = -1
@@ -89,33 +91,41 @@ func NewLeaderBookkeeping(proposals []Request, deps map[ID]int) *LeaderBookkeepi
 	return lb
 }
 
-func NewReplica(config Config) *Replica {
+func NewReplica(config paxi.Config) *Replica {
 	N := len(config.Addrs)
-
+	peers := make(map[id]string)
+	for i, addr := range config.Addrs {
+		peers[id(i.Node())] = addr
+	}
 	r := &Replica{
 		N:                  N,
-		Node:               NewNode(config),
-		Peers:              config.Addrs,
-		InstanceSpace:      make(map[ID][]*Instance, N),
-		crtInstance:        make(map[ID]int, N),
-		CommittedUpTo:      make(map[ID]int, N),
-		ExecutedUpTo:       make(map[ID]int, N),
-		conflicts:          make(map[ID]map[Key]int, N),
-		maxSeqPerKey:       make(map[Key]int),
+		Node:               paxi.NewNode(config),
+		Peers:              peers,
+		InstanceSpace:      make(map[id][]*Instance, N),
+		crtInstance:        make(map[id]int, N),
+		CommittedUpTo:      make(map[id]int, N),
+		ExecutedUpTo:       make(map[id]int, N),
+		conflicts:          make(map[id]map[paxi.Key]int, N),
+		maxSeqPerKey:       make(map[paxi.Key]int),
 		maxSeq:             0,
 		latestCPReplica:    0,
 		latestCPInstance:   -1,
-		instancesToRecover: make(chan *instanceId, CHAN_BUFFER_SIZE),
+		instancesToRecover: make(chan *instanceId, config.ChanBufferSize),
 	}
 
-	for id, _ := range r.Peers {
-		r.InstanceSpace[id] = make([]*Instance, 2*1024*1024)
+	for id := range r.Peers {
+		r.InstanceSpace[id] = make([]*Instance, config.BufferSize)
 		r.crtInstance[id] = 0
 		r.ExecutedUpTo[id] = -1
-		r.conflicts[id] = make(map[Key]int, HT_INIT_SIZE)
+		r.conflicts[id] = make(map[paxi.Key]int, HT_INIT_SIZE)
 	}
 
 	return r
+}
+
+// ID overrides paxi.Node.ID() interface
+func (r *Replica) ID() id {
+	return id(r.Node.ID().Node())
 }
 
 /***********************************
@@ -133,9 +143,11 @@ func (r *Replica) messageLoop() {
 		case iid := <-r.instancesToRecover:
 			r.startRecoveryForInstance(iid.replica, iid.instance)
 
-		case msg := <-r.MessageChan:
+		default:
+			// case msg := <-r.MessageChan:
+			msg := r.Recv()
 			switch msg := msg.(type) {
-			case Request:
+			case paxi.Request:
 				log.Debugf("Replica %s received %v\n", r.ID(), msg)
 				r.handleProposal(msg)
 
@@ -208,11 +220,11 @@ var conflicted, weird, slow, happy int
 
 func (r *Replica) clearHashtables() {
 	for id := range r.Peers {
-		r.conflicts[id] = make(map[Key]int, HT_INIT_SIZE)
+		r.conflicts[id] = make(map[paxi.Key]int, HT_INIT_SIZE)
 	}
 }
 
-func (r *Replica) updateCommitted(id ID) {
+func (r *Replica) updateCommitted(id id) {
 	nextSeq := r.CommittedUpTo[id] + 1
 	nextIns := r.InstanceSpace[id][nextSeq]
 	for nextIns != nil && (nextIns.status == COMMITTED || nextIns.status == EXECUTED) {
@@ -222,7 +234,7 @@ func (r *Replica) updateCommitted(id ID) {
 	}
 }
 
-func (r *Replica) updateConflicts(cmds []Command, id ID, instance int, seq int) {
+func (r *Replica) updateConflicts(cmds []paxi.Command, id id, instance int, seq int) {
 	for _, cmd := range cmds {
 		key := cmd.Key
 		if d, present := r.conflicts[id][key]; present {
@@ -242,18 +254,18 @@ func (r *Replica) updateConflicts(cmds []Command, id ID, instance int, seq int) 
 	}
 }
 
-func (r *Replica) updateAttributes(cmds []Command, seq int, deps map[ID]int, replica ID, instance int) (int, map[ID]int, bool) {
+func (r *Replica) updateAttributes(cmds []paxi.Command, seq int, deps map[id]int, replica id, instance int) (int, map[id]int, bool) {
 	changed := false
-	for id := range r.Peers {
-		if r.ID() != replica && id == replica {
+	for i := range r.Peers {
+		if r.ID() != replica && i == replica {
 			continue
 		}
 		for _, cmd := range cmds {
-			if d, present := r.conflicts[id][cmd.Key]; present {
-				if d > deps[id] {
-					deps[id] = d
-					if seq <= r.InstanceSpace[id][d].seq {
-						seq = r.InstanceSpace[id][d].seq + 1
+			if d, present := r.conflicts[i][cmd.Key]; present {
+				if d > deps[i] {
+					deps[i] = d
+					if seq <= r.InstanceSpace[i][d].seq {
+						seq = r.InstanceSpace[i][d].seq + 1
 					}
 					changed = true
 					break
@@ -272,7 +284,7 @@ func (r *Replica) updateAttributes(cmds []Command, seq int, deps map[ID]int, rep
 	return seq, deps, changed
 }
 
-func (r *Replica) mergeAttributes(seq1 int, deps1 map[ID]int, seq2 int, deps2 map[ID]int) (int, map[ID]int, bool) {
+func (r *Replica) mergeAttributes(seq1 int, deps1 map[id]int, seq2 int, deps2 map[id]int) (int, map[id]int, bool) {
 	equal := true
 	if seq1 != seq2 {
 		equal = false
@@ -294,7 +306,7 @@ func (r *Replica) mergeAttributes(seq1 int, deps1 map[ID]int, seq2 int, deps2 ma
 	return seq1, deps1, equal
 }
 
-func equal(deps1, deps2 map[ID]int) bool {
+func equal(deps1, deps2 map[id]int) bool {
 	for id := range deps1 {
 		if deps1[id] != deps2[id] {
 			return false
@@ -303,7 +315,7 @@ func equal(deps1, deps2 map[ID]int) bool {
 	return true
 }
 
-func bfFromCommands(cmds []Command) *Bloomfilter {
+func bfFromCommands(cmds []paxi.Command) *Bloomfilter {
 	if cmds == nil {
 		return nil
 	}
@@ -328,28 +340,28 @@ func isInitialBallot(ballot int) bool {
 	return (ballot >> 4) == 0
 }
 
-func replicaIDFromBallot(ballot int) ID {
-	return ID(ballot & 15)
+func replicaIDFromBallot(ballot int) id {
+	return id(ballot & 15)
 }
 
 /********************************
               Phase 1
 *********************************/
 
-func (r *Replica) handleProposal(msg Request) {
+func (r *Replica) handleProposal(msg paxi.Request) {
 	instance := r.crtInstance[r.ID()]
 	r.crtInstance[r.ID()]++
 
 	log.Debugf("Starting instance %d\n", instance)
 
-	cmds := []Command{msg.Command}
+	cmds := []paxi.Command{msg.Command}
 
-	r.startPhase1(r.ID(), instance, 0, []Request{msg}, cmds)
+	r.startPhase1(r.ID(), instance, 0, []paxi.Request{msg}, cmds)
 }
 
-func (r *Replica) startPhase1(replica ID, instance int, ballot int, proposals []Request, cmds []Command) {
+func (r *Replica) startPhase1(replica id, instance int, ballot int, proposals []paxi.Request, cmds []paxi.Command) {
 	seq := 0
-	deps := make(map[ID]int)
+	deps := make(map[id]int)
 	for id := range r.Peers {
 		deps[id] = -1
 	}
@@ -535,7 +547,7 @@ func (r *Replica) handlePreAcceptReply(msg *PreAcceptReply) {
 		if inst.lb.proposals != nil {
 			// give clients the all clear
 			for _, p := range inst.lb.proposals {
-				reply := Reply{
+				reply := paxi.Reply{
 					OK:        true,
 					CommandID: p.CommandID,
 					LeaderID:  r.ID(),
@@ -604,7 +616,7 @@ func (r *Replica) handlePreAcceptOK(msg *PreAcceptOK) {
 		if inst.lb.proposals != nil {
 			// give clients the all clear
 			for _, p := range inst.lb.proposals {
-				reply := Reply{
+				reply := paxi.Reply{
 					OK:        true,
 					CommandID: p.CommandID,
 					LeaderID:  r.ID(),
@@ -713,7 +725,7 @@ func (r *Replica) handleAcceptReply(msg *AcceptReply) {
 		r.updateCommitted(msg.Replica)
 		if inst.lb.proposals != nil {
 			for _, p := range inst.lb.proposals {
-				reply := Reply{
+				reply := paxi.Reply{
 					OK:        true,
 					CommandID: p.CommandID,
 					LeaderID:  r.ID(),
@@ -824,18 +836,18 @@ func (r *Replica) handleCommitShort(commit *CommitShort) {
          RECOVERY ACTIONS
 *********************************/
 
-func (r *Replica) startRecoveryForInstance(replica ID, instance int) {
-	var nildeps map[ID]int
+func (r *Replica) startRecoveryForInstance(replica id, instance int) {
+	var nildeps map[id]int
 	if r.InstanceSpace[replica][instance] == nil {
 		r.InstanceSpace[replica][instance] = &Instance{nil, 0, NONE, 0, nildeps, nil, 0, 0, nil}
 	}
 
 	inst := r.InstanceSpace[replica][instance]
 	if inst.lb == nil {
-		inst.lb = &LeaderBookkeeping{nil, -1, NewQuorum(), false, NewQuorum(), NewQuorum(), 0, nildeps, nil, nil, true, false, nil, 0}
+		inst.lb = &LeaderBookkeeping{nil, -1, paxi.NewQuorum(), false, paxi.NewQuorum(), paxi.NewQuorum(), 0, nildeps, nil, nil, true, false, nil, 0}
 
 	} else {
-		inst.lb = &LeaderBookkeeping{inst.lb.proposals, -1, NewQuorum(), false, NewQuorum(), NewQuorum(), 0, nildeps, nil, nil, true, false, nil, 0}
+		inst.lb = &LeaderBookkeeping{inst.lb.proposals, -1, paxi.NewQuorum(), false, paxi.NewQuorum(), paxi.NewQuorum(), 0, nildeps, nil, nil, true, false, nil, 0}
 	}
 
 	if inst.status == ACCEPTED {
@@ -854,7 +866,7 @@ func (r *Replica) startRecoveryForInstance(replica ID, instance int) {
 func (r *Replica) handlePrepare(prepare *Prepare) {
 	inst := r.InstanceSpace[prepare.Replica][prepare.Instance]
 	var preply *PrepareReply
-	var nildeps map[ID]int
+	var nildeps map[id]int
 
 	if inst == nil {
 		r.InstanceSpace[prepare.Replica][prepare.Instance] = &Instance{
@@ -977,7 +989,7 @@ func (r *Replica) handlePrepareReply(preply *PrepareReply) {
 		} else if !ir.leaderResponded && ir.preAcceptCount >= (r.N/2+1)/2 {
 			//send TryPreAccepts
 			//but first try to pre-accept on the local replica
-			inst.lb.preAcceptQuorum = NewQuorum()
+			inst.lb.preAcceptQuorum = paxi.NewQuorum()
 			inst.lb.nacks = 0
 			inst.lb.possibleQuorum = make([]bool, r.N)
 			for q := 0; q < r.N; q++ {
@@ -997,7 +1009,7 @@ func (r *Replica) handlePrepareReply(preply *PrepareReply) {
 				inst.seq = ir.seq
 				inst.deps = ir.deps
 				inst.status = PREACCEPTED
-				inst.lb.preAcceptQuorum = NewQuorum()
+				inst.lb.preAcceptQuorum = paxi.NewQuorum()
 				inst.lb.preAcceptQuorum.ACK(r.ID())
 			}
 			inst.lb.preparing = false
@@ -1011,7 +1023,7 @@ func (r *Replica) handlePrepareReply(preply *PrepareReply) {
 		}
 	} else {
 		//try to finalize instance by proposing NO-OP
-		var noop_deps map[ID]int
+		var noop_deps map[id]int
 		// commands that depended on this instance must look at all previous instances
 		noop_deps[preply.Replica] = preply.Instance - 1
 		inst.lb.preparing = false
@@ -1079,7 +1091,7 @@ func (r *Replica) handleTryPreAccept(tpa *TryPreAccept) {
 	}
 }
 
-func (r *Replica) findPreAcceptConflicts(cmds []Command, replica ID, instance int, seq int, deps map[ID]int) (bool, ID, int) {
+func (r *Replica) findPreAcceptConflicts(cmds []paxi.Command, replica id, instance int, seq int, deps map[id]int) (bool, id, int) {
 	inst := r.InstanceSpace[replica][instance]
 	if inst != nil && len(inst.cmds) > 0 {
 		if inst.status >= ACCEPTED {
@@ -1142,7 +1154,7 @@ func (r *Replica) handleTryPreAcceptReply(tpar *TryPreAcceptReply) {
 			inst.deps = ir.deps
 			inst.status = ACCEPTED
 			inst.lb.tryingToPreAccept = false
-			inst.lb.acceptQuorum = NewQuorum()
+			inst.lb.acceptQuorum = paxi.NewQuorum()
 			r.Broadcast(&Accept{r.ID(), tpar.Replica, tpar.Instance, inst.ballot, len(inst.cmds), inst.seq, inst.deps})
 			return
 		}
@@ -1194,13 +1206,13 @@ func (r *Replica) handleTryPreAcceptReply(tpar *TryPreAcceptReply) {
 
 var deferMap map[uint64]uint64 = make(map[uint64]uint64)
 
-func updateDeferred(dr ID, di int, r ID, i int) {
+func updateDeferred(dr id, di int, r id, i int) {
 	daux := (uint64(dr) << 32) | uint64(di)
 	aux := (uint64(r) << 32) | uint64(i)
 	deferMap[aux] = daux
 }
 
-func deferredByInstance(q ID, i int) (bool, int32, int32) {
+func deferredByInstance(q id, i int) (bool, int32, int32) {
 	aux := (uint64(q) << 32) | uint64(i)
 	daux, present := deferMap[aux]
 	if !present {
