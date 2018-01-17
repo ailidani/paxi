@@ -21,23 +21,23 @@ func (g *Graph) Size() int {
 }
 
 func (g *Graph) Has(v interface{}) bool {
-	_, exists := g.vertices[v]
-	return exists
+	return g.vertices.Has(v)
 }
 
 func (g *Graph) Add(v interface{}) {
 	if !g.Has(v) {
-		g.vertices[v] = struct{}{}
+		g.vertices.Add(v)
+		g.from[v] = NewSet()
+		g.to[v] = NewSet()
 	}
-	g.from[v] = NewSet()
-	g.to[v] = NewSet()
+
 }
 
 func (g *Graph) Remove(v interface{}) {
 	if !g.Has(v) {
 		return
 	}
-	delete(g.vertices, v)
+	g.vertices.Remove(v)
 
 	for u := range g.vertices {
 		g.from[u].Remove(v)
@@ -89,7 +89,7 @@ func (g *Graph) BFS(v interface{}) []interface{} {
 		vertices = append(vertices, s.Value)
 		queue.Remove(s)
 
-		for t := range g.from[s] {
+		for t := range g.from[s.Value] {
 			if !visited[t] {
 				visited[t] = true
 				queue.PushBack(t)

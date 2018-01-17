@@ -86,6 +86,10 @@ func (c *checker) remove(o operation) {
 	c.Remove(o)
 }
 
+func (c *checker) clear() {
+	c.Graph = lib.NewGraph()
+}
+
 // match finds the first matching write operation to the given read operation
 func (c *checker) match(o operation) *operation {
 	for _, v := range c.Graph.BFS(o) {
@@ -113,6 +117,7 @@ func (c *checker) merge(read, write operation) {
 }
 
 func (c *checker) linearizable(history []operation) bool {
+	c.clear()
 	sort.Sort(byTime(history))
 	for i, o := range history {
 		select {
@@ -145,14 +150,6 @@ func (c *checker) linearizable(history []operation) bool {
 // sort operations by invocation time
 type byTime []operation
 
-func (a byTime) Len() int {
-	return len(a)
-}
-
-func (a byTime) Swap(i, j int) {
-	a[i], a[j] = a[j], a[i]
-}
-
-func (a byTime) Less(i, j int) bool {
-	return a[i].start < a[j].start
-}
+func (a byTime) Len() int           { return len(a) }
+func (a byTime) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a byTime) Less(i, j int) bool { return a[i].start < a[j].start }

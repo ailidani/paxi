@@ -376,9 +376,9 @@ func (r *Replica) startPhase1(replica id, instance int, ballot int, proposals []
 		deps:   deps,
 		lb:     NewLeaderBookkeeping(proposals, deps),
 	}
-	r.InstanceSpace[r.ID()][instance].lb.preAcceptQuorum.ACK(r.ID())
-	r.InstanceSpace[r.ID()][instance].lb.prepareQuorum.ACK(r.ID())
-	r.InstanceSpace[r.ID()][instance].lb.acceptQuorum.ACK(r.ID())
+	r.InstanceSpace[r.ID()][instance].lb.preAcceptQuorum.ACK(r.Node.ID())
+	r.InstanceSpace[r.ID()][instance].lb.prepareQuorum.ACK(r.Node.ID())
+	r.InstanceSpace[r.ID()][instance].lb.acceptQuorum.ACK(r.Node.ID())
 
 	r.updateConflicts(cmds, r.ID(), instance, seq)
 
@@ -387,8 +387,8 @@ func (r *Replica) startPhase1(replica id, instance int, ballot int, proposals []
 	}
 
 	pa := &PreAccept{
-		LeaderId: r.ID(),
-		Replica:  r.ID(),
+		LeaderId: r.Node.ID(),
+		Replica:  r.Node.ID(),
 		Instance: instance,
 		Ballot:   ballot,
 		Command:  cmds,
