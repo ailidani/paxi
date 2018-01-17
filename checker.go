@@ -77,7 +77,7 @@ func (c *checker) add(o operation) {
 	c.Graph.Add(o)
 	for v := range c.Graph.Vertices() {
 		if v.(operation).happenBefore(o) {
-			c.AddEdge(v, o)
+			c.AddEdge(o, v)
 		}
 	}
 }
@@ -103,9 +103,9 @@ func (c *checker) match(o operation) *operation {
 
 // matched write inherits edges read
 func (c *checker) merge(read, write operation) {
-	for s := range c.To(read) {
+	for s := range c.From(read) {
 		if s.(operation) != write {
-			c.Graph.AddEdge(s.(operation), write)
+			c.Graph.AddEdge(write, s.(operation))
 		}
 	}
 
