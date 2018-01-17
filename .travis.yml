@@ -3,10 +3,6 @@ sudo: false
 go:
   - 1.x
 install: go get github.com/ailidani/paxi
-script:
-  - go build ./server/
-  - go build ./client/
-  - go build ./cmd/
-  - go build ./master/
+script: cd bin/; ./build.sh
 notifications:
   email: false
