@@ -1,5 +1,6 @@
 [![GoDoc](https://godoc.org/github.com/ailidani/paxi?status.svg)](https://godoc.org/github.com/ailidani/paxi)
 [![Go Report Card](https://goreportcard.com/badge/github.com/ailidani/paxi)](https://goreportcard.com/report/github.com/ailidani/paxi)
+[![Build Status](https://travis-ci.org/ailidani/paxi.svg?branch=master)](https://travis-ci.org/ailidani/paxi)
 
 
 ## What is Paxi?
