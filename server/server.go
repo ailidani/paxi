@@ -10,6 +10,7 @@ import (
 	"github.com/ailidani/paxi/kpaxos"
 	"github.com/ailidani/paxi/log"
 	"github.com/ailidani/paxi/paxos"
+	"github.com/ailidani/paxi/paxos_group"
 	"github.com/ailidani/paxi/wpaxos"
 	"github.com/ailidani/paxi/wpaxos2"
 )
@@ -54,6 +55,10 @@ func replica(id paxi.ID) {
 
 	case "kpaxos":
 		replica := kpaxos.NewReplica(config)
+		replica.Run()
+
+	case "paxos_groups":
+		replica := paxos_group.NewReplica(config)
 		replica.Run()
 
 	default:
