@@ -1,6 +1,9 @@
 package paxi
 
 import (
+	"bufio"
+	"fmt"
+	"os"
 	"sort"
 
 	"github.com/ailidani/paxi/lib"
@@ -39,6 +42,23 @@ func (h History) Linearizable() bool {
 	return ok
 }
 
+func (h History) WriteFile(path string) error {
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	w := bufio.NewWriter(file)
+	for k, ops := range h {
+		fmt.Fprintf(w, "key=%d\n", k)
+		for _, o := range ops {
+			fmt.Fprintln(w, o)
+		}
+	}
+	return w.Flush()
+}
+
 // A simple linearizability checker based on https://pdos.csail.mit.edu/6.824/papers/fb-consistency.pdf
 
 type operation struct {
@@ -55,6 +75,10 @@ func (a operation) happenBefore(b operation) bool {
 
 func (a operation) concurrent(b operation) bool {
 	return !a.happenBefore(b) && !b.happenBefore(a)
+}
+
+func (o operation) String() string {
+	return fmt.Sprintf("{input=%v, output=%v, start=%d, end=%d}", o.input, o.output, o.start, o.end)
 }
 
 type checker struct {

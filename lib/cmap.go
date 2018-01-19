@@ -2,7 +2,7 @@ package lib
 
 import "sync"
 
-// CMap is concurrent map with generic key and value as interface{} type
+// CMap is concurrent map with generic key and value as interface{}
 type CMap struct {
 	data map[interface{}]interface{}
 	sync.RWMutex
@@ -21,17 +21,23 @@ func (c *CMap) Get(key interface{}) interface{} {
 	return c.data[key]
 }
 
-func (c *CMap) Set(key, value interface{}) {
+func (c *CMap) Put(key, value interface{}) {
 	c.Lock()
 	defer c.Unlock()
 	c.data[key] = value
 }
 
-func (c *CMap) Exist(key interface{}) bool {
+func (c *CMap) Contains(key interface{}) bool {
 	c.RLock()
 	defer c.RUnlock()
 	_, exist := c.data[key]
 	return exist
+}
+
+func (c *CMap) Size() int {
+	c.RLock()
+	defer c.RUnlock()
+	return len(c.data)
 }
 
 func (c *CMap) Keys() []interface{} {

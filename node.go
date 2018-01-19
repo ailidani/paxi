@@ -115,7 +115,7 @@ func (n *node) serve() {
 		var req Request
 		req.c = make(chan Reply)
 		req.ClientID = ID(r.Header.Get("id"))
-		cid, _ := strconv.Atoi(r.Header.Get("cid"))
+		cid, _ := strconv.ParseUint(r.Header.Get("cid"), 10, 64)
 		req.CommandID = CommandID(cid)
 		req.Timestamp, _ = strconv.ParseInt(r.Header.Get("timestamp"), 10, 64)
 
@@ -155,12 +155,10 @@ func (n *node) serve() {
 		w.Header().Set("id", fmt.Sprintf("%v", reply.ClientID))
 		w.Header().Set("cid", fmt.Sprintf("%v", reply.CommandID))
 		w.Header().Set("timestamp", fmt.Sprintf("%v", reply.Timestamp))
-		if reply.Command.IsRead() {
-			_, err := io.WriteString(w, string(reply.Command.Value))
-			// _, err := r.w.Write(reply.Command.Value)
-			if err != nil {
-				log.Errorln(err)
-			}
+		_, err := io.WriteString(w, string(reply.Command.Value))
+		// _, err := r.w.Write(reply.Command.Value)
+		if err != nil {
+			log.Errorln(err)
 		}
 	})
 	// http string should be in form of ":8080"

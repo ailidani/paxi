@@ -1,7 +1,7 @@
 package paxi
 
 import (
-	"reflect"
+	"os"
 	"testing"
 )
 
@@ -11,6 +11,7 @@ func TestConfig(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	defer os.Remove(*config)
 
 	var c2 Config
 	err = c2.Load()
@@ -18,13 +19,7 @@ func TestConfig(t *testing.T) {
 		t.Error(err)
 	}
 
-	if reflect.DeepEqual(c1, c2) {
+	if c1.String() != c2.String() {
 		t.Fail()
-	}
-
-	b := NewBenchmarkConfig()
-	err = b.Save()
-	if err != nil {
-		t.Error(err)
 	}
 }

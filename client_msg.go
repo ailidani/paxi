@@ -83,6 +83,12 @@ type Transaction struct {
 	Commands  []Command
 	ClientID  ID
 	Timestamp int64
+
+	c chan TransactionReply
+}
+
+func (t *Transaction) Reply(r TransactionReply) {
+	t.c <- r
 }
 
 func (t Transaction) String() string {
@@ -91,12 +97,13 @@ func (t Transaction) String() string {
 
 // TransactionReply is the result of transaction struct
 type TransactionReply struct {
-	OK        bool
-	CommandID CommandID
-	LeaderID  ID
 	ClientID  ID
+	CommandID CommandID
+	OK        bool
+	LeaderID  ID
 	Commands  []Command
 	Timestamp int64
+	Err       error
 }
 
 /**************************

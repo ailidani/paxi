@@ -8,6 +8,7 @@ import (
 	"github.com/ailidani/paxi/log"
 )
 
+var api = flag.String("api", "", "Client API type [rest, json, quorum]")
 var master = flag.String("master", "", "Master address.")
 
 // db implements Paxi.DB interface for benchmarking
@@ -24,7 +25,16 @@ func (d *db) Stop() {
 }
 
 func (d *db) Read(k int) int {
-	v := d.c.Get(paxi.Key(k))
+	key := paxi.Key(k)
+	var v paxi.Value
+	switch *api {
+	case "rest":
+		v = d.c.RESTGet(key)
+	case "json":
+		v = d.c.JSONGet(key)
+	default:
+		v = d.c.Get(key)
+	}
 	if len(v) == 0 {
 		return 0
 	}
@@ -32,9 +42,17 @@ func (d *db) Read(k int) int {
 }
 
 func (d *db) Write(k, v int) {
+	key := paxi.Key(k)
 	value := make([]byte, 8)
 	binary.LittleEndian.PutUint64(value, uint64(v))
-	d.c.Put(paxi.Key(k), value)
+	switch *api {
+	case "rest":
+		d.c.RESTPut(key, value)
+	case "json":
+		d.c.JSONPut(key, value)
+	default:
+		d.c.Put(paxi.Key(k), value)
+	}
 }
 
 func main() {

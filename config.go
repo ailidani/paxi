@@ -22,13 +22,13 @@ const (
 
 type Config struct {
 	ID              ID            `json:"-"`
-	Addrs           map[ID]string `json:"address"`      // address for node communication
-	HTTPAddrs       map[ID]string `json:"http_address"` // address for client server communication
-	Algorithm       string        `json:"algorithm"`    // replication algorithm name
-	Quorum          string        `json:"quorum"`       // type of the quorums
-	F               int           `json:"f"`            // number of failure zones in general grid quorums
-	Transport       string        `json:"transport"`    // not used
-	Codec           string        `json:"codec"`
+	Addrs           map[ID]string `json:"address"`           // address for node communication
+	HTTPAddrs       map[ID]string `json:"http_address"`      // address for client server communication
+	Algorithm       string        `json:"algorithm"`         // replication algorithm name
+	Quorum          string        `json:"quorum"`            // type of the quorums
+	F               int           `json:"f"`                 // number of failure zones in general grid quorums
+	Transport       string        `json:"transport"`         // not used
+	Codec           string        `json:"codec"`             // codec for message serialization between nodes
 	ReplyWhenCommit bool          `json:"reply_when_commit"` // reply to client when request is committed, instead of executed
 	Adaptive        bool          `json:"adaptive"`          // adaptive leader change, if true paxos forward request to current leader
 	Interval        int           `json:"interval"`          // interval for leader change, 0 means immediate
@@ -43,18 +43,18 @@ type Config struct {
 }
 
 func MakeDefaultConfig() Config {
-	config := new(Config)
-	config.ID = "1.1"
-	config.Addrs = map[ID]string{"1.1": "127.0.0.1:" + strconv.Itoa(PORT)}
-	config.HTTPAddrs = map[ID]string{"1.1": "http://localhost:" + strconv.Itoa(HTTP_PORT)}
-	config.Algorithm = "wpaxos"
-	config.Quorum = "fgrid"
-	config.Adaptive = true
-	config.ChanBufferSize = CHAN_BUFFER_SIZE
-	config.BufferSize = BUFFER_SIZE
-	config.Transport = "chan"
-	config.Codec = "gob"
-	return *config
+	return Config{
+		ID:             "1.1",
+		Addrs:          map[ID]string{"1.1": "127.0.0.1:" + strconv.Itoa(PORT)},
+		HTTPAddrs:      map[ID]string{"1.1": "http://127.0.0.1:" + strconv.Itoa(HTTP_PORT)},
+		Algorithm:      "paxos",
+		Quorum:         "fgrid",
+		Adaptive:       true,
+		ChanBufferSize: CHAN_BUFFER_SIZE,
+		BufferSize:     BUFFER_SIZE,
+		Transport:      "tcp",
+		Codec:          "gob",
+	}
 }
 
 // NewConfig creates config object with given node id and config file path

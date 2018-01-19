@@ -3,7 +3,6 @@ package paxi
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
@@ -11,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ailidani/paxi/lib"
 	"github.com/ailidani/paxi/log"
 )
 
@@ -22,187 +22,167 @@ type Client struct {
 	http      map[ID]string
 	algorithm string
 
-	index map[Key]ID
-	cid   CommandID
-
-	results map[CommandID]bool
-
-	sync.RWMutex
-	sync.WaitGroup
+	cid CommandID
 }
 
 // NewClient creates a new Client from config
 func NewClient(config Config) *Client {
-	c := new(Client)
-	c.ID = config.ID
-	c.N = len(config.Addrs)
-	c.addrs = config.Addrs
-	c.http = config.HTTPAddrs
-	c.algorithm = config.Algorithm
-	c.index = make(map[Key]ID)
-	c.results = make(map[CommandID]bool, config.BufferSize)
-	return c
-}
-
-func (c *Client) getNodeID(key Key) ID {
-	c.RLock()
-	defer c.RUnlock()
-	id, exists := c.index[key]
-	// if not exists, select first node in local site
-	if !exists {
-		id = NewID(c.ID.Zone(), 1)
+	return &Client{
+		ID:        config.ID,
+		N:         len(config.Addrs),
+		addrs:     config.Addrs,
+		http:      config.HTTPAddrs,
+		algorithm: config.Algorithm,
 	}
-	return id
 }
 
-// RESTGet access server's REST API with url = http://ip:port/key
-func (c *Client) RESTGet(key Key) Value {
-	c.cid++
-	id := c.getNodeID(key)
+// rest accesses server's REST API with url = http://ip:port/key
+// if value == nil, it's read
+func (c *Client) rest(id ID, key Key, value Value) Value {
 	url := c.http[id] + "/" + strconv.Itoa(int(key))
-
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	r := new(http.Request)
+	var err error
+	var o string
+	if value == nil {
+		r, err = http.NewRequest(http.MethodGet, url, nil)
+		o = "get"
+	} else {
+		r, err = http.NewRequest(http.MethodPut, url, bytes.NewBuffer(value))
+		o = "put"
+	}
 	if err != nil {
 		log.Errorln(err)
 		return nil
 	}
-	req.Header.Set("id", fmt.Sprintf("%v", c.ID))
-	req.Header.Set("cid", strconv.FormatUint(uint64(c.cid), 10))
-	req.Header.Set("timestamp", strconv.FormatInt(time.Now().UnixNano(), 10))
-	rep, err := http.DefaultClient.Do(req)
+	r.Header.Set("id", string(c.ID))
+	r.Header.Set("cid", strconv.FormatUint(uint64(c.cid), 10))
+	r.Header.Set("timestamp", strconv.FormatInt(time.Now().UnixNano(), 10))
+	res, err := http.DefaultClient.Do(r)
 	if err != nil {
 		log.Errorln(err)
 		return nil
 	}
-	defer rep.Body.Close()
-	if rep.StatusCode == http.StatusOK {
-		b, _ := ioutil.ReadAll(rep.Body)
-		log.Debugf("type=%s key=%v value=%x", "get", key, Value(b))
+	defer res.Body.Close()
+	if res.StatusCode == http.StatusOK {
+		b, _ := ioutil.ReadAll(res.Body)
+		log.Debugf("type=%s key=%v value=%x", o, key, Value(b))
 		return Value(b)
 	}
-	dump, _ := httputil.DumpResponse(rep, true)
+	dump, _ := httputil.DumpResponse(res, true)
 	log.Debugf("%q", dump)
 	return nil
 }
 
-// RESTPut access server's REST API with url = http://ip:port/key and request body of value
-func (c *Client) RESTPut(key Key, value Value) {
+// RESTGet gets value of given key
+func (c *Client) RESTGet(key Key) Value {
 	c.cid++
-	id := c.getNodeID(key)
-
-	url := c.http[id] + "/" + strconv.Itoa(int(key))
-
-	req, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(value))
-	if err != nil {
-		log.Errorln(err)
-		return
-	}
-	req.Header.Set("id", fmt.Sprintf("%v", c.ID))
-	req.Header.Set("cid", fmt.Sprintf("%v", c.cid))
-	req.Header.Set("timestamp", fmt.Sprintf("%d", time.Now().UnixNano()))
-	rep, err := http.DefaultClient.Do(req)
-	if err != nil {
-		log.Errorln(err)
-		return
-	}
-	defer rep.Body.Close()
-	if rep.StatusCode == http.StatusOK {
-		log.Debugf("type=%s key=%v value=%x", "put", key, value)
-	} else {
-		dump, _ := httputil.DumpResponse(rep, true)
-		log.Debugf("%q", dump)
-	}
+	return c.rest(c.ID, key, nil)
 }
 
-// Get post json get request to server url
+// RESTPut puts new value as http.request body and return previous value
+func (c *Client) RESTPut(key Key, value Value) Value {
+	c.cid++
+	return c.rest(c.ID, key, value)
+}
+
+// Get gets value of given key (use REST)
 func (c *Client) Get(key Key) Value {
 	return c.RESTGet(key)
 }
 
-// Put post json request
-func (c *Client) Put(key Key, value Value) {
-	c.RESTPut(key, value)
+// Put puts new key value pair and return previous value (use REST)
+func (c *Client) Put(key Key, value Value) Value {
+	return c.RESTPut(key, value)
 }
 
-// GetAsync do Get request in goroutine
-func (c *Client) GetAsync(key Key) {
-	c.Add(1)
-	c.Lock()
-	c.results[c.cid+1] = false
-	c.Unlock()
-	go c.Get(key)
-}
-
-// PutAsync do Put request in goroutine
-func (c *Client) PutAsync(key Key, value Value) {
-	c.Add(1)
-	c.Lock()
-	c.results[c.cid+1] = false
-	c.Unlock()
-	go c.Put(key, value)
-}
-
-func (c *Client) JSONGet(key Key) Value {
-	c.cid++
-	cmd := Command{GET, key, nil}
-	req := new(Request)
-	req.ClientID = c.ID
-	req.CommandID = c.cid
-	req.Command = cmd
-	req.Timestamp = time.Now().UnixNano()
-
-	id := c.getNodeID(key)
-
+func (c *Client) json(id ID, key Key, value Value) Value {
 	url := c.http[id]
-	data, err := json.Marshal(*req)
-	rep, err := http.Post(url, "json", bytes.NewBuffer(data))
+	var cmd Command
+	if value == nil {
+		cmd = Command{GET, key, value}
+	} else {
+		cmd = Command{PUT, key, value}
+	}
+	r := Request{
+		ClientID:  c.ID,
+		CommandID: c.cid,
+		Command:   cmd,
+		Timestamp: time.Now().UnixNano(),
+	}
+	data, err := json.Marshal(r)
+	res, err := http.Post(url, "json", bytes.NewBuffer(data))
 	if err != nil {
 		log.Errorln(err)
 		return nil
 	}
-	defer rep.Body.Close()
-	if rep.StatusCode == http.StatusOK {
-		b, _ := ioutil.ReadAll(rep.Body)
+	defer res.Body.Close()
+	if res.StatusCode == http.StatusOK {
+		b, _ := ioutil.ReadAll(res.Body)
+		log.Debugf("type=%s key=%v value=%x", cmd.Operation, key, Value(b))
 		return Value(b)
+	}
+	dump, _ := httputil.DumpResponse(res, true)
+	log.Debugf("%q", dump)
+	return nil
+}
+
+// JSONGet posts get request in json format to server url
+func (c *Client) JSONGet(key Key) Value {
+	c.cid++
+	return c.json(c.ID, key, nil)
+}
+
+// JSONPut posts put request in json format to server url
+func (c *Client) JSONPut(key Key, value Value) Value {
+	c.cid++
+	return c.json(c.ID, key, value)
+}
+
+// QuorumGet concurrently read values from majority nodes
+func (c *Client) QuorumGet(key Key) Value {
+	c.cid++
+	out := make(chan Value)
+	i := 0
+	for id := range c.http {
+		i++
+		if i > c.N/2 {
+			break
+		}
+		go func(id ID) {
+			out <- c.rest(id, key, nil)
+		}(id)
+	}
+	set := lib.NewCSet()
+	for ; i >= 0; i-- {
+		set.Put(<-out)
+	}
+	if set.Size() == 1 {
+		return set.Get().(Value)
 	}
 	return nil
 }
 
-func (c *Client) JSONPut(key Key, value Value) {
+// QuorumPut concurrently write values to majority of nodes
+func (c *Client) QuorumPut(key Key, value Value) {
 	c.cid++
-	cmd := Command{PUT, key, value}
-	req := new(Request)
-	req.ClientID = c.ID
-	req.CommandID = c.cid
-	req.Command = cmd
-	req.Timestamp = time.Now().UnixNano()
-
-	id := c.getNodeID(key)
-
-	url := c.http[id]
-	data, err := json.Marshal(*req)
-	rep, err := http.Post(url, "application/json", bytes.NewBuffer(data))
-	if err != nil {
-		log.Errorln(err)
-		return
-	}
-	defer rep.Body.Close()
-	dump, _ := httputil.DumpResponse(rep, true)
-	log.Debugln(rep.Status)
-	log.Debugf("%q", dump)
-}
-
-// RequestDone returns the total number of succeed async reqeusts
-func (c *Client) RequestDone() int {
-	sum := 0
-	for _, succeed := range c.results {
-		if succeed {
-			sum++
+	var wait sync.WaitGroup
+	i := 0
+	for id := range c.http {
+		i++
+		if i > c.N/2 {
+			break
 		}
+		wait.Add(1)
+		go func(id ID) {
+			c.rest(id, key, value)
+			wait.Done()
+		}(id)
 	}
-	return sum
+	wait.Wait()
 }
 
+// Start connects to server before actual requests (for future)
 func (c *Client) Start() {}
 
+// Stop disconnects from server (for future)
 func (c *Client) Stop() {}

@@ -150,11 +150,13 @@ func (b *Benchmarker) Run() {
 	end_time := time.Now()
 	close(keys)
 	stat := Statistic(b.latency)
-	stat.WriteFile("latency")
 	t := end_time.Sub(start_time)
 	log.Infof("Benchmark took %v\n", t)
 	log.Infof("Throughput %f\n", float64(len(b.latency))/t.Seconds())
 	log.Infoln(stat)
+
+	stat.WriteFile("latency")
+	b.History.WriteFile("history")
 
 	if b.LinearizabilityCheck {
 		if b.History.Linearizable() {

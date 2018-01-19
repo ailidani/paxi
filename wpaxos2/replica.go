@@ -21,6 +21,7 @@ func NewReplica(config paxi.Config) *Replica {
 	r.stats = make(map[paxi.Key]*stat)
 
 	r.Register(paxi.Request{}, r.handleRequest)
+	r.Register(paxi.Transaction{}, r.handleTransaction)
 	r.Register(Prepare{}, r.handlePrepare)
 	r.Register(Promise{}, r.handlePromise)
 	r.Register(Accept{}, r.handleAccept)
@@ -61,6 +62,10 @@ func (r *Replica) handleRequest(m paxi.Request) {
 	} else {
 		p.HandleRequest(m)
 	}
+}
+
+func (r *Replica) handleTransaction(m paxi.Transaction) {
+	// TODO
 }
 
 func (r *Replica) handlePrepare(m Prepare) {
