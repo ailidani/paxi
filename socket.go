@@ -48,45 +48,45 @@ func NewSocket(id ID, addrs map[ID]string, transport, codec string) Socket {
 	return socket
 }
 
-func (sock *socket) Send(to ID, msg interface{}) {
-	t, ok := sock.nodes[to]
+func (s *socket) Send(to ID, msg interface{}) {
+	t, ok := s.nodes[to]
 	if !ok {
 		log.Fatalf("transport of ID %v does not exists", to)
 	}
-	b := sock.codec.Encode(msg)
+	b := s.codec.Encode(msg)
 	m := NewMessage(len(b))
 	m.Body = b
 	t.Send(m)
 }
 
-func (sock *socket) Recv() interface{} {
-	m := sock.nodes[sock.id].Recv()
-	msg := sock.codec.Decode(m.Body)
+func (s *socket) Recv() interface{} {
+	m := s.nodes[s.id].Recv()
+	msg := s.codec.Decode(m.Body)
 	return msg
 }
 
-func (sock *socket) Multicast(zone int, msg interface{}) {
-	for id := range sock.nodes {
-		if id == sock.id {
+func (s *socket) Multicast(zone int, msg interface{}) {
+	for id := range s.nodes {
+		if id == s.id {
 			continue
 		}
 		if id.Zone() == zone {
-			sock.Send(id, msg)
+			s.Send(id, msg)
 		}
 	}
 }
 
-func (sock *socket) Broadcast(msg interface{}) {
-	for id := range sock.nodes {
-		if id == sock.id {
+func (s *socket) Broadcast(msg interface{}) {
+	for id := range s.nodes {
+		if id == s.id {
 			continue
 		}
-		sock.Send(id, msg)
+		s.Send(id, msg)
 	}
 }
 
-func (sock *socket) Close() {
-	for _, t := range sock.nodes {
+func (s *socket) Close() {
+	for _, t := range s.nodes {
 		t.Close()
 	}
 }

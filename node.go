@@ -14,6 +14,7 @@ import (
 	"github.com/ailidani/paxi/log"
 )
 
+// TODO these global states are used by Quorums, too magical
 var (
 	// NumZones total number of sites
 	NumZones int
@@ -102,8 +103,8 @@ func (n *node) Run() {
 	log.Infof("node %v start running\n", n.id)
 	if len(n.handles) > 0 {
 		go n.handle()
+		go n.recv()
 	}
-	go n.recv()
 	n.serve()
 }
 
