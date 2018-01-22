@@ -156,7 +156,7 @@ func (b *Benchmarker) Run() {
 	log.Infoln(stat)
 
 	stat.WriteFile("latency")
-	b.History.WriteFile("history")
+	// b.History.WriteFile("history")
 
 	if b.LinearizabilityCheck {
 		if b.History.Linearizable() {

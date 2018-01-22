@@ -181,6 +181,43 @@ func (c *Client) QuorumPut(key Key, value Value) {
 	wait.Wait()
 }
 
+func (c *Client) Consensus(k Key) bool {
+	h := make(map[ID][]Value)
+	for id, url := range c.http {
+		h[id] = make([]Value, 0)
+		r, err := http.Get(url + "/history/" + strconv.Itoa(int(k)))
+		if err != nil {
+			log.Error(err)
+		}
+		b, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			log.Error(err)
+		}
+		holder := h[id]
+		err = json.Unmarshal(b, &holder)
+		if err != nil {
+			log.Error(err)
+		}
+		h[id] = holder
+	}
+	n := 0
+	for _, v := range h {
+		if len(v) > n {
+			n = len(v)
+		}
+	}
+	for i := 0; i < n; i++ {
+		set := make(map[string]struct{})
+		for id := range c.http {
+			set[string(h[id][i])] = struct{}{}
+		}
+		if len(set) > 1 {
+			return false
+		}
+	}
+	return true
+}
+
 // Start connects to server before actual requests (for future)
 func (c *Client) Start() {}
 

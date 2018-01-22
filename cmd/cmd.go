@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"log"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/ailidani/paxi"
 )
@@ -13,7 +15,7 @@ import (
 var master = flag.String("master", "", "Master address.")
 
 func usage() string {
-	return fmt.Sprint("cmd {get key | put key value}")
+	return fmt.Sprintf("\n\t get key \n\t put key value \n\t consensus key \n\t exit")
 }
 
 func main() {
@@ -30,23 +32,51 @@ func main() {
 	client := paxi.NewClient(config)
 	client.Start()
 
-	if len(os.Args) < 2 {
-		log.Println(usage())
-		return
-	}
+	reader := bufio.NewReader(os.Stdin)
+	for {
+		fmt.Print("paxi $ ")
+		text, _ := reader.ReadString('\n')
+		words := strings.Fields(text)
+		if len(words) < 1 {
+			continue
+		}
+		cmd := words[0]
+		args := words[1:]
 
-	cmd := os.Args[1]
-	args := os.Args[2:]
+		switch cmd {
+		case "get":
+			if len(args) < 1 {
+				fmt.Println("get KEY")
+				continue
+			}
+			k, _ := strconv.Atoi(args[0])
+			v := client.Get(paxi.Key(k))
+			log.Println(v)
 
-	switch cmd {
-	case "get":
-		k, _ := strconv.Atoi(args[0])
-		v := client.Get(paxi.Key(k))
-		log.Println(v)
-	case "put":
-		k, _ := strconv.Atoi(args[0])
-		client.Put(paxi.Key(k), []byte(args[1]))
-	default:
-		log.Println(usage())
+		case "put":
+			if len(args) < 2 {
+				fmt.Println("put KEY VALUE")
+				continue
+			}
+			k, _ := strconv.Atoi(args[0])
+			v := client.Put(paxi.Key(k), []byte(args[1]))
+			log.Println(v)
+
+		case "consensus":
+			if len(args) < 1 {
+				log.Println("consensus KEY")
+				continue
+			}
+			k, _ := strconv.Atoi(args[0])
+			v := client.Consensus(paxi.Key(k))
+			log.Println(v)
+
+		case "exit":
+			os.Exit(0)
+
+		default:
+			log.Println(usage())
+		}
+
 	}
 }

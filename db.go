@@ -1,7 +1,6 @@
 package paxi
 
 import (
-	"container/list"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -46,54 +45,67 @@ func (c Command) IsRead() bool {
 	return c.Operation == GET
 }
 
-// StateMachine interface provides execution of command against database
+// Database interface provides execution of command against database
 // the implementation should be thread safe
-type StateMachine interface {
-	Execute(c Command) (Value, error)
+type Database interface {
+	Execute(Command) (Value, error)
+	Version(Key) int
+	History(Key) []Value
 }
 
 // database maintains the multi-version key-value datastore
 type database struct {
 	lock *sync.RWMutex
-	// data  map[Key]map[Version]Value
-	data map[Key]*list.List
+	// data map[Key]map[Version]Value
+	// data map[Key]*list.List
+	data map[Key][]Value
 	sync.RWMutex
 }
 
-// NewStateMachine returns database that impelements StateMachine interface
-func NewStateMachine() StateMachine {
+// NewDatabase returns database that impelements Database interface
+func NewDatabase() Database {
 	db := new(database)
 	db.lock = new(sync.RWMutex)
-	db.data = make(map[Key]*list.List)
+	db.data = make(map[Key][]Value)
 	return db
 }
 
+// Execute implements Database interface
 func (db *database) Execute(c Command) (Value, error) {
-	var v Value
-	db.RLock()
+	db.Lock()
+	defer db.Unlock()
 	if db.data[c.Key] == nil {
-		db.data[c.Key] = list.New()
+		db.data[c.Key] = make([]Value, 0)
 	}
-	tail := db.data[c.Key].Back()
-	if tail != nil {
-		v = tail.Value.(Value)
+	var v Value
+	l := len(db.data[c.Key])
+	if l > 0 {
+		v = db.data[c.Key][l-1]
 	}
-	db.RUnlock()
 	switch c.Operation {
 	case PUT:
-		db.Lock()
-		defer db.Unlock()
-		db.data[c.Key].PushBack(c.Value)
+		db.data[c.Key] = append(db.data[c.Key], c.Value)
 		return v, nil
 	case GET:
 		return v, nil
 	case DELETE:
-		db.Lock()
-		defer db.Unlock()
 		delete(db.data, c.Key)
 		return v, nil
 	}
 	return nil, ErrStateMachineExecution
+}
+
+// Version implements Database interface
+func (db *database) Version(k Key) int {
+	db.RLock()
+	defer db.RUnlock()
+	return len(db.data[k])
+}
+
+func (db *database) History(k Key) []Value {
+	db.RLock()
+	defer db.RUnlock()
+	return db.data[k]
 }
 
 func (db *database) String() string {
