@@ -87,18 +87,19 @@ func (c *bconfig) Save() error {
 	return encoder.Encode(c)
 }
 
-type Benchmarker struct {
+type Benchmark struct {
 	db DB // read/write operation interface
 	bconfig
 	History
 
-	cwait   sync.WaitGroup  // wait for all clients to finish
-	latency []time.Duration // latency per operation for each round
-	zipf    *rand.Zipf
+	cwait     sync.WaitGroup  // wait for all clients to finish
+	latency   []time.Duration // latency per operation
+	startTime time.Time
+	zipf      *rand.Zipf
 }
 
-func NewBenchmarker(db DB) *Benchmarker {
-	b := new(Benchmarker)
+func NewBenchmark(db DB) *Benchmark {
+	b := new(Benchmark)
 	b.db = db
 	b.bconfig = NewBenchmarkConfig()
 	b.History = NewHistory()
@@ -106,7 +107,7 @@ func NewBenchmarker(db DB) *Benchmarker {
 }
 
 // Run starts the main logic of benchmarking
-func (b *Benchmarker) Run() {
+func (b *Benchmark) Run() {
 	rand.Seed(time.Now().UTC().UnixNano())
 	r := rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 	b.zipf = rand.NewZipf(r, b.Zipfian_s, b.Zipfian_v, uint64(b.K))
@@ -119,15 +120,15 @@ func (b *Benchmarker) Run() {
 	}
 
 	b.latency = make([]time.Duration, 1000)
-	start_time := time.Now()
 	b.db.Init()
-
 	keys := make(chan int, b.Concurrency)
-	results := make(chan time.Duration, 1000)
-	defer close(results)
-	go b.collect(results)
+	latencies := make(chan time.Duration, 1000)
+	defer close(latencies)
+	go b.collect(latencies)
+
+	b.startTime = time.Now()
 	for i := 0; i < b.Concurrency; i++ {
-		go b.worker(keys, results)
+		go b.worker(keys, latencies)
 	}
 	if b.T > 0 {
 		timer := time.NewTimer(time.Second * time.Duration(b.T))
@@ -145,18 +146,18 @@ func (b *Benchmarker) Run() {
 			keys <- b.next()
 		}
 	}
+	t := time.Now().Sub(b.startTime)
 
 	b.db.Stop()
-	end_time := time.Now()
 	close(keys)
 	stat := Statistic(b.latency)
-	t := end_time.Sub(start_time)
+
 	log.Infof("Benchmark took %v\n", t)
 	log.Infof("Throughput %f\n", float64(len(b.latency))/t.Seconds())
 	log.Infoln(stat)
 
-	stat.WriteFile("latency")
-	// b.History.WriteFile("history")
+	stat.WriteFile("latency" + "." + string(GetID()))
+	b.History.WriteFile("history" + "." + string(GetID()))
 
 	if b.LinearizabilityCheck {
 		if b.History.Linearizable() {
@@ -168,7 +169,7 @@ func (b *Benchmarker) Run() {
 }
 
 // generates key based on distribution
-func (b *Benchmarker) next() int {
+func (b *Benchmark) next() int {
 	var key int
 	switch b.Distribution {
 	case "random":
@@ -194,7 +195,7 @@ func (b *Benchmarker) next() int {
 	return key
 }
 
-func (b *Benchmarker) worker(keys <-chan int, results chan<- time.Duration) {
+func (b *Benchmark) worker(keys <-chan int, latencies chan<- time.Duration) {
 	for k := range keys {
 		var s time.Time
 		var e time.Time
@@ -203,20 +204,20 @@ func (b *Benchmarker) worker(keys <-chan int, results chan<- time.Duration) {
 			s = time.Now()
 			b.db.Write(k, v)
 			e = time.Now()
-			b.History.Add(k, v, nil, s.UnixNano(), e.UnixNano())
+			b.History.Add(k, v, nil, s.Sub(b.startTime).Nanoseconds(), e.Sub(b.startTime).Nanoseconds())
 		} else {
 			s = time.Now()
 			v := b.db.Read(k)
 			e = time.Now()
-			b.History.Add(k, nil, v, s.UnixNano(), e.UnixNano())
+			b.History.Add(k, nil, v, s.Sub(b.startTime).Nanoseconds(), e.Sub(b.startTime).Nanoseconds())
 		}
 		t := e.Sub(s)
-		results <- t
+		latencies <- t
 	}
 }
 
-func (b *Benchmarker) collect(results <-chan time.Duration) {
-	for t := range results {
+func (b *Benchmark) collect(latencies <-chan time.Duration) {
+	for t := range latencies {
 		b.latency = append(b.latency, t)
 	}
 }

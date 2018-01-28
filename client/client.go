@@ -71,7 +71,7 @@ func main() {
 	d := new(db)
 	d.c = paxi.NewClient(config)
 
-	b := paxi.NewBenchmarker(d)
+	b := paxi.NewBenchmark(d)
 	b.Load()
 	b.Run()
 }

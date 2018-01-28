@@ -2,7 +2,8 @@ package paxi
 
 import (
 	"bytes"
-	"fmt"
+	"errors"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -147,48 +148,39 @@ func (n *node) Forward(id ID, m Request) {
 
 	log.Debugf("Node %v forwarding request %v to %s", n.ID(), m, url)
 
-	if m.Command.IsRead() {
-		req, err := http.NewRequest(http.MethodGet, url, nil)
-		if err != nil {
-			log.Errorln(err)
-			return
-		}
-		req.Header.Set("id", fmt.Sprintf("%v", m.ClientID))
-		rep, err := http.DefaultClient.Do(req)
-		if err != nil {
-			log.Errorln(err)
-		}
-		defer rep.Body.Close()
-		if rep.StatusCode == http.StatusOK {
-			b, _ := ioutil.ReadAll(rep.Body)
-			cmd := m.Command
-			cmd.Value = Value(b)
-			m.Reply(Reply{
-				OK:        true,
-				ClientID:  m.ClientID,
-				CommandID: m.CommandID,
-				Command:   cmd,
-			})
-		}
+	method := http.MethodGet
+	var body io.Reader
+	if !m.Command.IsRead() {
+		method = http.MethodPut
+		body = bytes.NewBuffer(m.Command.Value)
+	}
+	req, err := http.NewRequest(method, url, body)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	req.Header.Set(HttpClientID, string(m.Command.ClientID))
+	req.Header.Set(HttpCommandID, strconv.Itoa(m.Command.CommandID))
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		log.Error(err)
+		m.Reply(Reply{
+			Command: m.Command,
+			Err:     err,
+		})
+		return
+	}
+	defer res.Body.Close()
+	if res.StatusCode == http.StatusOK {
+		b, _ := ioutil.ReadAll(res.Body)
+		m.Reply(Reply{
+			Command: m.Command,
+			Value:   Value(b),
+		})
 	} else {
-		req, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(m.Command.Value))
-		if err != nil {
-			log.Errorln(err)
-			return
-		}
-		req.Header.Set("id", fmt.Sprintf("%v", m.ClientID))
-		rep, err := http.DefaultClient.Do(req)
-		if err != nil {
-			log.Errorln(err)
-			return
-		}
-		defer rep.Body.Close()
-		if rep.StatusCode == http.StatusOK {
-			m.Reply(Reply{
-				OK:        true,
-				ClientID:  m.ClientID,
-				CommandID: m.CommandID,
-			})
-		}
+		m.Reply(Reply{
+			Command: m.Command,
+			Err:     errors.New(res.Status),
+		})
 	}
 }

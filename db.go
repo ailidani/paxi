@@ -1,129 +1,164 @@
 package paxi
 
 import (
+	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"sync"
 )
 
-var (
-	ErrStateMachineExecution = errors.New("StateMachine execution error")
-)
-
+// Key of key value database
 type Key int
+
+// Value of key value database
 type Value []byte
 
-type Operation uint8
-
-const (
-	NOOP Operation = iota
-	PUT
-	GET
-	DELETE
-	RLOCK
-	RUNLOCK
-	WLOCK
-	WUNLOCK
-)
-
+// Command of key value database
 type Command struct {
-	Operation Operation
 	Key       Key
 	Value     Value
+	ClientID  ID
+	CommandID int
+}
+
+// IsRead returns true if command is read
+func (c Command) IsRead() bool {
+	return c.Value == nil
+}
+
+// Equal returns true if two commands are equal
+func (c Command) Equal(a Command) bool {
+	return c.Key == a.Key && bytes.Equal(c.Value, a.Value) && c.ClientID == a.ClientID && c.CommandID == a.CommandID
 }
 
 func (c Command) String() string {
-	if c.Operation == GET {
-		return fmt.Sprintf("Get{key=%v}", c.Key)
+	if c.Value == nil {
+		return fmt.Sprintf("Get{key=%v, id=%s, cid=%d}", c.Key, c.ClientID, c.CommandID)
 	}
-	return fmt.Sprintf("Put{key=%v, val=%x}", c.Key, c.Value)
+	return fmt.Sprintf("Put{key=%v, value=%x, id=%s, cid=%d", c.Key, c.Value, c.ClientID, c.CommandID)
 }
 
-// IsRead return true if command operation is GET
-func (c Command) IsRead() bool {
-	return c.Operation == GET
-}
-
-// Database interface provides execution of command against database
-// the implementation should be thread safe
+// Database defines a database interface
+// TODO replace with more general StateMachine interface
 type Database interface {
-	Execute(Command) (Value, error)
-	Version(Key) int
-	History(Key) []Value
+	Execute(Command) Value
+	History(k Key) []Value
 }
 
-// database maintains the multi-version key-value datastore
+// Database implements a multi-version key-value datastore as the StateMachine
+// TODO turn on/off multi-verion by config
 type database struct {
-	lock *sync.RWMutex
-	// data map[Key]map[Version]Value
-	// data map[Key]*list.List
 	data map[Key][]Value
 	sync.RWMutex
 }
 
 // NewDatabase returns database that impelements Database interface
 func NewDatabase() Database {
-	db := new(database)
-	db.lock = new(sync.RWMutex)
-	db.data = make(map[Key][]Value)
-	return db
-}
-
-// Execute implements Database interface
-func (db *database) Execute(c Command) (Value, error) {
-	db.Lock()
-	defer db.Unlock()
-	if db.data[c.Key] == nil {
-		db.data[c.Key] = make([]Value, 0)
+	return &database{
+		data: make(map[Key][]Value),
 	}
-	var v Value
-	l := len(db.data[c.Key])
-	if l > 0 {
-		v = db.data[c.Key][l-1]
+}
+
+/*
+// Execute implements StateMachine interface
+func (d *database) Execute(c interface{}) interface{} {
+	cmd, ok := c.(Command)
+	if !ok {
+		log.Error("cannot execute non command")
 	}
-	switch c.Operation {
-	case PUT:
-		db.data[c.Key] = append(db.data[c.Key], c.Value)
-		return v, nil
-	case GET:
-		return v, nil
-	case DELETE:
-		delete(db.data, c.Key)
-		return v, nil
+	k := cmd.Key
+	v := cmd.Value
+	d.Lock()
+	defer d.Unlock()
+	if d.data[k] == nil {
+		d.data[k] = make([]Value, 0)
 	}
-	return nil, ErrStateMachineExecution
+	d.data[k] = append(d.data[k], v)
+	version := len(d.data[k])
+	if version < 2 {
+		return nil
+	}
+	return d.data[k][version-2]
+}
+*/
+
+// Execute executes a command agaist database
+func (d *database) Execute(c Command) Value {
+	d.Lock()
+	defer d.Unlock()
+
+	// get previous value
+	v, _ := d.get(c.Key)
+
+	// writes new value
+	d.put(c.Key, c.Value)
+
+	return v
 }
 
-// Version implements Database interface
-func (db *database) Version(k Key) int {
-	db.RLock()
-	defer db.RUnlock()
-	return len(db.data[k])
+func (d *database) get(k Key) (Value, int) {
+	n := len(d.data[k])
+	if n > 0 {
+		return d.data[k][n-1], n
+	}
+	return nil, 0
 }
 
-func (db *database) History(k Key) []Value {
-	db.RLock()
-	defer db.RUnlock()
-	return db.data[k]
+// Get gets the current value and version of given key
+func (d *database) Get(k Key) (Value, int) {
+	d.RLock()
+	defer d.RUnlock()
+	return d.get(k)
 }
 
-func (db *database) String() string {
-	db.RLock()
-	defer db.RUnlock()
-	b, _ := json.Marshal(db.data)
+func (d *database) put(k Key, v Value) {
+	if d.data[k] == nil {
+		d.data[k] = make([]Value, 0)
+	}
+	if v != nil {
+		d.data[k] = append(d.data[k], v)
+	}
+}
+
+// Put puts a new value of given key
+func (d *database) Put(k Key, v Value) {
+	d.Lock()
+	defer d.Unlock()
+	d.put(k, v)
+}
+
+// Version returns current version of given key
+func (d *database) Version(k Key) int {
+	d.RLock()
+	defer d.RUnlock()
+	return len(d.data[k])
+}
+
+// History returns entire vlue history in order
+func (d *database) History(k Key) []Value {
+	d.RLock()
+	defer d.RUnlock()
+	return d.data[k]
+}
+
+func (d *database) String() string {
+	d.RLock()
+	defer d.RUnlock()
+	b, _ := json.Marshal(d.data)
 	return string(b)
 }
 
+// Conflict checks if two commands are conflicting as reorder them will end in different states
 func Conflict(gamma *Command, delta *Command) bool {
 	if gamma.Key == delta.Key {
-		if gamma.Operation == PUT || delta.Operation == PUT {
+		if !gamma.IsRead() || !delta.IsRead() {
 			return true
 		}
 	}
 	return false
 }
 
+// ConflictBatch checks if two batchs of commands are conflict
 func ConflictBatch(batch1 []Command, batch2 []Command) bool {
 	for i := 0; i < len(batch1); i++ {
 		for j := 0; j < len(batch2); j++ {

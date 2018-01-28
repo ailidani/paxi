@@ -7,14 +7,18 @@ import (
 	"sort"
 
 	"github.com/ailidani/paxi/lib"
+	"github.com/ailidani/paxi/log"
 )
 
+// History client operation history mapped by key
 type History map[int][]operation
 
+// NewHistory creates a History map
 func NewHistory() History {
 	return make(map[int][]operation)
 }
 
+// Add puts an operation in History
 func (h History) Add(key int, input, output interface{}, start, end int64) {
 	if _, exists := h[key]; !exists {
 		h[key] = make([]operation, 0)
@@ -22,15 +26,16 @@ func (h History) Add(key int, input, output interface{}, start, end int64) {
 	h[key] = append(h[key], operation{input, output, start, end})
 }
 
+// Linearizable concurrently checks if each partition of the history is linearizable
 func (h History) Linearizable() bool {
 	ok := true
 	stop := make(chan bool)
 	results := make(chan bool)
 	for _, partition := range h {
 		c := newChecker(stop)
-		go func() {
-			results <- c.linearizable(partition)
-		}()
+		go func(p []operation) {
+			results <- c.linearizable(p)
+		}(partition)
 	}
 	for range h {
 		ok = <-results
@@ -42,6 +47,7 @@ func (h History) Linearizable() bool {
 	return ok
 }
 
+// WriteFile writes entire operation history into file
 func (h History) WriteFile(path string) error {
 	file, err := os.Create(path)
 	if err != nil {
@@ -163,6 +169,7 @@ func (c *checker) linearizable(history []operation) bool {
 					c.merge(o, *match)
 				}
 				if c.Graph.Cyclic() {
+					log.Infof("invalide operation read %v -> write %v", o, match)
 					return false
 				}
 			}

@@ -86,7 +86,7 @@ func (p *paxos) accept(msg Request) {
 func (p *paxos) handleRequest(msg Request) {
 	if p.active {
 		p.accept(msg)
-		to := p.stat.hit(NewID(msg.ClientID.Zone(), 1))
+		to := p.stat.hit(NewID(msg.Command.ClientID.Zone(), 1))
 		if p.Config().Interval > 0 && to != "" && to.Zone() != p.ID().Zone() {
 			p.Send(to, &LeaderChange{
 				Key:    p.key,
@@ -224,10 +224,6 @@ func (p *paxos) handleAccepted(msg Accepted) {
 			})
 			if p.Config().ReplyWhenCommit {
 				rep := Reply{
-					OK:        true,
-					CommandID: ins.request.CommandID,
-					LeaderID:  p.ID(),
-					ClientID:  ins.request.ClientID,
 					Command:   ins.request.Command,
 					Timestamp: ins.request.Timestamp,
 				}
@@ -290,16 +286,13 @@ func (p *paxos) exec() {
 			break
 		}
 		log.Debugf("execute cmd=%v in slot %d ", i.commands[0], p.commit)
-		value, err := p.Execute(i.commands[0])
+		value := p.Execute(i.commands[0])
 		p.commit++
 		if i.request != nil && !p.Config().ReplyWhenCommit {
-			reply := new(Reply)
-			reply.ClientID = i.request.ClientID
-			reply.CommandID = i.request.CommandID
-			i.request.Command.Value = value
-			reply.Command = i.request.Command
-			reply.Err = err
-			i.request.Reply(*reply)
+			i.request.Reply(Reply{
+				Command: i.request.Command,
+				Value:   value,
+			})
 		}
 	}
 }

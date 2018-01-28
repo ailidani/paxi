@@ -1,19 +1,24 @@
 package kpaxos
 
 import (
-	. "github.com/ailidani/paxi"
+	"github.com/ailidani/paxi"
+	"github.com/ailidani/paxi/log"
+	"github.com/ailidani/paxi/paxos"
 )
 
 type Replica struct {
-	Node
-	paxi map[Key]*paxos
+	paxi.Node
+	paxi map[paxi.Key]*paxos.Paxos
+
+	key paxi.Key // current working key
 }
 
-func NewReplica(config Config) *Replica {
+func NewReplica(config paxi.Config) *Replica {
 	r := new(Replica)
-	r.Node = NewNode(config)
-	r.paxi = make(map[Key]*paxos)
-	r.Register(Request{}, r.handleRequest)
+	r.Node = paxi.NewNode(config)
+	r.paxi = make(map[paxi.Key]*paxos.Paxos)
+
+	r.Register(paxi.Request{}, r.handleRequest)
 	r.Register(Prepare{}, r.handlePrepare)
 	r.Register(Promise{}, r.handlePromise)
 	r.Register(Accept{}, r.handleAccept)
@@ -22,71 +27,100 @@ func NewReplica(config Config) *Replica {
 	return r
 }
 
-func index(key Key) ID {
+// TODO replace this with a consistent hash ring
+func index(key paxi.Key) paxi.ID {
 	if key < 200 {
-		return ID("1.1")
+		return paxi.ID("1.1")
 	} else if key >= 200 && key < 400 {
-		return ID("2.1")
+		return paxi.ID("2.1")
 	} else if key >= 400 && key < 600 {
-		return ID("3.1")
+		return paxi.ID("3.1")
 	} else if key >= 600 && key < 800 {
-		return ID("4.1")
+		return paxi.ID("4.1")
 	} else {
-		return ID("5.1")
+		return paxi.ID("5.1")
 	}
 }
 
-func (r *Replica) init(key Key) {
+func (r *Replica) init(key paxi.Key) {
 	if _, exists := r.paxi[key]; !exists {
-		r.paxi[key] = NewPaxos(r.Node, key)
-		id := index(key)
-		if id == r.ID() {
-			r.paxi[key].active = true
-		}
-		r.paxi[key].ballot = NextBallot(1, id)
+		r.paxi[key] = paxos.NewPaxos(r)
 	}
 }
 
-func (r *Replica) handleRequest(msg Request) {
-	key := msg.Command.Key
-	r.init(key)
-	r.paxi[key].handleRequest(msg)
+func (r *Replica) handleRequest(m paxi.Request) {
+	r.key = m.Command.Key
+	r.init(r.key)
+
+	leader := index(r.key)
+	if leader == r.ID() {
+		r.paxi[r.key].HandleRequest(m)
+	} else {
+		go r.Forward(leader, m)
+	}
 }
 
-func (r *Replica) handlePrepare(msg Prepare) {
-	key := msg.Key
-	r.init(key)
-	r.paxi[key].handlePrepare(msg)
+func (r *Replica) handlePrepare(m Prepare) {
+	r.key = m.Key
+	r.init(r.key)
+	r.paxi[r.key].HandleP1a(m.P1a)
 }
 
-func (r *Replica) handlePromise(msg Promise) {
-	key := msg.Key
-	r.paxi[key].handlePromise(msg)
+func (r *Replica) handlePromise(m Promise) {
+	r.key = m.Key
+	r.paxi[r.key].HandleP1b(m.P1b)
 }
 
-func (r *Replica) handleAccept(msg Accept) {
-	key := msg.Key
-	r.init(key)
-	r.paxi[key].handleAccept(msg)
+func (r *Replica) handleAccept(m Accept) {
+	r.key = m.Key
+	r.init(r.key)
+	r.paxi[r.key].HandleP2a(m.P2a)
 }
 
-func (r *Replica) handleAccepted(msg Accepted) {
-	key := msg.Key
-	r.paxi[key].handleAccepted(msg)
+func (r *Replica) handleAccepted(m Accepted) {
+	r.key = m.Key
+	r.paxi[r.key].HandleP2b(m.P2b)
 }
 
-func (r *Replica) handleCommit(msg Commit) {
-	key := msg.Key
-	r.init(key)
-	r.paxi[key].handleCommit(msg)
+func (r *Replica) handleCommit(m Commit) {
+	log.Debugf("Replica ===[%v]===>>> Replica %s\n", m, r.ID())
+	r.key = m.Key
+	r.init(r.key)
+	r.paxi[r.key].HandleP3(m.P3)
 }
 
 func (r *Replica) keys() int {
 	sum := 0
 	for _, paxos := range r.paxi {
-		if paxos.active {
+		if paxos.IsLeader() {
 			sum++
 		}
 	}
 	return sum
+}
+
+// Broadcast overrides Socket interface in Node
+func (r *Replica) Broadcast(msg interface{}) {
+	switch m := msg.(type) {
+	case *paxos.P1a:
+		r.Node.Broadcast(&Prepare{r.key, *m})
+	case *paxos.P2a:
+		r.Node.Broadcast(&Accept{r.key, *m})
+	case *paxos.P3:
+		r.Node.Broadcast(&Commit{r.key, *m})
+	default:
+		r.Node.Broadcast(msg)
+	}
+}
+
+// Send overrides Socket interface in Node
+func (r *Replica) Send(to paxi.ID, msg interface{}) {
+	switch m := msg.(type) {
+	case *paxos.P1b:
+		r.Node.Send(to, &Promise{r.key, *m})
+	case *paxos.P2b:
+		r.Node.Send(to, &Accepted{r.key, *m})
+	default:
+		r.Node.Send(to, msg)
+	}
 }

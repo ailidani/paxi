@@ -30,5 +30,4 @@ func (r *Replica) handleRequest(m paxi.Request) {
 	} else {
 		r.Paxos.HandleRequest(m)
 	}
-
 }

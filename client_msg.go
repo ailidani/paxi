@@ -20,46 +20,38 @@ func init() {
  * Client-Replica Messages *
  ***************************/
 
-// CommandID identifies commands from each client, can be any integer type.
-type CommandID uint64
-
 // Request is client reqeust with http response channel
 type Request struct {
-	ClientID  ID
-	CommandID CommandID
 	Command   Command
 	Timestamp int64
 
 	c chan Reply
 }
 
-// Reply replies to the current request
+// Reply replies to current client session
 func (r *Request) Reply(reply Reply) {
 	r.c <- reply
 }
 
 func (r Request) String() string {
-	return fmt.Sprintf("Request {id=%s, cid=%d, cmd=%v}", r.ClientID, r.CommandID, r.Command)
+	return fmt.Sprintf("Request {cmd=%v}", r.Command)
 }
 
 // Reply includes all info that might replies to back the client for the coresponding reqeust
 type Reply struct {
-	ClientID  ID
-	CommandID CommandID
-	OK        bool
-	LeaderID  ID
 	Command   Command
+	Value     Value
 	Timestamp int64
 	Err       error
 }
 
 func (r Reply) String() string {
-	return fmt.Sprintf("Reply {ok=%t, cid=%d, lid=%s, id=%v, cmd=%v}", r.OK, r.CommandID, r.LeaderID, r.ClientID, r.Command)
+	return fmt.Sprintf("Reply {cmd=%v}", r.Command)
 }
 
 // Read can be used as a special request that directly read the value of key without go through replication protocol in Replica
 type Read struct {
-	CommandID CommandID
+	CommandID int
 	Key       Key
 }
 
@@ -69,7 +61,7 @@ func (r Read) String() string {
 
 // ReadReply cid and value of reading key
 type ReadReply struct {
-	CommandID CommandID
+	CommandID int
 	Value     Value
 }
 
@@ -78,29 +70,26 @@ func (r ReadReply) String() string {
 }
 
 // Transaction contains arbitrary number of commands in one request
+// TODO read-only or write-only transactions
 type Transaction struct {
-	CommandID CommandID
 	Commands  []Command
-	ClientID  ID
 	Timestamp int64
 
 	c chan TransactionReply
 }
 
+// Reply replies to current client session
 func (t *Transaction) Reply(r TransactionReply) {
 	t.c <- r
 }
 
 func (t Transaction) String() string {
-	return fmt.Sprintf("Transaction {id=%s, cid=%d, cmds=%v", t.ClientID, t.CommandID, t.Commands)
+	return fmt.Sprintf("Transaction {cmds=%v}", t.Commands)
 }
 
 // TransactionReply is the result of transaction struct
 type TransactionReply struct {
-	ClientID  ID
-	CommandID CommandID
 	OK        bool
-	LeaderID  ID
 	Commands  []Command
 	Timestamp int64
 	Err       error

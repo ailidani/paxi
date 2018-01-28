@@ -3,6 +3,7 @@ package paxi
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
@@ -22,7 +23,7 @@ type Client struct {
 	http      map[ID]string
 	algorithm string
 
-	cid CommandID
+	cid int // command id
 }
 
 // NewClient creates a new Client from config
@@ -40,32 +41,30 @@ func NewClient(config Config) *Client {
 // if value == nil, it's read
 func (c *Client) rest(id ID, key Key, value Value) Value {
 	url := c.http[id] + "/" + strconv.Itoa(int(key))
-	r := new(http.Request)
-	var err error
-	var o string
-	if value == nil {
-		r, err = http.NewRequest(http.MethodGet, url, nil)
-		o = "get"
-	} else {
-		r, err = http.NewRequest(http.MethodPut, url, bytes.NewBuffer(value))
-		o = "put"
+
+	method := http.MethodGet
+	var body io.Reader
+	if value != nil {
+		method = http.MethodPut
+		body = bytes.NewBuffer(value)
 	}
+	r, err := http.NewRequest(method, url, body)
 	if err != nil {
-		log.Errorln(err)
+		log.Error(err)
 		return nil
 	}
-	r.Header.Set("id", string(c.ID))
-	r.Header.Set("cid", strconv.FormatUint(uint64(c.cid), 10))
-	r.Header.Set("timestamp", strconv.FormatInt(time.Now().UnixNano(), 10))
+	r.Header.Set(HttpClientID, string(c.ID))
+	r.Header.Set(HttpCommandID, strconv.Itoa(c.cid))
+	r.Header.Set(HttpTimestamp, strconv.FormatInt(time.Now().UnixNano(), 10))
 	res, err := http.DefaultClient.Do(r)
 	if err != nil {
-		log.Errorln(err)
+		log.Error(err)
 		return nil
 	}
 	defer res.Body.Close()
 	if res.StatusCode == http.StatusOK {
 		b, _ := ioutil.ReadAll(res.Body)
-		log.Debugf("type=%s key=%v value=%x", o, key, Value(b))
+		log.Debugf("type=%s key=%v value=%x", method, key, Value(b))
 		return Value(b)
 	}
 	dump, _ := httputil.DumpResponse(res, true)
@@ -97,19 +96,13 @@ func (c *Client) Put(key Key, value Value) Value {
 
 func (c *Client) json(id ID, key Key, value Value) Value {
 	url := c.http[id]
-	var cmd Command
-	if value == nil {
-		cmd = Command{GET, key, value}
-	} else {
-		cmd = Command{PUT, key, value}
-	}
-	r := Request{
+	cmd := Command{
+		Key:       key,
+		Value:     value,
 		ClientID:  c.ID,
 		CommandID: c.cid,
-		Command:   cmd,
-		Timestamp: time.Now().UnixNano(),
 	}
-	data, err := json.Marshal(r)
+	data, err := json.Marshal(cmd)
 	res, err := http.Post(url, "json", bytes.NewBuffer(data))
 	if err != nil {
 		log.Errorln(err)
@@ -118,7 +111,7 @@ func (c *Client) json(id ID, key Key, value Value) Value {
 	defer res.Body.Close()
 	if res.StatusCode == http.StatusOK {
 		b, _ := ioutil.ReadAll(res.Body)
-		log.Debugf("type=%s key=%v value=%x", cmd.Operation, key, Value(b))
+		log.Debugf("key=%v value=%x", key, Value(b))
 		return Value(b)
 	}
 	dump, _ := httputil.DumpResponse(res, true)

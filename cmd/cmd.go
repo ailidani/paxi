@@ -51,7 +51,7 @@ func main() {
 			}
 			k, _ := strconv.Atoi(args[0])
 			v := client.Get(paxi.Key(k))
-			log.Println(v)
+			fmt.Println(string(v))
 
 		case "put":
 			if len(args) < 2 {
@@ -60,7 +60,7 @@ func main() {
 			}
 			k, _ := strconv.Atoi(args[0])
 			v := client.Put(paxi.Key(k), []byte(args[1]))
-			log.Println(v)
+			fmt.Println(string(v))
 
 		case "consensus":
 			if len(args) < 1 {
@@ -69,13 +69,13 @@ func main() {
 			}
 			k, _ := strconv.Atoi(args[0])
 			v := client.Consensus(paxi.Key(k))
-			log.Println(v)
+			fmt.Println(v)
 
 		case "exit":
 			os.Exit(0)
 
 		default:
-			log.Println(usage())
+			fmt.Println(usage())
 		}
 
 	}

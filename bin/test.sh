@@ -10,9 +10,6 @@ if [ -z "${PID}" ]; then
     go build ../server/
     go build ../client/
     go build ../cmd/
-    # ./master -n 6 -transport udp -algorithm paxos &
-    # echo $! > ${PID_FILE}
-    # sleep 3
     ./server -log_dir=logs -id 1.1 &
     echo $! >> ${PID_FILE}
     ./server -log_dir=logs -id 1.2 &
@@ -31,11 +28,11 @@ if [ -z "${PID}" ]; then
 	echo $! >> ${PID_FILE}
 	./server -log_dir=logs -id 3.3 &
 	echo $! >> ${PID_FILE}
-    sleep 5
-    ./client -id 1.1 > c1 &
-    echo $! >> ${PID_FILE}
-    ./client -id 2.1 > c2 &
-    echo $! >> ${PID_FILE}
+    # sleep 5
+    # ./client -id 1.1 > c1 &
+    # echo $! >> ${PID_FILE}
+    # ./client -id 2.1 > c2 &
+    # echo $! >> ${PID_FILE}
 else
     echo "Servers are already started in this folder."
     exit 0

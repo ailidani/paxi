@@ -210,10 +210,15 @@ func (p *Paxos) HandleP2a(m P2a) {
 		// update slot number
 		p.slot = paxi.Max(p.slot, m.Slot)
 		// update entry
-		if _, exists := p.log[m.Slot]; exists {
-			if !p.log[m.Slot].commit && m.Ballot > p.log[m.Slot].ballot {
-				p.log[m.Slot].command = m.Command
-				p.log[m.Slot].ballot = m.Ballot
+		if e, exists := p.log[m.Slot]; exists {
+			if !e.commit && m.Ballot > e.ballot {
+				// different command and request is not nil
+				if !e.command.Equal(m.Command) && e.request != nil {
+					p.Retry(*e.request)
+					e.request = nil
+				}
+				e.command = m.Command
+				e.ballot = m.Ballot
 			}
 		} else {
 			p.log[m.Slot] = &entry{
@@ -240,12 +245,15 @@ func (p *Paxos) HandleP2b(m P2b) {
 	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.ID, m, p.ID())
 
 	// reject message
+	// node update its ballot number and falls back to acceptor
 	if m.Ballot > p.ballot {
 		p.ballot = m.Ballot
 		p.active = false
 	}
 
 	// ack message
+	// the current slot might still be committed with q2
+	// if no q2 can be formed, this slot will be retried when received p2a or p3
 	if m.Ballot.ID() == p.ID() && m.Ballot == p.log[m.Slot].ballot {
 		p.log[m.Slot].quorum.ACK(m.ID)
 		if p.log[m.Slot].quorum.Q2() {
@@ -260,9 +268,6 @@ func (p *Paxos) HandleP2b(m P2b) {
 			if p.Config().ReplyWhenCommit {
 				r := p.log[m.Slot].request
 				r.Reply(paxi.Reply{
-					OK:        true,
-					CommandID: r.CommandID,
-					ClientID:  r.ClientID,
 					Command:   r.Command,
 					Timestamp: r.Timestamp,
 				})
@@ -273,17 +278,20 @@ func (p *Paxos) HandleP2b(m P2b) {
 	}
 }
 
+// HandleP3 handles phase 3 commit message
 func (p *Paxos) HandleP3(m P3) {
 	// log.Debugf("Replica ===[%v]===>>> Replica %s\n", m, p.ID())
 
 	p.slot = paxi.Max(p.slot, m.Slot)
 
-	if _, exists := p.log[m.Slot]; exists {
-		// if p.log[m.Slot].command.Key != m.Command.Key {
-		// 	log.Fatalln("commit cmd different from exists cmd")
-		// }
-		p.log[m.Slot].command = m.Command
-		p.log[m.Slot].commit = true
+	if e, exists := p.log[m.Slot]; exists {
+		if !e.command.Equal(m.Command) && e.request != nil {
+			p.Retry(*e.request)
+			e.request = nil
+		}
+		// update command
+		e.command = m.Command
+		e.commit = true
 	} else {
 		p.log[m.Slot] = &entry{
 			command: m.Command,
@@ -302,16 +310,13 @@ func (p *Paxos) exec() {
 		}
 
 		log.Debugf("Replica %s execute [s=%d, cmd=%v]\n", p.ID(), p.execute, e.command)
-		value, err := p.Execute(e.command)
+		value := p.Execute(e.command)
 		p.execute++
 
 		if e.request != nil {
-			e.request.Command.Value = value
 			e.request.Reply(paxi.Reply{
-				ClientID:  e.request.ClientID,
-				CommandID: e.request.CommandID,
-				Command:   e.request.Command,
-				Err:       err,
+				Command: e.command,
+				Value:   value,
 			})
 			e.request = nil
 		}
