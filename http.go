@@ -5,7 +5,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"path"
+	"net/url"
 	"strconv"
 
 	"github.com/ailidani/paxi/log"
@@ -18,6 +18,22 @@ const (
 	HttpTimestamp = "timestamp"
 	HttpNodeID    = "id"
 )
+
+// serve serves the http REST API request from clients
+func (n *node) http() {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", n.handleRoot)
+	mux.HandleFunc("/history", n.handleHistory)
+	mux.HandleFunc("/crash", n.handleCrash)
+	mux.HandleFunc("/drop", n.handleDrop)
+	// http string should be in form of ":8080"
+	url, err := url.Parse(n.config.HTTPAddrs[n.id])
+	if err != nil {
+		log.Fatal("http url parse error: ", err)
+	}
+	port := ":" + url.Port()
+	log.Fatal(http.ListenAndServe(port, mux))
+}
 
 func (n *node) handleRoot(w http.ResponseWriter, r *http.Request) {
 	var cmd Command
@@ -76,11 +92,37 @@ func (n *node) handleRoot(w http.ResponseWriter, r *http.Request) {
 
 func (n *node) handleHistory(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set(HttpNodeID, string(n.id))
-	k, _ := strconv.Atoi(path.Base(r.URL.Path))
+	k, err := strconv.Atoi(r.URL.Query().Get("key"))
+	if err != nil {
+		log.Error(err)
+		http.Error(w, "invalide key", http.StatusBadRequest)
+		return
+	}
 	h := n.Database.History(Key(k))
 	b, _ := json.Marshal(h)
-	_, err := w.Write(b)
+	_, err = w.Write(b)
 	if err != nil {
 		log.Error(err)
 	}
+}
+
+func (n *node) handleCrash(w http.ResponseWriter, r *http.Request) {
+	t, err := strconv.Atoi(r.URL.Query().Get("t"))
+	if err != nil {
+		log.Error(err)
+		http.Error(w, "invalide time", http.StatusBadRequest)
+		return
+	}
+	n.Crash(t)
+}
+
+func (n *node) handleDrop(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	t, err := strconv.Atoi(r.URL.Query().Get("t"))
+	if err != nil {
+		log.Error(err)
+		http.Error(w, "invalide time", http.StatusBadRequest)
+		return
+	}
+	n.Drop(ID(id), t)
 }

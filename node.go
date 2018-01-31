@@ -6,7 +6,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"reflect"
 	"strconv"
 
@@ -105,20 +104,6 @@ func (n *node) Run() {
 		go n.recv()
 	}
 	n.http()
-}
-
-// serve serves the http REST API request from clients
-func (n *node) http() {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", n.handleRoot)
-	mux.HandleFunc("/history/", n.handleHistory)
-	// http string should be in form of ":8080"
-	url, err := url.Parse(n.config.HTTPAddrs[n.id])
-	if err != nil {
-		log.Fatal("http url parse error: ", err)
-	}
-	port := ":" + url.Port()
-	log.Fatal(http.ListenAndServe(port, mux))
 }
 
 // recv receives messages from socket and pass to message channel

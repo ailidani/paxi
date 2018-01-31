@@ -51,10 +51,12 @@ func (q *Quorum) Majority() bool {
 	return q.size > NumNodes/2
 }
 
+// this is not correct
 func (q *Quorum) FastQuorum() bool {
 	return q.size >= NumNodes-1
 }
 
+// this should be fast quorum (from fast paxos)
 func (q *Quorum) FastPath() bool {
 	return q.size >= NumNodes*3/4
 }

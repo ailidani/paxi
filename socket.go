@@ -1,7 +1,12 @@
 package paxi
 
-import "github.com/ailidani/paxi/log"
+import (
+	"time"
 
+	"github.com/ailidani/paxi/log"
+)
+
+// Socket integrates all networking interface and fault injections
 type Socket interface {
 
 	// Send put msg to outbound queue
@@ -17,14 +22,25 @@ type Socket interface {
 	Recv() interface{}
 
 	Close()
+
+	// Fault injection
+	Drop(ID, int)  // drops every message send to ID for t seconds
+	Slow(ID, int)  // delays every message send to ID for t seconds
+	Flaky(ID, int) // drop message by chance for t seconds
+	Crash(int)     // node crash for t seconds
 }
 
 type socket struct {
 	id    ID
 	nodes map[ID]Transport
 	codec Codec
+
+	drop  map[ID]bool
+	slow  map[ID]bool
+	flaky map[ID]bool
 }
 
+// NewSocket return Socket interface instance given self ID, node list, transport and codec name
 func NewSocket(id ID, addrs map[ID]string, transport, codec string) Socket {
 	socket := new(socket)
 	socket.id = id
@@ -49,6 +65,9 @@ func NewSocket(id ID, addrs map[ID]string, transport, codec string) Socket {
 }
 
 func (s *socket) Send(to ID, msg interface{}) {
+	if s.drop[to] {
+		return
+	}
 	t, ok := s.nodes[to]
 	if !ok {
 		log.Fatalf("transport of ID %v does not exists", to)
@@ -89,4 +108,36 @@ func (s *socket) Close() {
 	for _, t := range s.nodes {
 		t.Close()
 	}
+}
+
+func (s *socket) Drop(id ID, t int) {
+	s.drop[id] = true
+	timer := time.NewTimer(time.Duration(t) * time.Second)
+	go func() {
+		<-timer.C
+		s.drop[id] = false
+	}()
+}
+
+func (s *socket) Slow(id ID, t int) {
+	s.slow[id] = true
+	timer := time.NewTimer(time.Duration(t) * time.Second)
+	go func() {
+		<-timer.C
+		s.slow[id] = false
+	}()
+}
+
+func (s *socket) Flaky(id ID, t int) {
+	s.flaky[id] = true
+	timer := time.NewTimer(time.Duration(t) * time.Second)
+	go func() {
+		<-timer.C
+		s.flaky[id] = false
+	}()
+}
+
+func (s *socket) Crash(t int) {
+	// TODO not implemented
+	log.Fatal("Crash function not implemented")
 }

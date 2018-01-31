@@ -174,22 +174,26 @@ func (c *Client) QuorumPut(key Key, value Value) {
 	wait.Wait()
 }
 
+// Consensus collects /history/key from every node and compare their values
 func (c *Client) Consensus(k Key) bool {
 	h := make(map[ID][]Value)
 	for id, url := range c.http {
 		h[id] = make([]Value, 0)
-		r, err := http.Get(url + "/history/" + strconv.Itoa(int(k)))
+		r, err := http.Get(url + "/history?key=" + strconv.Itoa(int(k)))
 		if err != nil {
 			log.Error(err)
+			continue
 		}
 		b, err := ioutil.ReadAll(r.Body)
 		if err != nil {
 			log.Error(err)
+			continue
 		}
 		holder := h[id]
 		err = json.Unmarshal(b, &holder)
 		if err != nil {
 			log.Error(err)
+			continue
 		}
 		h[id] = holder
 	}
@@ -209,6 +213,29 @@ func (c *Client) Consensus(k Key) bool {
 		}
 	}
 	return true
+}
+
+// Crash stops the node for t seconds then recover
+// node crash forever if t < 0
+func (c *Client) Crash(id ID, t int) {
+	url := c.http[id] + "/crash?t=" + strconv.Itoa(t)
+	r, err := http.Get(url)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	r.Body.Close()
+}
+
+// Drop drops every message send for t seconds
+func (c *Client) Drop(from, to ID, t int) {
+	url := c.http[from] + "/drop?id=" + string(to) + "&t=" + strconv.Itoa(t)
+	r, err := http.Get(url)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	r.Body.Close()
 }
 
 // Start connects to server before actual requests (for future)
