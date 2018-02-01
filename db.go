@@ -42,7 +42,9 @@ func (c Command) String() string {
 // TODO replace with more general StateMachine interface
 type Database interface {
 	Execute(Command) Value
-	History(k Key) []Value
+	History(Key) []Value
+	Get(Key) (Value, int)
+	Put(Key, Value)
 }
 
 // Database implements a multi-version key-value datastore as the StateMachine

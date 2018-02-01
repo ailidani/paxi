@@ -64,7 +64,11 @@ func (c *Client) rest(id ID, key Key, value Value) Value {
 	defer res.Body.Close()
 	if res.StatusCode == http.StatusOK {
 		b, _ := ioutil.ReadAll(res.Body)
-		log.Debugf("type=%s key=%v value=%x", method, key, Value(b))
+		if value == nil {
+			log.Debugf("type=%s key=%v value=%x", method, key, Value(b))
+		} else {
+			log.Debugf("type=%s key=%v value=%x", method, key, value)
+		}
 		return Value(b)
 	}
 	dump, _ := httputil.DumpResponse(res, true)

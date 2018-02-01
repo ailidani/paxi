@@ -20,8 +20,8 @@ func (s Set) Remove(e interface{}) {
 }
 
 func (s Set) Slice() []interface{} {
-	slice := make([]interface{}, len(s))
-	for e, _ := range s {
+	slice := make([]interface{}, 0)
+	for e := range s {
 		slice = append(slice, e)
 	}
 	return slice

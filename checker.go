@@ -11,19 +11,19 @@ import (
 )
 
 // History client operation history mapped by key
-type History map[int][]operation
+type History map[int][]*operation
 
 // NewHistory creates a History map
 func NewHistory() History {
-	return make(map[int][]operation)
+	return make(map[int][]*operation)
 }
 
 // Add puts an operation in History
 func (h History) Add(key int, input, output interface{}, start, end int64) {
 	if _, exists := h[key]; !exists {
-		h[key] = make([]operation, 0)
+		h[key] = make([]*operation, 0)
 	}
-	h[key] = append(h[key], operation{input, output, start, end})
+	h[key] = append(h[key], &operation{input, output, start, end})
 }
 
 // Linearizable concurrently checks if each partition of the history is linearizable
@@ -33,7 +33,7 @@ func (h History) Linearizable() bool {
 	results := make(chan bool)
 	for _, partition := range h {
 		c := newChecker(stop)
-		go func(p []operation) {
+		go func(p []*operation) {
 			results <- c.linearizable(p)
 		}(partition)
 	}
@@ -83,6 +83,10 @@ func (a operation) concurrent(b operation) bool {
 	return !a.happenBefore(b) && !b.happenBefore(a)
 }
 
+func (a operation) equal(b operation) bool {
+	return a.input == b.input && a.output == b.output && a.start == b.start && a.end == b.end
+}
+
 func (o operation) String() string {
 	return fmt.Sprintf("{input=%v, output=%v, start=%d, end=%d}", o.input, o.output, o.start, o.end)
 }
@@ -99,20 +103,20 @@ func newChecker(stop chan bool) *checker {
 	}
 }
 
-func (c *checker) add(o operation) {
+func (c *checker) add(o *operation) {
 	if c.Graph.Has(o) {
 		// already in graph from lookahead
 		return
 	}
 	c.Graph.Add(o)
 	for v := range c.Graph.Vertices() {
-		if v.(operation).happenBefore(o) {
+		if v.(*operation).happenBefore(*o) {
 			c.AddEdge(o, v)
 		}
 	}
 }
 
-func (c *checker) remove(o operation) {
+func (c *checker) remove(o *operation) {
 	c.Remove(o)
 }
 
@@ -121,21 +125,21 @@ func (c *checker) clear() {
 }
 
 // match finds the first matching write operation to the given read operation
-func (c *checker) match(o operation) *operation {
-	for _, v := range c.Graph.BFS(o) {
-		if o.output == v.(operation).input {
-			match := v.(operation)
-			return &match
+func (c *checker) match(read *operation) *operation {
+	// for _, v := range c.Graph.BFS(read) {
+	for v := range c.Graph.Vertices() {
+		if read.output == v.(*operation).input {
+			return v.(*operation)
 		}
 	}
 	return nil
 }
 
 // matched write inherits edges read
-func (c *checker) merge(read, write operation) {
+func (c *checker) merge(read, write *operation) {
 	for s := range c.From(read) {
-		if s.(operation) != write {
-			c.Graph.AddEdge(write, s.(operation))
+		if s.(*operation) != write {
+			c.Graph.AddEdge(write, s.(*operation))
 		}
 	}
 
@@ -146,7 +150,7 @@ func (c *checker) merge(read, write operation) {
 	c.Graph.Remove(read)
 }
 
-func (c *checker) linearizable(history []operation) bool {
+func (c *checker) linearizable(history []*operation) bool {
 	c.clear()
 	sort.Sort(byTime(history))
 	for i, o := range history {
@@ -158,7 +162,7 @@ func (c *checker) linearizable(history []operation) bool {
 			// o is read operation
 			if o.input == nil {
 				// look ahead for concurrent writes
-				for j := i + 1; j < len(history) && o.concurrent(history[j]); j++ {
+				for j := i + 1; j < len(history) && o.concurrent(*history[j]); j++ {
 					// next operation is write
 					if history[j].output == nil {
 						c.Graph.Add(history[j])
@@ -166,10 +170,13 @@ func (c *checker) linearizable(history []operation) bool {
 				}
 				match := c.match(o)
 				if match != nil {
-					c.merge(o, *match)
+					c.merge(o, match)
 				}
 				if c.Graph.Cyclic() {
 					log.Infof("invalide operation read %v -> write %v", o, match)
+					log.Infof("invalide read %v", o)
+					log.Infof("dependent writes %v", c.Graph.From(match).Slice())
+					log.Infof("Graph %v", c.Graph.BFS(match))
 					return false
 				}
 			}
@@ -179,7 +186,7 @@ func (c *checker) linearizable(history []operation) bool {
 }
 
 // sort operations by invocation time
-type byTime []operation
+type byTime []*operation
 
 func (a byTime) Len() int           { return len(a) }
 func (a byTime) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }

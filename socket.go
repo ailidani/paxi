@@ -65,6 +65,7 @@ func NewSocket(id ID, addrs map[ID]string, transport, codec string) Socket {
 }
 
 func (s *socket) Send(to ID, msg interface{}) {
+	// TODO also check for slow and flaky
 	if s.drop[to] {
 		return
 	}

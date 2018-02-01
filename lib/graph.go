@@ -30,7 +30,6 @@ func (g *Graph) Add(v interface{}) {
 		g.from[v] = NewSet()
 		g.to[v] = NewSet()
 	}
-
 }
 
 func (g *Graph) Remove(v interface{}) {

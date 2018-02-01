@@ -31,7 +31,7 @@ type bconfig struct {
 	// rounds       int    // repeat in many rounds sequentially
 
 	// random distribution
-	Conflicts int // percetage of conflicting keys
+	Conflicts int // percentage of conflicting keys
 	Min       int // min key
 
 	// normal distribution
