@@ -43,7 +43,7 @@ func (c Command) String() string {
 type Database interface {
 	Execute(Command) Value
 	History(Key) []Value
-	Get(Key) (Value, int)
+	Get(Key) Value
 	Put(Key, Value)
 }
 
@@ -90,7 +90,7 @@ func (d *database) Execute(c Command) Value {
 	defer d.Unlock()
 
 	// get previous value
-	v, _ := d.get(c.Key)
+	v := d.get(c.Key)
 
 	// writes new value
 	d.put(c.Key, c.Value)
@@ -98,16 +98,16 @@ func (d *database) Execute(c Command) Value {
 	return v
 }
 
-func (d *database) get(k Key) (Value, int) {
+func (d *database) get(k Key) Value {
 	n := len(d.data[k])
 	if n > 0 {
-		return d.data[k][n-1], n
+		return d.data[k][n-1]
 	}
-	return nil, 0
+	return nil
 }
 
 // Get gets the current value and version of given key
-func (d *database) Get(k Key) (Value, int) {
+func (d *database) Get(k Key) Value {
 	d.RLock()
 	defer d.RUnlock()
 	return d.get(k)

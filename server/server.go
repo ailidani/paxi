@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/ailidani/paxi"
+	"github.com/ailidani/paxi/atomic"
 	"github.com/ailidani/paxi/kpaxos"
 	"github.com/ailidani/paxi/log"
 	"github.com/ailidani/paxi/paxos"
@@ -59,6 +60,10 @@ func replica(id paxi.ID) {
 
 	case "paxos_groups":
 		replica := paxos_group.NewReplica(config)
+		replica.Run()
+
+	case "atomic":
+		replica := atomic.NewReplica(config)
 		replica.Run()
 
 	default:
