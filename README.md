@@ -24,6 +24,7 @@ Algorithms:
 - [x] [WPaxos](https://arxiv.org/abs/1703.08905)
 - [x] [EPaxos](https://dl.acm.org/citation.cfm?id=2517350)
 - [x] KPaxos (Static partitioned Paxos)
+- [x] Atomic Storage ([Majority Replication](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.174.7245&rep=rep1&type=pdf))
 - [ ] [Vertical Paxos](https://www.microsoft.com/en-us/research/wp-content/uploads/2009/08/Vertical-Paxos-and-Primary-Backup-Replication-.pdf)
 - [ ] [WanKeeper](http://ieeexplore.ieee.org/abstract/document/7980095/)
 
