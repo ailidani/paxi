@@ -172,7 +172,7 @@ func (b *Benchmark) Run() {
 func (b *Benchmark) next() int {
 	var key int
 	switch b.Distribution {
-	case "random":
+	case "uniform":
 		if rand.Intn(100) < b.Conflicts {
 			key = rand.Intn(b.K)
 		} else {
