@@ -90,7 +90,7 @@ func (c *bconfig) Save() error {
 type Benchmark struct {
 	db DB // read/write operation interface
 	bconfig
-	History
+	*History
 
 	cwait     sync.WaitGroup  // wait for all clients to finish
 	latency   []time.Duration // latency per operation
