@@ -46,7 +46,7 @@ func NewPaxos(n paxi.Node) *Paxos {
 
 // IsLeader indecates if this node is current leader
 func (p *Paxos) IsLeader() bool {
-	return p.active
+	return p.active || p.ballot.ID() == p.ID()
 }
 
 // Leader returns leader id of the current ballot
