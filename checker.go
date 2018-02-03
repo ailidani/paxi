@@ -5,39 +5,49 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"sync"
 
 	"github.com/ailidani/paxi/lib"
 	"github.com/ailidani/paxi/log"
 )
 
 // History client operation history mapped by key
-type History map[int][]*operation
+type History struct {
+	sync.RWMutex
+	data map[int][]*operation
+}
 
 // NewHistory creates a History map
-func NewHistory() History {
-	return make(map[int][]*operation)
+func NewHistory() *History {
+	return &History{
+		data: make(map[int][]*operation),
+	}
 }
 
 // Add puts an operation in History
-func (h History) Add(key int, input, output interface{}, start, end int64) {
-	if _, exists := h[key]; !exists {
-		h[key] = make([]*operation, 0)
+func (h *History) Add(key int, input, output interface{}, start, end int64) {
+	h.Lock()
+	defer h.Unlock()
+	if _, exists := h.data[key]; !exists {
+		h.data[key] = make([]*operation, 0)
 	}
-	h[key] = append(h[key], &operation{input, output, start, end})
+	h.data[key] = append(h.data[key], &operation{input, output, start, end})
 }
 
 // Linearizable concurrently checks if each partition of the history is linearizable
-func (h History) Linearizable() bool {
+func (h *History) Linearizable() bool {
 	ok := true
 	stop := make(chan bool)
 	results := make(chan bool)
-	for _, partition := range h {
+	h.RLock()
+	defer h.RUnlock()
+	for _, partition := range h.data {
 		c := newChecker(stop)
 		go func(p []*operation) {
 			results <- c.linearizable(p)
 		}(partition)
 	}
-	for range h {
+	for range h.data {
 		ok = <-results
 		if !ok {
 			close(stop)
@@ -48,7 +58,7 @@ func (h History) Linearizable() bool {
 }
 
 // WriteFile writes entire operation history into file
-func (h History) WriteFile(path string) error {
+func (h *History) WriteFile(path string) error {
 	file, err := os.Create(path)
 	if err != nil {
 		return err
@@ -56,7 +66,9 @@ func (h History) WriteFile(path string) error {
 	defer file.Close()
 
 	w := bufio.NewWriter(file)
-	for k, ops := range h {
+	h.RLock()
+	defer h.RUnlock()
+	for k, ops := range h.data {
 		fmt.Fprintf(w, "key=%d\n", k)
 		for _, o := range ops {
 			fmt.Fprintln(w, o)
