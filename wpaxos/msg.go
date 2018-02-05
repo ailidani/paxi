@@ -4,7 +4,8 @@ import (
 	"encoding/gob"
 	"fmt"
 
-	. "github.com/ailidani/paxi"
+	"github.com/ailidani/paxi"
+	"github.com/ailidani/paxi/paxos"
 )
 
 func init() {
@@ -12,7 +13,6 @@ func init() {
 	gob.Register(Promise{})
 	gob.Register(Accept{})
 	gob.Register(Accepted{})
-	gob.Register(Nack{})
 	gob.Register(Commit{})
 	gob.Register(LeaderChange{})
 }
@@ -23,76 +23,60 @@ func init() {
 
 // Prepare phase 1a
 type Prepare struct {
-	Key    Key
-	Ballot int
-	// Slot int
+	Key paxi.Key
+	paxos.P1a
 }
 
 func (p Prepare) String() string {
-	return fmt.Sprintf("Prepare {key=%v, lid=%v, bal=%d}", p.Key, LeaderID(p.Ballot), p.Ballot)
+	return fmt.Sprintf("Prepare {key=%v, %v}", p.Key, p.P1a)
 }
 
 // Promise phase 1b
 type Promise struct {
-	Key     Key
-	ID      ID
-	Ballot  int
-	PreSlot int
+	Key paxi.Key
+	paxos.P1b
 }
 
 func (p Promise) String() string {
-	return fmt.Sprintf("Promise {key=%v, lid=%s, bal=%d, ps=%d}", p.Key, LeaderID(p.Ballot), p.Ballot, p.PreSlot)
-}
-
-// Nack is used as reject in both phase 1 and phase 2
-type Nack struct {
-	Key    Key
-	ID     ID
-	Ballot int
+	return fmt.Sprintf("Promise {key=%v, %v}", p.Key, p.P1b)
 }
 
 // Accept phase 2a
 type Accept struct {
-	Key      Key
-	Ballot   int
-	Slot     int
-	Commands []Command // batched commands
+	Key paxi.Key
+	paxos.P2a
 }
 
 func (a Accept) String() string {
-	return fmt.Sprintf("Accept {key=%d, lid=%s, bal=%d, slot=%d, cmd=%v}", a.Key, LeaderID(a.Ballot), a.Ballot, a.Slot, a.Commands)
+	return fmt.Sprintf("Accept {key=%d, %v}", a.Key, a.P2a)
 }
 
 // Accepted phase 2b
 type Accepted struct {
-	Key    Key
-	ID     ID
-	Ballot int
-	Slot   int
+	Key paxi.Key
+	paxos.P2b
 }
 
 func (a Accepted) String() string {
-	return fmt.Sprintf("Accepted {key=%v, lid=%s, bal=%d, slot=%d}", a.Key, LeaderID(a.Ballot), a.Ballot, a.Slot)
+	return fmt.Sprintf("Accepted {key=%v, %v}", a.Key, a.P2b)
 }
 
 // Commit phase 3
 type Commit struct {
-	Key      Key
-	Ballot   int
-	Slot     int
-	Commands []Command
+	Key paxi.Key
+	paxos.P3
 }
 
 func (c Commit) String() string {
-	return fmt.Sprintf("Commit {key=%d, lid=%s, bal=%d, slot=%d, cmd=%v}", c.Key, LeaderID(c.Ballot), c.Ballot, c.Slot, c.Commands)
+	return fmt.Sprintf("Commit {key=%d, %v}", c.Key, c.P3)
 }
 
 // LeaderChange switch leader
 type LeaderChange struct {
-	Key    Key
-	To     ID
-	From   ID
-	Ballot int
+	Key    paxi.Key
+	To     paxi.ID
+	From   paxi.ID
+	Ballot paxi.Ballot
 }
 
 func (l LeaderChange) String() string {

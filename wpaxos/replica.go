@@ -1,21 +1,27 @@
 package wpaxos
 
 import (
-	. "github.com/ailidani/paxi"
+	"github.com/ailidani/paxi"
 	"github.com/ailidani/paxi/log"
+	"github.com/ailidani/paxi/paxos"
 )
 
 type Replica struct {
-	Node
-	paxi map[Key]*paxos
+	paxi.Node
+	paxi  map[paxi.Key]*paxos.Paxos
+	stats map[paxi.Key]*stat
+
+	key paxi.Key // current working key
 }
 
-func NewReplica(config Config) *Replica {
+func NewReplica(config paxi.Config) *Replica {
 	r := new(Replica)
-	r.Node = NewNode(config)
-	r.paxi = make(map[Key]*paxos)
+	r.Node = paxi.NewNode(config)
+	r.paxi = make(map[paxi.Key]*paxos.Paxos)
+	r.stats = make(map[paxi.Key]*stat)
 
-	r.Register(Request{}, r.handleRequest)
+	r.Register(paxi.Request{}, r.handleRequest)
+	r.Register(paxi.Transaction{}, r.handleTransaction)
 	r.Register(Prepare{}, r.handlePrepare)
 	r.Register(Promise{}, r.handlePromise)
 	r.Register(Accept{}, r.handleAccept)
@@ -25,65 +31,118 @@ func NewReplica(config Config) *Replica {
 	return r
 }
 
-func (r *Replica) init(key Key) {
+func (r *Replica) init(key paxi.Key) {
 	if _, exists := r.paxi[key]; !exists {
-		r.paxi[key] = NewPaxos(r, key)
+		r.paxi[key] = paxos.NewPaxos(r)
+		r.stats[key] = newStat(r.Config().Interval)
 	}
 }
 
-func (r *Replica) handleRequest(msg Request) {
-	log.Debugf("Replica %s received %v\n", r.ID(), msg)
-	key := msg.Command.Key
-	r.init(key)
-	r.paxi[key].handleRequest(msg)
-}
+func (r *Replica) handleRequest(m paxi.Request) {
+	log.Debugf("Replica %s received %v\n", r.ID(), m)
+	r.key = m.Command.Key
+	r.init(r.key)
 
-func (r *Replica) handlePrepare(msg Prepare) {
-	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", LeaderID(msg.Ballot), msg, r.ID())
-	key := msg.Key
-	r.init(key)
-	r.paxi[key].handlePrepare(msg)
-}
-
-func (r *Replica) handlePromise(msg Promise) {
-	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", msg.ID, msg, r.ID())
-	key := msg.Key
-	r.paxi[key].handlePromise(msg)
-	log.Debugf("Number of keys: %d", r.keys())
-}
-
-func (r *Replica) handleAccept(msg Accept) {
-	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", LeaderID(msg.Ballot), msg, r.ID())
-	key := msg.Key
-	r.init(key)
-	r.paxi[key].handleAccept(msg)
-}
-
-func (r *Replica) handleAccepted(msg Accepted) {
-	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", msg.ID, msg, r.ID())
-	key := msg.Key
-	r.paxi[key].handleAccepted(msg)
-}
-
-func (r *Replica) handleCommit(msg Commit) {
-	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", LeaderID(msg.Ballot), msg, r.ID())
-	key := msg.Key
-	r.init(key)
-	r.paxi[key].handleCommit(msg)
-}
-
-func (r *Replica) handleLeaderChange(msg LeaderChange) {
-	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", msg.From, msg, r.ID())
-	key := msg.Key
-	r.paxi[key].handleLeaderChange(msg)
-}
-
-func (r *Replica) keys() int {
-	sum := 0
-	for _, paxos := range r.paxi {
-		if paxos.active {
-			sum++
+	p := r.paxi[r.key]
+	if p.Config().Adaptive {
+		if p.IsLeader() || p.Ballot() == 0 {
+			p.HandleRequest(m)
+			to := r.stats[r.key].hit(m.Command.ClientID)
+			if p.Config().Adaptive && to != "" && to.Zone() != r.ID().Zone() {
+				p.Send(to, &LeaderChange{
+					Key:    r.key,
+					To:     to,
+					From:   r.ID(),
+					Ballot: p.Ballot(),
+				})
+			}
+		} else {
+			go r.Forward(p.Leader(), m)
 		}
+	} else {
+		p.HandleRequest(m)
 	}
-	return sum
 }
+
+func (r *Replica) handleTransaction(m paxi.Transaction) {
+	// TODO
+}
+
+func (r *Replica) handlePrepare(m Prepare) {
+	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.Ballot.ID(), m, r.ID())
+	r.key = m.Key
+	r.init(r.key)
+	r.paxi[r.key].HandleP1a(m.P1a)
+}
+
+func (r *Replica) handlePromise(m Promise) {
+	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.ID, m, r.ID())
+	r.key = m.Key
+	r.paxi[r.key].HandleP1b(m.P1b)
+	// log.Debugf("Number of keys: %d", r.keys())
+}
+
+func (r *Replica) handleAccept(m Accept) {
+	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.Ballot.ID(), m, r.ID())
+	r.key = m.Key
+	r.init(r.key)
+	r.paxi[r.key].HandleP2a(m.P2a)
+}
+
+func (r *Replica) handleAccepted(m Accepted) {
+	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.ID, m, r.ID())
+	r.key = m.Key
+	r.paxi[r.key].HandleP2b(m.P2b)
+}
+
+func (r *Replica) handleCommit(m Commit) {
+	log.Debugf("Replica ===[%v]===>>> Replica %s\n", m, r.ID())
+	r.key = m.Key
+	r.init(r.key)
+	r.paxi[r.key].HandleP3(m.P3)
+}
+
+func (r *Replica) handleLeaderChange(m LeaderChange) {
+	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.From, m, r.ID())
+	r.key = m.Key
+	if m.To == r.ID() {
+		log.Debugf("Replica %s : change leader of key %d\n", r.ID(), r.key)
+		r.paxi[r.key].P1a()
+	}
+}
+
+// Broadcast overrides Socket interface in Node
+func (r *Replica) Broadcast(msg interface{}) {
+	switch m := msg.(type) {
+	case *paxos.P1a:
+		r.Node.Broadcast(&Prepare{r.key, *m})
+	case *paxos.P2a:
+		r.Node.Broadcast(&Accept{r.key, *m})
+	case *paxos.P3:
+		r.Node.Broadcast(&Commit{r.key, *m})
+	default:
+		r.Node.Broadcast(msg)
+	}
+}
+
+// Send overrides Socket interface in Node
+func (r *Replica) Send(to paxi.ID, msg interface{}) {
+	switch m := msg.(type) {
+	case *paxos.P1b:
+		r.Node.Send(to, &Promise{r.key, *m})
+	case *paxos.P2b:
+		r.Node.Send(to, &Accepted{r.key, *m})
+	default:
+		r.Node.Send(to, msg)
+	}
+}
+
+// func (r *Replica) keys() int {
+// 	sum := 0
+// 	for _, paxos := range r.paxi {
+// 		if paxos.active {
+// 			sum++
+// 		}
+// 	}
+// 	return sum
+// }

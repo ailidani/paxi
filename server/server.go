@@ -7,13 +7,13 @@ import (
 	"sync"
 
 	"github.com/ailidani/paxi"
+	"github.com/ailidani/paxi/async_paxos"
 	"github.com/ailidani/paxi/atomic"
 	"github.com/ailidani/paxi/kpaxos"
 	"github.com/ailidani/paxi/log"
 	"github.com/ailidani/paxi/paxos"
 	"github.com/ailidani/paxi/paxos_group"
 	"github.com/ailidani/paxi/wpaxos"
-	"github.com/ailidani/paxi/wpaxos2"
 )
 
 var master = flag.String("master", "", "Master address.")
@@ -46,10 +46,6 @@ func replica(id paxi.ID) {
 		replica := wpaxos.NewReplica(config)
 		replica.Run()
 
-	case "wpaxos2":
-		replica := wpaxos2.NewReplica(config)
-		replica.Run()
-
 	// case "epaxos":
 	// 	replica := epaxos.NewReplica(config)
 	// 	replica.Run()
@@ -64,6 +60,10 @@ func replica(id paxi.ID) {
 
 	case "atomic":
 		replica := atomic.NewReplica(config)
+		replica.Run()
+
+	case "async_paxos":
+		replica := async_paxos.NewReplica(config)
 		replica.Run()
 
 	default:

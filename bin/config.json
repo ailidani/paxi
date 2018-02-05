@@ -21,7 +21,7 @@
         "3.2": "http://127.0.0.1:8087",
         "3.3": "http://127.0.0.1:8088"
     },
-    "algorithm": "wpaxos2",
+    "algorithm": "wpaxos",
     "quorum": "fgrid",
     "f": 0,
     "adaptive": true,
