@@ -211,7 +211,9 @@ func (c *Client) Consensus(k Key) bool {
 	for i := 0; i < n; i++ {
 		set := make(map[string]struct{})
 		for id := range c.http {
-			set[string(h[id][i])] = struct{}{}
+			if len(h[id]) > i {
+				set[string(h[id][i])] = struct{}{}
+			}
 		}
 		if len(set) > 1 {
 			return false
