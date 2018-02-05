@@ -79,13 +79,25 @@ func (c *Client) rest(id ID, key Key, value Value) Value {
 // RESTGet gets value of given key
 func (c *Client) RESTGet(key Key) Value {
 	c.cid++
-	return c.rest(c.ID, key, nil)
+	id := c.ID
+	if id == "" {
+		for id = range c.http {
+			break
+		}
+	}
+	return c.rest(id, key, nil)
 }
 
 // RESTPut puts new value as http.request body and return previous value
 func (c *Client) RESTPut(key Key, value Value) Value {
 	c.cid++
-	return c.rest(c.ID, key, value)
+	id := c.ID
+	if id == "" {
+		for id = range c.http {
+			break
+		}
+	}
+	return c.rest(id, key, value)
 }
 
 // Get gets value of given key (use REST)

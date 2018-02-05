@@ -1,6 +1,9 @@
 package atomic
 
-import "github.com/ailidani/paxi"
+import (
+	"github.com/ailidani/paxi"
+	"github.com/ailidani/paxi/log"
+)
 
 type state int
 
@@ -43,6 +46,7 @@ func NewReplica(config paxi.Config) *Replica {
 }
 
 func (r *Replica) handleRequest(m paxi.Request) {
+	log.Debugf("Node %s received Request %v", r.ID(), m)
 	k := m.Command.Key
 	v := r.Get(k)
 	version := r.version[k]

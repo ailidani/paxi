@@ -9,7 +9,7 @@ import (
 	"github.com/ailidani/paxi/log"
 )
 
-var id = flag.String("id", "1.1", "ID in format of Zone.Node. Default 1.1")
+var id = flag.String("id", "", "ID in format of Zone.Node. Default 1.1")
 
 // ID represents a generic identifier in format of Zone.Node
 type ID string
