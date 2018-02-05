@@ -117,6 +117,8 @@ func (q *Quorum) Q1() bool {
 		return q.FGridQ1()
 	case "group":
 		return q.ZoneMajority()
+	case "count":
+		return q.size >= NumNodes-F
 	default:
 		log.Errorln("Unknown quorum type")
 		return false
@@ -133,6 +135,8 @@ func (q *Quorum) Q2() bool {
 		return q.FGridQ2()
 	case "group":
 		return q.ZoneMajority()
+	case "count":
+		return q.size > F
 	default:
 		log.Errorln("Unknown quorum type")
 		return false
