@@ -48,3 +48,13 @@ func (s *CSet) Size() int {
 	defer s.RUnlock()
 	return len(s.data)
 }
+
+func (s *CSet) Array() []interface{} {
+	array := make([]interface{}, 0)
+	s.RLock()
+	defer s.RUnlock()
+	for e := range s.data {
+		array = append(array, e)
+	}
+	return array
+}

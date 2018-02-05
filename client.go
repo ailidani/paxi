@@ -136,7 +136,7 @@ func (c *Client) JSONPut(key Key, value Value) Value {
 }
 
 // QuorumGet concurrently read values from majority nodes
-func (c *Client) QuorumGet(key Key) Value {
+func (c *Client) QuorumGet(key Key) []Value {
 	c.cid++
 	out := make(chan Value)
 	i := 0
@@ -153,10 +153,11 @@ func (c *Client) QuorumGet(key Key) Value {
 	for ; i >= 0; i-- {
 		set.Put(<-out)
 	}
-	if set.Size() == 1 {
-		return set.Get().(Value)
+	res := make([]Value, 0)
+	for _, v := range set.Array() {
+		res = append(res, v.(Value))
 	}
-	return nil
+	return res
 }
 
 // QuorumPut concurrently write values to majority of nodes
