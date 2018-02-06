@@ -21,13 +21,13 @@ type DB interface {
 var file = flag.String("bconfig", "benchmark.json", "benchmark configuration file")
 
 type bconfig struct {
-	T                    int    // total number of running time in seconds
-	N                    int    // total number of requests
-	K                    int    // key sapce
-	W                    int    // percentage of writes
-	Concurrency          int    // number of simulated clients
-	Distribution         string // distribution
-	LinearizabilityCheck bool   // run linearizability checker at the end of benchmark
+	T                    int     // total number of running time in seconds
+	N                    int     // total number of requests
+	K                    int     // key sapce
+	W                    float64 // write read ratio
+	Concurrency          int     // number of simulated clients
+	Distribution         string  // distribution
+	LinearizabilityCheck bool    // run linearizability checker at the end of benchmark
 	// rounds       int    // repeat in many rounds sequentially
 
 	// random distribution
@@ -199,7 +199,7 @@ func (b *Benchmark) worker(keys <-chan int, latencies chan<- time.Duration) {
 	for k := range keys {
 		var s time.Time
 		var e time.Time
-		if rand.Intn(100) < b.W {
+		if rand.Float64() < b.W {
 			v := rand.Int()
 			s = time.Now()
 			b.db.Write(k, v)

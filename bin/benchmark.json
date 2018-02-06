@@ -2,7 +2,7 @@
     "T": 60,
     "N": 0,
     "K": 1000,
-    "W": 50,
+    "W": 0.5,
     "Concurrency": 1,
     "Distribution": "uniform",
     "LinearizabilityCheck": true,
