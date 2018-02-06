@@ -24,7 +24,7 @@ type bconfig struct {
 	T                    int     // total number of running time in seconds
 	N                    int     // total number of requests
 	K                    int     // key sapce
-	W                    float64 // write read ratio
+	W                    float64 // write ratio
 	Concurrency          int     // number of simulated clients
 	Distribution         string  // distribution
 	LinearizabilityCheck bool    // run linearizability checker at the end of benchmark
@@ -160,10 +160,13 @@ func (b *Benchmark) Run() {
 	b.History.WriteFile("history" + "." + string(GetID()))
 
 	if b.LinearizabilityCheck {
-		if b.History.Linearizable() {
+		n := b.History.Linearizable()
+		if n == 0 {
 			log.Infoln("The execution is linearizable.")
 		} else {
 			log.Infoln("The execution is NOT linearizable.")
+			log.Infof("Total anomaly read operations are %d", n)
+			log.Infof("Anomaly percentage is %f", float64(n)/float64(stat.Size))
 		}
 	}
 }

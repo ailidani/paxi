@@ -4,14 +4,14 @@ import "testing"
 
 // examples from https://pdos.csail.mit.edu/6.824/papers/fb-consistency.pdf
 func TestLinerizabilityChecker(t *testing.T) {
-	c := newChecker(nil)
+	c := newChecker()
 
 	// single operation is liearizable
 	ops := []*operation{
 		&operation{42, nil, 0, 24},
 	}
-	if c.linearizable(ops) != true {
-		t.Fatal("expected operations to be linearizable")
+	if len(c.linearizable(ops)) != 0 {
+		t.Error("expected operations to be linearizable")
 	}
 
 	// concurrent operation is linearizable
@@ -19,8 +19,8 @@ func TestLinerizabilityChecker(t *testing.T) {
 		&operation{42, nil, 0, 5},
 		&operation{nil, 42, 3, 10},
 	}
-	if c.linearizable(ops) != true {
-		t.Fatal("expected operations to be linearizable")
+	if len(c.linearizable(ops)) != 0 {
+		t.Error("expected operations to be linearizable")
 	}
 
 	// no dependency in graph is linearizable
@@ -30,8 +30,8 @@ func TestLinerizabilityChecker(t *testing.T) {
 		&operation{3, nil, 11, 15},
 		&operation{nil, 4, 16, 20},
 	}
-	if c.linearizable(ops) != true {
-		t.Fatal("expected operations to be linearizable")
+	if len(c.linearizable(ops)) != 0 {
+		t.Error("expected operations to be linearizable")
 	}
 
 	// concurrent reads
@@ -40,8 +40,8 @@ func TestLinerizabilityChecker(t *testing.T) {
 		&operation{nil, 100, 5, 35},
 		&operation{nil, 0, 30, 60},
 	}
-	if c.linearizable(ops) != true {
-		t.Fatal("expected operations to be linearizable")
+	if len(c.linearizable(ops)) != 0 {
+		t.Error("expected operations to be linearizable")
 	}
 
 	// concurrent reads
@@ -51,7 +51,7 @@ func TestLinerizabilityChecker(t *testing.T) {
 		&operation{nil, 100, 5, 25}, // reads 100, write time is cut to 25
 		&operation{nil, 0, 30, 60},  // happends after previous read, but read 0
 	}
-	if c.linearizable(ops) == true {
+	if len(c.linearizable(ops)) == 0 {
 		t.Error("expected operations to NOT be linearizable")
 	}
 
@@ -61,8 +61,8 @@ func TestLinerizabilityChecker(t *testing.T) {
 		&operation{2, nil, 6, 10},
 		&operation{nil, 1, 11, 15},
 	}
-	if c.linearizable(ops) == true {
-		t.Fatal("expected operations to NOT be linearizable")
+	if len(c.linearizable(ops)) == 0 {
+		t.Error("expected operations to NOT be linearizable")
 	}
 
 	// cross reads is not linearizable
@@ -72,7 +72,18 @@ func TestLinerizabilityChecker(t *testing.T) {
 		&operation{nil, 1, 6, 10},
 		&operation{nil, 2, 6, 10},
 	}
-	if c.linearizable(ops) == true {
-		t.Fatal("expected operations to NOT be linearizable")
+	if len(c.linearizable(ops)) == 0 {
+		t.Error("expected operations to NOT be linearizable")
+	}
+
+	ops = []*operation{
+		&operation{1, nil, 0, 5},
+		&operation{2, nil, 6, 10},
+		&operation{nil, 1, 11, 15},
+		&operation{nil, 1, 12, 16},
+	}
+	n := len(c.linearizable(ops))
+	if n != 2 {
+		t.Errorf("expected two amonaly operations, detected %d", n)
 	}
 }

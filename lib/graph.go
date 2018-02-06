@@ -46,7 +46,7 @@ func (g *Graph) Remove(v interface{}) {
 	delete(g.to, v)
 }
 
-func (g *Graph) AddEdge(from interface{}, to interface{}) {
+func (g *Graph) AddEdge(from, to interface{}) {
 	if from == to {
 		panic("graph: adding self edge")
 	}
@@ -58,6 +58,14 @@ func (g *Graph) AddEdge(from interface{}, to interface{}) {
 	}
 	g.from[from].Add(to)
 	g.to[to].Add(from)
+}
+
+func (g *Graph) RemoveEdge(from, to interface{}) {
+	if !g.Has(from) || !g.Has(to) {
+		return
+	}
+	g.from[from].Remove(to)
+	g.to[to].Remove(from)
 }
 
 func (g *Graph) Vertices() Set {
@@ -136,4 +144,27 @@ func (g *Graph) Cyclic() bool {
 		}
 	}
 	return false
+}
+
+// Cycle returns the first cycle with vertices
+func (g *Graph) Cycle() []interface{} {
+	colors := make(map[interface{}]color)
+	for v := range g.vertices {
+		colors[v] = white
+	}
+
+	for v := range g.vertices {
+		if colors[v] == white {
+			if g.visit(v, colors) {
+				cycle := make([]interface{}, 0)
+				for v, color := range colors {
+					if color == gray {
+						cycle = append(cycle, v)
+					}
+				}
+				return cycle
+			}
+		}
+	}
+	return nil
 }

@@ -8,7 +8,6 @@ import (
 	"sync"
 
 	"github.com/ailidani/paxi/lib"
-	"github.com/ailidani/paxi/log"
 )
 
 // History client operation history mapped by key
@@ -34,27 +33,23 @@ func (h *History) Add(key int, input, output interface{}, start, end int64) {
 	h.data[key] = append(h.data[key], &operation{input, output, start, end})
 }
 
-// Linearizable concurrently checks if each partition of the history is linearizable
-func (h *History) Linearizable() bool {
-	ok := true
-	stop := make(chan bool)
-	results := make(chan bool)
+// Linearizable concurrently checks if each partition of the history is linearizable and returns the total number of anomaly reads
+func (h *History) Linearizable() int {
+	anomalies := make(chan []*operation)
 	h.RLock()
 	defer h.RUnlock()
 	for _, partition := range h.data {
-		c := newChecker(stop)
+		c := newChecker()
 		go func(p []*operation) {
-			results <- c.linearizable(p)
+			anomalies <- c.linearizable(p)
 		}(partition)
 	}
+	sum := 0
 	for range h.data {
-		ok = <-results
-		if !ok {
-			close(stop)
-			break
-		}
+		a := <-anomalies
+		sum += len(a)
 	}
-	return ok
+	return sum
 }
 
 // WriteFile writes entire operation history into file
@@ -105,13 +100,11 @@ func (o operation) String() string {
 
 type checker struct {
 	*lib.Graph
-	stop chan bool
 }
 
-func newChecker(stop chan bool) *checker {
+func newChecker() *checker {
 	return &checker{
 		Graph: lib.NewGraph(),
-		stop:  stop,
 	}
 }
 
@@ -162,39 +155,39 @@ func (c *checker) merge(read, write *operation) {
 	c.Graph.Remove(read)
 }
 
-func (c *checker) linearizable(history []*operation) bool {
+func (c *checker) linearizable(history []*operation) []*operation {
 	c.clear()
 	sort.Sort(byTime(history))
+	anomaly := make([]*operation, 0)
 	for i, o := range history {
-		select {
-		case <-c.stop:
-			return false
-		default:
-			c.add(o)
-			// o is read operation
-			if o.input == nil {
-				// look ahead for concurrent writes
-				for j := i + 1; j < len(history) && o.concurrent(*history[j]); j++ {
-					// next operation is write
-					if history[j].output == nil {
-						c.Graph.Add(history[j])
+		c.add(o)
+		// o is read operation
+		if o.input == nil {
+			// look ahead for concurrent writes
+			for j := i + 1; j < len(history) && o.concurrent(*history[j]); j++ {
+				// next operation is write
+				if history[j].output == nil {
+					c.Graph.Add(history[j])
+				}
+			}
+			match := c.match(o)
+			if match != nil {
+				c.merge(o, match)
+			}
+			cycle := c.Graph.Cycle()
+			if cycle != nil {
+				anomaly = append(anomaly, o)
+				for _, u := range cycle {
+					for _, v := range cycle {
+						if c.Graph.From(u).Has(v) && v.(*operation).start > u.(*operation).end {
+							c.Graph.RemoveEdge(u, v)
+						}
 					}
-				}
-				match := c.match(o)
-				if match != nil {
-					c.merge(o, match)
-				}
-				if c.Graph.Cyclic() {
-					log.Infof("invalide operation read %v -> write %v", o, match)
-					log.Infof("invalide read %v", o)
-					log.Infof("dependent writes %v", c.Graph.From(match).Slice())
-					log.Infof("Graph %v", c.Graph.BFS(match))
-					return false
 				}
 			}
 		}
 	}
-	return true
+	return anomaly
 }
 
 // sort operations by invocation time
