@@ -35,6 +35,7 @@ type socket struct {
 	nodes map[ID]Transport
 	codec Codec
 
+	crash bool
 	drop  map[ID]bool
 	slow  map[ID]bool
 	flaky map[ID]bool
@@ -75,14 +76,19 @@ func (s *socket) Send(to ID, msg interface{}) {
 	}
 	b := s.codec.Encode(msg)
 	m := NewMessage(len(b))
+	// copy(m.Header, []byte(s.id))
 	m.Body = b
 	t.Send(m)
 }
 
 func (s *socket) Recv() interface{} {
-	m := s.nodes[s.id].Recv()
-	msg := s.codec.Decode(m.Body)
-	return msg
+	for {
+		m := s.nodes[s.id].Recv()
+		if !s.crash {
+			msg := s.codec.Decode(m.Body)
+			return msg
+		}
+	}
 }
 
 func (s *socket) Multicast(zone int, msg interface{}) {
@@ -139,6 +145,10 @@ func (s *socket) Flaky(id ID, t int) {
 }
 
 func (s *socket) Crash(t int) {
-	// TODO not implemented
-	log.Fatal("Crash function not implemented")
+	s.crash = true
+	timer := time.NewTimer(time.Duration(t) * time.Second)
+	go func() {
+		<-timer.C
+		s.crash = false
+	}()
 }

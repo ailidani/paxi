@@ -48,6 +48,7 @@ type node struct {
 	Database
 	MessageChan chan interface{}
 	handles     map[string]reflect.Value
+	server      *http.Server
 }
 
 // NewNode creates a new Node object from configuration

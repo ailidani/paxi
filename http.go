@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 
 	"github.com/ailidani/paxi/log"
 )
@@ -32,7 +33,11 @@ func (n *node) http() {
 		log.Fatal("http url parse error: ", err)
 	}
 	port := ":" + url.Port()
-	log.Fatal(http.ListenAndServe(port, mux))
+	n.server = &http.Server{
+		Addr:    port,
+		Handler: mux,
+	}
+	log.Error(n.server.ListenAndServe())
 }
 
 func (n *node) handleRoot(w http.ResponseWriter, r *http.Request) {
@@ -113,7 +118,13 @@ func (n *node) handleCrash(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalide time", http.StatusBadRequest)
 		return
 	}
-	n.Crash(t)
+	n.Socket.Crash(t)
+	timer := time.NewTimer(time.Duration(t) * time.Second)
+	go func() {
+		n.server.Close()
+		<-timer.C
+		log.Error(n.server.ListenAndServe())
+	}()
 }
 
 func (n *node) handleDrop(w http.ResponseWriter, r *http.Request) {

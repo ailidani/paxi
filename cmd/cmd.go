@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -64,12 +63,25 @@ func main() {
 
 		case "consensus":
 			if len(args) < 1 {
-				log.Println("consensus KEY")
+				fmt.Println("consensus KEY")
 				continue
 			}
 			k, _ := strconv.Atoi(args[0])
 			v := client.Consensus(paxi.Key(k))
 			fmt.Println(v)
+
+		case "crash":
+			if len(args) < 2 {
+				fmt.Println("crash id time(s)")
+				continue
+			}
+			id := paxi.ID(args[0])
+			time, err := strconv.Atoi(args[1])
+			if err != nil {
+				fmt.Println("second argument should be integer")
+				continue
+			}
+			client.Crash(id, time)
 
 		case "exit":
 			os.Exit(0)
