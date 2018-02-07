@@ -13,6 +13,7 @@ import (
 	"github.com/ailidani/paxi/log"
 	"github.com/ailidani/paxi/paxos"
 	"github.com/ailidani/paxi/paxos_group"
+	"github.com/ailidani/paxi/ppaxos"
 	"github.com/ailidani/paxi/wpaxos"
 )
 
@@ -37,6 +38,10 @@ func replica(id paxi.ID) {
 	log.Infof("server %v started\n", config.ID)
 
 	switch config.Algorithm {
+
+	case "ppaxos":
+		replica := ppaxos.NewReplica(config)
+		replica.Run()
 
 	case "paxos":
 		replica := paxos.NewReplica(config)
