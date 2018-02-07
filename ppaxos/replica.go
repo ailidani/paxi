@@ -42,8 +42,16 @@ func index(key paxi.Key) paxi.ID {
 }
 
 func (r *Replica) handleRequest(m paxi.Request) {
-	key := m.Command.Key
+	if m.Command.IsRead() {
+		v := r.Execute(m.Command)
+		m.Reply(paxi.Reply{
+			Command: m.Command,
+			Value:   v,
+		})
+		return
+	}
 
+	key := m.Command.Key
 	leader := index(key)
 	if leader == r.ID() {
 		v := r.Execute(m.Command)
