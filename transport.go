@@ -207,6 +207,7 @@ type tcp struct {
 func (t *tcp) Listen() {
 	listener, err := net.Listen("tcp", ":"+t.uri.Port())
 	if err != nil {
+		log.Errorln("TCP Listener error: ", err)
 		log.Fatalln("TCP Listener error: ", err)
 	}
 	defer listener.Close()

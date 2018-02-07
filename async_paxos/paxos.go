@@ -1,6 +1,7 @@
 package async_paxos
 
 import (
+	"math/rand"
 	"time"
 
 	"github.com/ailidani/paxi"
@@ -29,6 +30,7 @@ type Paxos struct {
 
 	quorum   *paxi.Quorum    // phase 1 quorum
 	requests []*paxi.Request // phase 1 pending requests
+	sleeping bool
 }
 
 // NewPaxos creates new paxos instance
@@ -110,14 +112,17 @@ func (p *Paxos) P2a(r *paxi.Request) {
 }
 
 func (p *Paxos) HandleP1a(m P1a) {
-	// log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.Ballot.ID(), m, p.ID())
-
 	// new leader
 	if m.Ballot > p.ballot {
 		p.ballot = m.Ballot
 		p.active = false
 		if len(p.requests) > 0 {
-			defer p.P1a()
+			p.sleeping = true
+			go func() {
+				time.Sleep(time.Millisecond * time.Duration(rand.Intn(100)+p.Config().BackOff))
+				p.P1a()
+				p.sleeping = false
+			}()
 		}
 	}
 
@@ -170,7 +175,14 @@ func (p *Paxos) HandleP1b(m P1b) {
 	if m.Ballot > p.ballot {
 		p.ballot = m.Ballot
 		p.active = false // not necessary
-		p.P1a()
+		if !p.sleeping {
+			p.sleeping = true
+			go func() {
+				time.Sleep(time.Millisecond * time.Duration(rand.Intn(100)+p.Config().BackOff))
+				p.P1a()
+				p.sleeping = false
+			}()
+		}
 	}
 
 	// ack message
