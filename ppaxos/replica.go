@@ -28,16 +28,12 @@ func NewReplica(config paxi.Config) *Replica {
 
 // TODO replace this with a consistent hash ring
 func index(key paxi.Key) paxi.ID {
-	if key < 200 {
+	if key < 333 {
 		return paxi.ID("1.1")
-	} else if key >= 200 && key < 400 {
+	} else if key >= 333 && key < 666 {
 		return paxi.ID("2.1")
-	} else if key >= 400 && key < 600 {
-		return paxi.ID("3.1")
-	} else if key >= 600 && key < 800 {
-		return paxi.ID("4.1")
 	} else {
-		return paxi.ID("5.1")
+		return paxi.ID("3.1")
 	}
 }
 
