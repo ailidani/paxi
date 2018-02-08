@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	"github.com/ailidani/paxi"
-	"github.com/ailidani/paxi/async_paxos"
 	"github.com/ailidani/paxi/atomic"
 	"github.com/ailidani/paxi/kpaxos"
 	"github.com/ailidani/paxi/log"
@@ -39,10 +38,6 @@ func replica(id paxi.ID) {
 
 	switch config.Algorithm {
 
-	case "ppaxos":
-		replica := ppaxos.NewReplica(config)
-		replica.Run()
-
 	case "paxos":
 		replica := paxos.NewReplica(config)
 		replica.Run()
@@ -67,8 +62,8 @@ func replica(id paxi.ID) {
 		replica := atomic.NewReplica(config)
 		replica.Run()
 
-	case "async_paxos":
-		replica := async_paxos.NewReplica(config)
+	case "ppaxos":
+		replica := ppaxos.NewReplica(config)
 		replica.Run()
 
 	default:

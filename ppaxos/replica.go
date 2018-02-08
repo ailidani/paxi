@@ -1,68 +1,70 @@
 package ppaxos
 
 import (
-	"encoding/gob"
-
 	"github.com/ailidani/paxi"
+	"github.com/ailidani/paxi/log"
 )
-
-type P2a struct {
-	paxi.Command
-}
-
-func init() {
-	gob.Register(P2a{})
-}
 
 type Replica struct {
 	paxi.Node
+	paxi map[paxi.Key]*PPaxos
 }
 
 func NewReplica(config paxi.Config) *Replica {
 	r := new(Replica)
 	r.Node = paxi.NewNode(config)
+	r.paxi = make(map[paxi.Key]*PPaxos)
+
 	r.Register(paxi.Request{}, r.handleRequest)
-	r.Register(P2a{}, r.handle)
+	r.Register(P1a{}, r.handleP1a)
+	r.Register(P1b{}, r.handleP1b)
+	r.Register(P2a{}, r.handleP2a)
+	r.Register(P2b{}, r.hanldeP2b)
 	return r
 }
 
-// TODO replace this with a consistent hash ring
-func index(key paxi.Key) paxi.ID {
-	if key < 333 {
-		return paxi.ID("1.1")
-	} else if key >= 333 && key < 666 {
-		return paxi.ID("2.1")
-	} else {
-		return paxi.ID("3.1")
+func (r *Replica) init(key paxi.Key) {
+	if _, exists := r.paxi[key]; !exists {
+		r.paxi[key] = NewPPaxos(r, key)
 	}
 }
 
 func (r *Replica) handleRequest(m paxi.Request) {
-	if m.Command.IsRead() {
-		v := r.Execute(m.Command)
-		m.Reply(paxi.Reply{
-			Command: m.Command,
-			Value:   v,
-		})
-		return
-	}
-
+	log.Debugf("Replica %s received %v\n", r.ID(), m)
 	key := m.Command.Key
-	leader := index(key)
-	if leader == r.ID() {
-		v := r.Execute(m.Command)
-		r.Broadcast(&P2a{
-			Command: m.Command,
-		})
-		m.Reply(paxi.Reply{
-			Command: m.Command,
-			Value:   v,
-		})
+	r.init(key)
+
+	p := r.paxi[key]
+
+	if p.Config().Adaptive {
+		if p.IsLeader() || p.Ballot() == 0 {
+			p.handleRequest(m)
+		} else {
+			go r.Forward(p.Leader(), m)
+		}
 	} else {
-		go r.Forward(leader, m)
+		p.handleRequest(m)
 	}
 }
 
-func (r *Replica) handle(m P2a) {
-	r.Execute(m.Command)
+func (r *Replica) handleP1a(m P1a) {
+	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.Ballot.ID(), m, r.ID())
+	r.init(m.Key)
+	r.paxi[m.Key].HandleP1a(m)
+}
+
+func (r *Replica) handleP1b(m P1b) {
+	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.Ballot.ID(), m, r.ID())
+	r.paxi[m.Key].HandleP1b(m)
+}
+
+func (r *Replica) handleP2a(m P2a) {
+	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.Ballot.ID(), m, r.ID())
+	r.init(m.Key)
+	r.paxi[m.Key].HandleP2a(m)
+}
+
+func (r *Replica) hanldeP2b(m P2b) {
+	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.Ballot.ID(), m, r.ID())
+	r.paxi[m.Key].HandleP2b(m)
 }
