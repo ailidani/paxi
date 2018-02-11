@@ -2,7 +2,6 @@ package ppaxos
 
 import (
 	"github.com/ailidani/paxi"
-	"github.com/ailidani/paxi/log"
 )
 
 type entry struct {
@@ -111,6 +110,7 @@ func (p *PPaxos) HandleP1a(m P1a) {
 		Ballot: p.ballot,
 		ID:     p.ID(),
 		Slot:   p.slot,
+		Value:  p.Get(p.key),
 	})
 }
 
@@ -119,12 +119,15 @@ func (p *PPaxos) HandleP1b(m P1b) {
 		return
 	}
 
-	p.slot = paxi.Max(p.slot, m.Slot)
+	if m.Slot > p.slot {
+		p.slot = m.Slot
+		p.Put(m.Key, m.Value)
+	}
 
 	if m.Ballot > p.ballot {
 		p.ballot = m.Ballot
 		p.active = false
-		//p.p1a()
+		p.p1a()
 	}
 
 	if m.Ballot.ID() == p.ID() && m.Ballot == p.ballot {
@@ -140,7 +143,6 @@ func (p *PPaxos) HandleP1b(m P1b) {
 }
 
 func (p *PPaxos) HandleP2a(m P2a) {
-	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.Ballot.ID(), m, p.ID())
 	if m.Ballot >= p.ballot {
 		p.ballot = m.Ballot
 		p.active = false
@@ -161,20 +163,23 @@ func (p *PPaxos) HandleP2a(m P2a) {
 	p.Send(m.Ballot.ID(), &P2b{
 		Key:    p.key,
 		Ballot: p.ballot,
-		Slot:   m.Slot,
 		ID:     p.ID(),
+		Slot:   m.Slot,
+		Value:  p.Get(p.key),
 	})
 
 }
 
 func (p *PPaxos) HandleP2b(m P2b) {
-	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.ID, m, p.ID())
 	// TODO check for slot ballot instead??
 	if m.Ballot < p.ballot {
 		return
 	}
 
-	p.slot = paxi.Max(p.slot, m.Slot)
+	if m.Slot > p.slot {
+		p.slot = m.Slot
+		p.Put(m.Key, m.Value)
+	}
 
 	if m.Ballot > p.ballot {
 		p.ballot = m.Ballot

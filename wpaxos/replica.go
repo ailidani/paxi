@@ -48,7 +48,7 @@ func (r *Replica) handleRequest(m paxi.Request) {
 		if p.IsLeader() || p.Ballot() == 0 {
 			p.HandleRequest(m)
 			to := r.stats[r.key].hit(m.Command.ClientID)
-			if p.Config().Adaptive && to != "" && to.Zone() != r.ID().Zone() {
+			if to != "" && to.Zone() != r.ID().Zone() {
 				p.Send(to, &LeaderChange{
 					Key:    r.key,
 					To:     to,
