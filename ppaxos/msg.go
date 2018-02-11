@@ -43,7 +43,7 @@ type P1b struct {
 }
 
 func (m P1b) String() string {
-	return fmt.Sprintf("P1b {key=%v b=%v}", m.Key, m.Ballot)
+	return fmt.Sprintf("P1b {key=%v b=%v s=%d v=%x}", m.Key, m.Ballot, m.Slot, m.Value)
 }
 
 // P2a accept message

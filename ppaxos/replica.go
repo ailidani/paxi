@@ -66,7 +66,7 @@ func (r *Replica) handleP1a(m P1a) {
 }
 
 func (r *Replica) handleP1b(m P1b) {
-	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.Ballot.ID(), m, r.ID())
+	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.ID, m, r.ID())
 	r.paxi[m.Key].HandleP1b(m)
 }
 
@@ -77,7 +77,7 @@ func (r *Replica) handleP2a(m P2a) {
 }
 
 func (r *Replica) hanldeP2b(m P2b) {
-	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.Ballot.ID(), m, r.ID())
+	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.ID, m, r.ID())
 	r.paxi[m.Key].HandleP2b(m)
 }
 

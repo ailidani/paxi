@@ -65,9 +65,9 @@ func (c *Client) rest(id ID, key Key, value Value) Value {
 	if res.StatusCode == http.StatusOK {
 		b, _ := ioutil.ReadAll(res.Body)
 		if value == nil {
-			log.Debugf("type=%s key=%v value=%x", method, key, Value(b))
+			log.Debugf("node=%v type=%s key=%v value=%x", id, method, key, Value(b))
 		} else {
-			log.Debugf("type=%s key=%v value=%x", method, key, value)
+			log.Debugf("node=%v type=%s key=%v value=%x", id, method, key, value)
 		}
 		return Value(b)
 	}
@@ -213,6 +213,7 @@ func (c *Client) Consensus(k Key) bool {
 			continue
 		}
 		h[id] = holder
+		log.Debugf("node=%v key=%v h=%v", id, k, holder)
 	}
 	n := 0
 	for _, v := range h {

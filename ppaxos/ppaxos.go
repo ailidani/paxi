@@ -68,11 +68,10 @@ func (p *PPaxos) p1a() {
 	p.ballot.Next(p.ID())
 	p.quorum.Reset()
 	p.quorum.ACK(p.ID())
-	m := P1a{
+	p.Broadcast(&P1a{
 		Key:    p.key,
 		Ballot: p.ballot,
-	}
-	p.Broadcast(&m)
+	})
 }
 
 func (p *PPaxos) p2a(r *paxi.Request) {
@@ -82,18 +81,16 @@ func (p *PPaxos) p2a(r *paxi.Request) {
 		command: r.Command,
 		request: r,
 	}
-	value := p.Execute(r.Command)
-	r.Reply(paxi.Reply{
-		Command: r.Command,
-		Value:   value,
-	})
-	m := &P2a{
-		Key:     p.key,
+	p.Broadcast(&P2a{
+		Key:     r.Command.Key,
 		Ballot:  p.ballot,
 		Slot:    p.slot,
 		Command: r.Command,
-	}
-	p.Broadcast(&m)
+	})
+	r.Reply(paxi.Reply{
+		Command: r.Command,
+		Value:   p.Execute(r.Command),
+	})
 }
 
 func (p *PPaxos) HandleP1a(m P1a) {
@@ -106,22 +103,22 @@ func (p *PPaxos) HandleP1a(m P1a) {
 	}
 
 	p.Send(m.Ballot.ID(), &P1b{
-		Key:    p.key,
+		Key:    m.Key,
 		Ballot: p.ballot,
 		ID:     p.ID(),
 		Slot:   p.slot,
-		Value:  p.Get(p.key),
+		Value:  p.Node.Get(m.Key),
 	})
 }
 
 func (p *PPaxos) HandleP1b(m P1b) {
-	if m.Ballot < p.ballot || p.active {
-		return
-	}
-
 	if m.Slot > p.slot {
 		p.slot = m.Slot
-		p.Put(m.Key, m.Value)
+		p.Node.Put(m.Key, m.Value)
+	}
+
+	if m.Ballot < p.ballot || p.active {
+		return
 	}
 
 	if m.Ballot > p.ballot {
@@ -130,7 +127,7 @@ func (p *PPaxos) HandleP1b(m P1b) {
 		p.p1a()
 	}
 
-	if m.Ballot.ID() == p.ID() && m.Ballot == p.ballot {
+	if m.Ballot == p.ballot && m.Ballot.ID() == p.ID() {
 		p.quorum.ACK(m.ID)
 		if p.quorum.Q1() {
 			p.active = true
@@ -146,7 +143,10 @@ func (p *PPaxos) HandleP2a(m P2a) {
 	if m.Ballot >= p.ballot {
 		p.ballot = m.Ballot
 		p.active = false
-		p.slot = paxi.Max(p.slot, m.Slot)
+		if m.Slot > p.slot {
+			p.slot = m.Slot
+			p.Execute(m.Command)
+		}
 		if e, exists := p.log[m.Slot]; exists {
 			if m.Ballot > e.ballot {
 				e.command = m.Command
@@ -167,18 +167,17 @@ func (p *PPaxos) HandleP2a(m P2a) {
 		Slot:   m.Slot,
 		Value:  p.Get(p.key),
 	})
-
 }
 
 func (p *PPaxos) HandleP2b(m P2b) {
+	if m.Slot > p.slot {
+		p.slot = m.Slot
+		p.Node.Put(m.Key, m.Value)
+	}
+
 	// TODO check for slot ballot instead??
 	if m.Ballot < p.ballot {
 		return
-	}
-
-	if m.Slot > p.slot {
-		p.slot = m.Slot
-		p.Put(m.Key, m.Value)
 	}
 
 	if m.Ballot > p.ballot {
