@@ -1,7 +1,6 @@
 package dynamo
 
 import (
-	"crypto/md5"
 	"encoding/binary"
 
 	"github.com/ailidani/paxi"
@@ -10,6 +9,7 @@ import (
 type Replica struct {
 	paxi.Node
 
+	nodes map[paxi.ID]uint64
 	index map[paxi.Key]paxi.ID
 }
 
@@ -26,5 +26,5 @@ func NewReplica(id paxi.ID) *Replica {
 func index(key paxi.Key) paxi.ID {
 	b := make([]byte, 8)
 	binary.LittleEndian.PutUint64(b, uint64(key))
-	md5.Sum(b)
+	return nil
 }
