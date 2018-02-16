@@ -6,3 +6,4 @@ tla/*
 !tla/wpaxos.tla
 cosmos
 epaxos
+dynamo
