@@ -8,6 +8,7 @@ import (
 	"github.com/ailidani/paxi/log"
 )
 
+var id = flag.String("id", "", "node id this client connects to")
 var api = flag.String("api", "", "Client API type [rest, json, quorum]")
 var master = flag.String("master", "", "Master address.")
 
@@ -57,19 +58,15 @@ func (d *db) Write(k, v int) {
 
 func main() {
 	flag.Parse()
+	log.Setup()
+	paxi.Config.Load()
 
-	id := paxi.GetID()
-
-	var config paxi.Config
-	if *master == "" {
-		config = paxi.NewConfig(id)
-	} else {
-		config = paxi.ConnectToMaster(*master, true, id)
-		log.Infof("Received config %s\n", config)
+	if *master != "" {
+		paxi.ConnectToMaster(*master, true)
 	}
 
 	d := new(db)
-	d.c = paxi.NewClient(config)
+	d.c = paxi.NewClient(paxi.ID(*id))
 
 	b := paxi.NewBenchmark(d)
 	b.Load()

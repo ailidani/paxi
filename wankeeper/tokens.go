@@ -1,21 +1,21 @@
 package wankeeper
 
-import . "github.com/ailidani/paxi"
+import "github.com/ailidani/paxi"
 
 type tokens struct {
-	tokens map[Key]bool
+	tokens map[paxi.Key]bool
 }
 
-func NewTokens() *tokens {
+func newTokens() *tokens {
 	return &tokens{
-		tokens: make(map[Key]bool),
+		tokens: make(map[paxi.Key]bool),
 	}
 }
 
-func (t *tokens) contains(key Key) bool {
+func (t *tokens) contains(key paxi.Key) bool {
 	return t.tokens[key]
 }
 
-func (t *tokens) add(key Key) {
+func (t *tokens) add(key paxi.Key) {
 	t.tokens[key] = true
 }

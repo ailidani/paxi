@@ -11,6 +11,7 @@ import (
 	"github.com/ailidani/paxi/log"
 )
 
+// DB is general interface implemented by client to call client library
 type DB interface {
 	Init()
 	Read(key int) int
@@ -41,13 +42,14 @@ type bconfig struct {
 	Speed int     // moving speed in milliseconds intervals per key
 
 	// zipfian distribution
-	Zipfian_s float64 // zipfian s parameter
-	Zipfian_v float64 // zipfian v parameter
+	ZipfianS float64 // zipfian s parameter
+	ZipfianV float64 // zipfian v parameter
 
 	Throttle int // requests per second throttle
 }
 
-func NewBenchmarkConfig() bconfig {
+// NewBenchmarkConfig returns a default benchmark config
+func newBenchmarkConfig() bconfig {
 	return bconfig{
 		T:                    10,
 		N:                    0,
@@ -62,8 +64,8 @@ func NewBenchmarkConfig() bconfig {
 		Sigma:                60,
 		Move:                 false,
 		Speed:                500,
-		Zipfian_s:            2,
-		Zipfian_v:            1,
+		ZipfianS:             2,
+		ZipfianV:             1,
 	}
 }
 
@@ -87,6 +89,7 @@ func (c *bconfig) Save() error {
 	return encoder.Encode(c)
 }
 
+// Benchmark is benchmarking tool that generates workload and collects operation history and latency
 type Benchmark struct {
 	db DB // read/write operation interface
 	bconfig
@@ -98,10 +101,11 @@ type Benchmark struct {
 	zipf      *rand.Zipf
 }
 
+// NewBenchmark returns new Benchmark object given implementation of DB interface
 func NewBenchmark(db DB) *Benchmark {
 	b := new(Benchmark)
 	b.db = db
-	b.bconfig = NewBenchmarkConfig()
+	b.bconfig = newBenchmarkConfig()
 	b.History = NewHistory()
 	return b
 }
@@ -110,7 +114,7 @@ func NewBenchmark(db DB) *Benchmark {
 func (b *Benchmark) Run() {
 	rand.Seed(time.Now().UTC().UnixNano())
 	r := rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
-	b.zipf = rand.NewZipf(r, b.Zipfian_s, b.Zipfian_v, uint64(b.K))
+	b.zipf = rand.NewZipf(r, b.ZipfianS, b.ZipfianV, uint64(b.K))
 
 	var stop chan bool
 	if b.Move {
@@ -154,17 +158,17 @@ func (b *Benchmark) Run() {
 
 	log.Infof("Benchmark took %v\n", t)
 	log.Infof("Throughput %f\n", float64(len(b.latency))/t.Seconds())
-	log.Infoln(stat)
+	log.Info(stat)
 
-	stat.WriteFile("latency" + "." + string(GetID()))
-	b.History.WriteFile("history" + "." + string(GetID()))
+	stat.WriteFile("latency")
+	b.History.WriteFile("history")
 
 	if b.LinearizabilityCheck {
 		n := b.History.Linearizable()
 		if n == 0 {
-			log.Infoln("The execution is linearizable.")
+			log.Info("The execution is linearizable.")
 		} else {
-			log.Infoln("The execution is NOT linearizable.")
+			log.Info("The execution is NOT linearizable.")
 			log.Infof("Total anomaly read operations are %d", n)
 			log.Infof("Anomaly percentage is %f", float64(n)/float64(stat.Size))
 		}

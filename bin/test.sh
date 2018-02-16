@@ -6,7 +6,6 @@ PID=$(cat "${PID_FILE}");
 
 if [ -z "${PID}" ]; then
     echo "Process id for servers is written to location: {$PID_FILE}"
-    go build ../master/
     go build ../server/
     go build ../client/
     go build ../cmd/

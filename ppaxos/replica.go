@@ -5,15 +5,17 @@ import (
 	"github.com/ailidani/paxi/log"
 )
 
+// Replica is PPaxos replica with PPaxos instance for each key
 type Replica struct {
 	paxi.Node
 	paxi  map[paxi.Key]*PPaxos
 	stats map[paxi.Key]*stat
 }
 
-func NewReplica(config paxi.Config) *Replica {
+// NewReplica generates a new PPaxos replica
+func NewReplica(id paxi.ID) *Replica {
 	r := new(Replica)
-	r.Node = paxi.NewNode(config)
+	r.Node = paxi.NewNode(id)
 	r.paxi = make(map[paxi.Key]*PPaxos)
 	r.stats = make(map[paxi.Key]*stat)
 
@@ -29,7 +31,7 @@ func NewReplica(config paxi.Config) *Replica {
 func (r *Replica) init(key paxi.Key) {
 	if _, exists := r.paxi[key]; !exists {
 		r.paxi[key] = NewPPaxos(r, key)
-		r.stats[key] = newStat(r.Config().Interval)
+		r.stats[key] = newStat(paxi.Config.Interval)
 	}
 }
 
@@ -39,12 +41,12 @@ func (r *Replica) handleRequest(m paxi.Request) {
 	r.init(key)
 
 	p := r.paxi[key]
-	if p.Config().Adaptive {
+	if paxi.Config.Adaptive {
 		if p.IsLeader() || p.Ballot() == 0 {
 			p.handleRequest(m)
 			to := r.stats[key].hit(m.Command.ClientID)
 			if to != "" && to.Zone() != r.ID().Zone() {
-				p.Send(to, &LeaderChange{
+				p.Send(to, LeaderChange{
 					Key:    key,
 					To:     to,
 					From:   r.ID(),

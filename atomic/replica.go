@@ -7,6 +7,7 @@ import (
 
 type state int
 
+// states of each instance
 const (
 	GetPhase state = iota
 	SetPhase
@@ -32,9 +33,10 @@ type Replica struct {
 	version map[paxi.Key]int
 }
 
-func NewReplica(config paxi.Config) *Replica {
+// NewReplica generates ABD replica
+func NewReplica(id paxi.ID) *Replica {
 	r := new(Replica)
-	r.Node = paxi.NewNode(config)
+	r.Node = paxi.NewNode(id)
 	r.log = make(map[int]*entry)
 	r.version = make(map[paxi.Key]int)
 	r.Register(paxi.Request{}, r.handleRequest)
@@ -61,7 +63,7 @@ func (r *Replica) handleRequest(m paxi.Request) {
 		version:   version,
 	}
 	r.log[r.cid].getQuorum.ACK(r.ID())
-	r.Broadcast(&Get{
+	r.Broadcast(Get{
 		ID:  r.ID(),
 		CID: r.cid,
 		Key: k,
@@ -70,7 +72,7 @@ func (r *Replica) handleRequest(m paxi.Request) {
 
 func (r *Replica) handleGet(m Get) {
 	v := r.Node.Get(m.Key)
-	r.Send(m.ID, &GetReply{
+	r.Send(m.ID, GetReply{
 		ID:      r.ID(),
 		CID:     m.CID,
 		Key:     m.Key,
@@ -85,7 +87,7 @@ func (r *Replica) handleSet(m Set) {
 		r.Node.Put(m.Key, m.Value)
 		r.version[m.Key] = m.Version
 	}
-	r.Send(m.ID, &SetReply{
+	r.Send(m.ID, SetReply{
 		ID:  r.ID(),
 		CID: m.CID,
 		Key: m.Key,
@@ -109,7 +111,7 @@ func (r *Replica) handleGetReply(m GetReply) {
 		e.state = SetPhase // into set phase
 		e.setQuorum.ACK(r.ID())
 		if e.r.Command.IsRead() {
-			r.Broadcast(&Set{
+			r.Broadcast(Set{
 				ID:      r.ID(),
 				CID:     m.CID,
 				Key:     m.Key,
@@ -122,7 +124,7 @@ func (r *Replica) handleGetReply(m GetReply) {
 			// write new value to local database first
 			r.Node.Put(e.r.Command.Key, e.r.Command.Value)
 			r.version[m.Key] = e.version
-			r.Broadcast(&Set{
+			r.Broadcast(Set{
 				ID:      r.ID(),
 				CID:     m.CID,
 				Key:     e.r.Command.Key,

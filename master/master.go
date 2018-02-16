@@ -11,6 +11,9 @@ import (
 	"github.com/ailidani/paxi"
 )
 
+var port = flag.Int("port", 1735, "master port number")
+var httpPort = flag.Int("http", 8080, "http port")
+
 var n = flag.Int("n", 1, "N number of replicas, default value 1.")
 var algorithm = flag.String("algorithm", "paxos", "Consensus algorithm name")
 var f = flag.Int("f", 0, "tolerate f zone failures")
@@ -20,9 +23,6 @@ var backOff = flag.Int("backoff", 100, "Random backoff time")
 var thrifty = flag.Bool("thrifty", false, "")
 var transport = flag.String("transport", "tcp", "Transport protocols, including tcp, udp, chan (local)")
 var replywhencommit = flag.Bool("replywhencommit", false, "reply to client when request is committed, not executed")
-
-var chanbufsize = flag.Int("chanbufsize", paxi.CHAN_BUFFER_SIZE, "")
-var bufsize = flag.Int("bufsize", paxi.BUFFER_SIZE, "")
 
 func main() {
 	flag.Parse()
@@ -39,8 +39,6 @@ func main() {
 	config.Interval = *interval
 	config.BackOff = *backOff
 	config.Thrifty = *thrifty
-	config.ChanBufferSize = *chanbufsize
-	config.BufferSize = *bufsize
 
 	go func() {
 		addrs := make(map[paxi.ID]string, *n)
@@ -48,8 +46,8 @@ func main() {
 		for i := 0; i < *n; i++ {
 			msg := <-in
 			id := msg.ID
-			addrs[id] = msg.Addr + ":" + strconv.Itoa(paxi.PORT+i+1)
-			http[id] = "http://" + msg.Addr + ":" + strconv.Itoa(paxi.HTTP_PORT+i+1)
+			addrs[id] = msg.Addr + ":" + strconv.Itoa(*port+i+1)
+			http[id] = "http://" + msg.Addr + ":" + strconv.Itoa(*httpPort+i+1)
 			log.Printf("Node %v address %s\n", id, addrs[id])
 		}
 		config.Addrs = addrs
@@ -59,7 +57,7 @@ func main() {
 		}
 	}()
 
-	listener, err := net.Listen("tcp", ":"+strconv.Itoa(paxi.PORT))
+	listener, err := net.Listen("tcp", ":"+strconv.Itoa(*port))
 	if err != nil {
 		log.Fatalln(err)
 	}

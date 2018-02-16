@@ -35,7 +35,7 @@ func (j *jsonCodec) Scheme() string {
 func (j *jsonCodec) Encode(msg interface{}) []byte {
 	b, err := json.Marshal(msg)
 	if err != nil {
-		log.Errorln(err)
+		log.Error(err)
 		return nil
 	}
 	return b
@@ -45,7 +45,7 @@ func (j *jsonCodec) Decode(data []byte) interface{} {
 	var msg interface{}
 	err := json.Unmarshal(data, &msg)
 	if err != nil {
-		log.Errorln(err)
+		log.Error(err)
 		return nil
 	}
 	return msg
@@ -62,7 +62,7 @@ func (g *gobCodec) Encode(msg interface{}) []byte {
 	encoder := gob.NewEncoder(buffer)
 	err := encoder.Encode(&msg)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatal(err)
 	}
 	return buffer.Bytes()
 }
@@ -73,7 +73,7 @@ func (g *gobCodec) Decode(data []byte) interface{} {
 	decoder := gob.NewDecoder(buffer)
 	err := decoder.Decode(&msg)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatal(err)
 	}
 	return msg
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/ailidani/paxi/paxos"
 )
 
+// Replica is WPaxos replica node
 type Replica struct {
 	paxi.Node
 	paxi  map[paxi.Key]*paxos.Paxos
@@ -14,9 +15,10 @@ type Replica struct {
 	key paxi.Key // current working key
 }
 
-func NewReplica(config paxi.Config) *Replica {
+// NewReplica create new Replica instance
+func NewReplica(id paxi.ID) *Replica {
 	r := new(Replica)
-	r.Node = paxi.NewNode(config)
+	r.Node = paxi.NewNode(id)
 	r.paxi = make(map[paxi.Key]*paxos.Paxos)
 	r.stats = make(map[paxi.Key]*stat)
 
@@ -34,7 +36,7 @@ func NewReplica(config paxi.Config) *Replica {
 func (r *Replica) init(key paxi.Key) {
 	if _, exists := r.paxi[key]; !exists {
 		r.paxi[key] = paxos.NewPaxos(r)
-		r.stats[key] = newStat(r.Config().Interval)
+		r.stats[key] = newStat(paxi.Config.Interval)
 	}
 }
 
@@ -44,12 +46,12 @@ func (r *Replica) handleRequest(m paxi.Request) {
 	r.init(r.key)
 
 	p := r.paxi[r.key]
-	if p.Config().Adaptive {
+	if paxi.Config.Adaptive {
 		if p.IsLeader() || p.Ballot() == 0 {
 			p.HandleRequest(m)
 			to := r.stats[r.key].hit(m.Command.ClientID)
 			if to != "" && to.Zone() != r.ID().Zone() {
-				p.Send(to, &LeaderChange{
+				p.Send(to, LeaderChange{
 					Key:    r.key,
 					To:     to,
 					From:   r.ID(),
@@ -114,12 +116,12 @@ func (r *Replica) handleLeaderChange(m LeaderChange) {
 // Broadcast overrides Socket interface in Node
 func (r *Replica) Broadcast(msg interface{}) {
 	switch m := msg.(type) {
-	case *paxos.P1a:
-		r.Node.Broadcast(&Prepare{r.key, *m})
-	case *paxos.P2a:
-		r.Node.Broadcast(&Accept{r.key, *m})
-	case *paxos.P3:
-		r.Node.Broadcast(&Commit{r.key, *m})
+	case paxos.P1a:
+		r.Node.Broadcast(Prepare{r.key, m})
+	case paxos.P2a:
+		r.Node.Broadcast(Accept{r.key, m})
+	case paxos.P3:
+		r.Node.Broadcast(Commit{r.key, m})
 	default:
 		r.Node.Broadcast(msg)
 	}
@@ -128,10 +130,10 @@ func (r *Replica) Broadcast(msg interface{}) {
 // Send overrides Socket interface in Node
 func (r *Replica) Send(to paxi.ID, msg interface{}) {
 	switch m := msg.(type) {
-	case *paxos.P1b:
-		r.Node.Send(to, &Promise{r.key, *m})
-	case *paxos.P2b:
-		r.Node.Send(to, &Accepted{r.key, *m})
+	case paxos.P1b:
+		r.Node.Send(to, Promise{r.key, m})
+	case paxos.P2b:
+		r.Node.Send(to, Accepted{r.key, m})
 	default:
 		r.Node.Send(to, msg)
 	}

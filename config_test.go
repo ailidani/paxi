@@ -1,19 +1,25 @@
 package paxi
 
 import (
+	"flag"
 	"os"
 	"testing"
 )
 
 func TestConfig(t *testing.T) {
-	c1 := MakeDefaultConfig()
+	flag.Parse()
+	if len(Config.Addrs()) < 1 {
+		t.Fatal("expect config to be non-empty")
+	}
+
+	c1 := newConfig("1.1")
 	err := c1.Save()
 	if err != nil {
 		t.Error(err)
 	}
-	defer os.Remove(*config)
+	defer os.Remove(*configFile)
 
-	var c2 Config
+	c2 := newConfig("1.1")
 	err = c2.Load()
 	if err != nil {
 		t.Error(err)

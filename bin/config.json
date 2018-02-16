@@ -30,7 +30,7 @@
     "thrifty": false,
     "chan_buffer_size": 1024,
     "buffer_size": 1024,
-    "transport": "udp",
+    "transport": "tcp",
     "codec": "gob",
     "reply_when_commit": false
 }

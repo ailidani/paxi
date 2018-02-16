@@ -33,7 +33,7 @@ type Paxos struct {
 
 // NewPaxos creates new paxos instance
 func NewPaxos(n paxi.Node) *Paxos {
-	log := make(map[int]*entry, n.Config().BufferSize)
+	log := make(map[int]*entry, paxi.Config.BufferSize)
 	log[0] = &entry{}
 	return &Paxos{
 		Node:     n,
@@ -83,7 +83,7 @@ func (p *Paxos) P1a() {
 	p.quorum.ACK(p.ID())
 	m := P1a{Ballot: p.ballot}
 	log.Debugf("Replica %s broadcast [%v]\n", p.ID(), m)
-	p.Broadcast(&m)
+	p.Broadcast(m)
 }
 
 // P2a starts phase 2 accept
@@ -103,9 +103,10 @@ func (p *Paxos) P2a(r *paxi.Request) {
 		Command: r.Command,
 	}
 	log.Debugf("Replica %s broadcast [%v]\n", p.ID(), m)
-	p.Broadcast(&m)
+	p.Broadcast(m)
 }
 
+// HandleP1a handles P1a message
 func (p *Paxos) HandleP1a(m P1a) {
 	// log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.Ballot.ID(), m, p.ID())
 
@@ -126,7 +127,7 @@ func (p *Paxos) HandleP1a(m P1a) {
 		l[s] = CommandBallot{p.log[s].command, p.log[s].ballot}
 	}
 
-	p.Send(m.Ballot.ID(), &P1b{
+	p.Send(m.Ballot.ID(), P1b{
 		Ballot: p.ballot,
 		ID:     p.ID(),
 		Log:    l,
@@ -151,7 +152,7 @@ func (p *Paxos) update(scb map[int]CommandBallot) {
 	}
 }
 
-// HandleP1b handles p1b message
+// HandleP1b handles P1b message
 func (p *Paxos) HandleP1b(m P1b) {
 	// old message
 	if m.Ballot < p.ballot || p.active {
@@ -190,7 +191,7 @@ func (p *Paxos) HandleP1b(m P1b) {
 					Command: p.log[i].command,
 				}
 				log.Debugf("Replica %s broadcast [%v]\n", p.ID(), m)
-				p.Broadcast(&m)
+				p.Broadcast(m)
 			}
 			// propose new commands
 			for _, req := range p.requests {
@@ -201,6 +202,7 @@ func (p *Paxos) HandleP1b(m P1b) {
 	}
 }
 
+// HandleP2a handles P2a message
 func (p *Paxos) HandleP2a(m P2a) {
 	// log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.Ballot.ID(), m, p.ID())
 
@@ -229,13 +231,14 @@ func (p *Paxos) HandleP2a(m P2a) {
 		}
 	}
 
-	p.Send(m.Ballot.ID(), &P2b{
+	p.Send(m.Ballot.ID(), P2b{
 		Ballot: p.ballot,
 		Slot:   m.Slot,
 		ID:     p.ID(),
 	})
 }
 
+// HandleP2b handles P2b message
 func (p *Paxos) HandleP2b(m P2b) {
 	// old message
 	if m.Ballot < p.log[m.Slot].ballot || p.log[m.Slot].commit {
@@ -263,9 +266,9 @@ func (p *Paxos) HandleP2b(m P2b) {
 				Command: p.log[m.Slot].command,
 			}
 			log.Debugf("Replica %s broadcast [%v]\n", p.ID(), m)
-			p.Broadcast(&m)
+			p.Broadcast(m)
 
-			if p.Config().ReplyWhenCommit {
+			if paxi.Config.ReplyWhenCommit {
 				r := p.log[m.Slot].request
 				r.Reply(paxi.Reply{
 					Command:   r.Command,

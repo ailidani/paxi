@@ -6,6 +6,7 @@ import (
 	"github.com/ailidani/paxi/paxos"
 )
 
+// Replica KPaxos replica with Paxos instance for each key
 type Replica struct {
 	paxi.Node
 	paxi map[paxi.Key]*paxos.Paxos
@@ -13,9 +14,10 @@ type Replica struct {
 	key paxi.Key // current working key
 }
 
-func NewReplica(config paxi.Config) *Replica {
+// NewReplica generates new KPaxos replica
+func NewReplica(id paxi.ID) *Replica {
 	r := new(Replica)
-	r.Node = paxi.NewNode(config)
+	r.Node = paxi.NewNode(id)
 	r.paxi = make(map[paxi.Key]*paxos.Paxos)
 
 	r.Register(paxi.Request{}, r.handleRequest)
@@ -102,12 +104,12 @@ func (r *Replica) keys() int {
 // Broadcast overrides Socket interface in Node
 func (r *Replica) Broadcast(msg interface{}) {
 	switch m := msg.(type) {
-	case *paxos.P1a:
-		r.Node.Broadcast(&Prepare{r.key, *m})
-	case *paxos.P2a:
-		r.Node.Broadcast(&Accept{r.key, *m})
-	case *paxos.P3:
-		r.Node.Broadcast(&Commit{r.key, *m})
+	case paxos.P1a:
+		r.Node.Broadcast(Prepare{r.key, m})
+	case paxos.P2a:
+		r.Node.Broadcast(Accept{r.key, m})
+	case paxos.P3:
+		r.Node.Broadcast(Commit{r.key, m})
 	default:
 		r.Node.Broadcast(msg)
 	}
@@ -116,10 +118,10 @@ func (r *Replica) Broadcast(msg interface{}) {
 // Send overrides Socket interface in Node
 func (r *Replica) Send(to paxi.ID, msg interface{}) {
 	switch m := msg.(type) {
-	case *paxos.P1b:
-		r.Node.Send(to, &Promise{r.key, *m})
-	case *paxos.P2b:
-		r.Node.Send(to, &Accepted{r.key, *m})
+	case paxos.P1b:
+		r.Node.Send(to, Promise{r.key, m})
+	case paxos.P2b:
+		r.Node.Send(to, Accepted{r.key, m})
 	default:
 		r.Node.Send(to, msg)
 	}

@@ -1,8 +1,17 @@
 language: go
+
 sudo: false
+
 go:
   - 1.x
-install: go get github.com/ailidani/paxi
-script: cd bin/; ./build.sh
+
+install:
+- go get ./...
+
+script:
+- go install ./server/
+- go install ./client/
+- go install ./cmd/
+
 notifications:
   email: false

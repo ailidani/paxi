@@ -27,13 +27,13 @@ type Client struct {
 }
 
 // NewClient creates a new Client from config
-func NewClient(config Config) *Client {
+func NewClient(id ID) *Client {
 	return &Client{
-		ID:        config.ID,
-		N:         len(config.Addrs),
-		addrs:     config.Addrs,
-		http:      config.HTTPAddrs,
-		algorithm: config.Algorithm,
+		ID:        id,
+		N:         len(Config.Addrs),
+		addrs:     Config.Addrs,
+		http:      Config.HTTPAddrs,
+		algorithm: Config.Algorithm,
 	}
 }
 
@@ -50,12 +50,13 @@ func (c *Client) rest(id ID, key Key, value Value) Value {
 	}
 	r, err := http.NewRequest(method, url, body)
 	if err != nil {
+		// TODO should return error for the operation
 		log.Error(err)
 		return nil
 	}
-	r.Header.Set(HttpClientID, string(c.ID))
-	r.Header.Set(HttpCommandID, strconv.Itoa(c.cid))
-	r.Header.Set(HttpTimestamp, strconv.FormatInt(time.Now().UnixNano(), 10))
+	r.Header.Set(HTTPClientID, string(c.ID))
+	r.Header.Set(HTTPCommandID, strconv.Itoa(c.cid))
+	r.Header.Set(HTTPTimestamp, strconv.FormatInt(time.Now().UnixNano(), 10))
 	res, err := http.DefaultClient.Do(r)
 	if err != nil {
 		log.Error(err)
@@ -121,7 +122,7 @@ func (c *Client) json(id ID, key Key, value Value) Value {
 	data, err := json.Marshal(cmd)
 	res, err := http.Post(url, "json", bytes.NewBuffer(data))
 	if err != nil {
-		log.Errorln(err)
+		log.Error(err)
 		return nil
 	}
 	defer res.Body.Close()

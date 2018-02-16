@@ -3,7 +3,6 @@ package paxi
 import (
 	"encoding/gob"
 	"net"
-	"strconv"
 	"time"
 
 	"github.com/ailidani/paxi/log"
@@ -46,23 +45,21 @@ func Schedule(what func(), delay time.Duration) chan bool {
 	return stop
 }
 
-func ConnectToMaster(addr string, client bool, id ID) Config {
-	conn, err := net.Dial("tcp", addr+":"+strconv.Itoa(PORT))
+// ConnectToMaster connects to master node and set global Config
+func ConnectToMaster(addr string, client bool) {
+	conn, err := net.Dial("tcp", addr)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatal(err)
 	}
 	dec := gob.NewDecoder(conn)
 	enc := gob.NewEncoder(conn)
 	msg := &Register{
 		Client: client,
-		ID:     id,
 		Addr:   "",
 	}
 	enc.Encode(msg)
-	var config Config
-	err = dec.Decode(&config)
+	err = dec.Decode(&Config)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatal(err)
 	}
-	return config
 }

@@ -12,11 +12,11 @@ type Replica struct {
 	level int
 }
 
-func NewReplica(config paxi.Config) *Replica {
+func NewReplica(id paxi.ID) *Replica {
 	r := new(Replica)
-	r.Node = paxi.NewNode(config)
+	r.Node = paxi.NewNode(id)
 	r.Paxos = paxos.NewPaxos(r)
-	if config.ID.Zone() == 1 {
+	if id.Zone() == 1 {
 		r.level = 2
 	}
 	r.Register(paxi.Request{}, r.handleRequest)

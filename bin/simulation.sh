@@ -9,10 +9,10 @@ if [ -z "${PID}" ]; then
     go build ../server/
     go build ../client/
     go build ../cmd/
-    ./server -log_dir=logs -log_level=debug -simulation &
+    ./server -log_dir=logs -log_level=debug &
     echo $! >> ${PID_FILE}
     sleep 3
-    ./client > c1 &
+    ./client -log_level=debug > c1 &
     echo $! >> ${PID_FILE}
     # ./client -id 2.1 > c2 &
     # echo $! >> ${PID_FILE}

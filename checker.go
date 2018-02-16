@@ -94,8 +94,8 @@ func (a operation) equal(b operation) bool {
 	return a.input == b.input && a.output == b.output && a.start == b.start && a.end == b.end
 }
 
-func (o operation) String() string {
-	return fmt.Sprintf("{input=%v, output=%v, start=%d, end=%d}", o.input, o.output, o.start, o.end)
+func (a operation) String() string {
+	return fmt.Sprintf("{input=%v, output=%v, start=%d, end=%d}", a.input, a.output, a.start, a.end)
 }
 
 type checker struct {

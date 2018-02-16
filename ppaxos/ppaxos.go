@@ -10,6 +10,7 @@ type entry struct {
 	request *paxi.Request
 }
 
+// PPaxos instance
 type PPaxos struct {
 	paxi.Node
 
@@ -23,11 +24,12 @@ type PPaxos struct {
 	requests []*paxi.Request // phase 1 pending requests
 }
 
+// NewPPaxos generates new PPaxos instance
 func NewPPaxos(node paxi.Node, key paxi.Key) *PPaxos {
 	p := &PPaxos{
 		Node:     node,
 		key:      key,
-		log:      make(map[int]*entry, node.Config().BufferSize),
+		log:      make(map[int]*entry, paxi.Config.BufferSize),
 		quorum:   paxi.NewQuorum(),
 		requests: make([]*paxi.Request, 0),
 	}
@@ -68,7 +70,7 @@ func (p *PPaxos) p1a() {
 	p.ballot.Next(p.ID())
 	p.quorum.Reset()
 	p.quorum.ACK(p.ID())
-	p.Broadcast(&P1a{
+	p.Broadcast(P1a{
 		Key:    p.key,
 		Ballot: p.ballot,
 	})
@@ -81,7 +83,7 @@ func (p *PPaxos) p2a(r *paxi.Request) {
 		command: r.Command,
 		request: r,
 	}
-	p.Broadcast(&P2a{
+	p.Broadcast(P2a{
 		Key:     r.Command.Key,
 		Ballot:  p.ballot,
 		Slot:    p.slot,
@@ -93,6 +95,7 @@ func (p *PPaxos) p2a(r *paxi.Request) {
 	})
 }
 
+// HandleP1a handles P1a message
 func (p *PPaxos) HandleP1a(m P1a) {
 	if m.Ballot > p.ballot {
 		p.ballot = m.Ballot
@@ -102,7 +105,7 @@ func (p *PPaxos) HandleP1a(m P1a) {
 		}
 	}
 
-	p.Send(m.Ballot.ID(), &P1b{
+	p.Send(m.Ballot.ID(), P1b{
 		Key:    m.Key,
 		Ballot: p.ballot,
 		ID:     p.ID(),
@@ -111,6 +114,7 @@ func (p *PPaxos) HandleP1a(m P1a) {
 	})
 }
 
+// HandleP1b handles P1b message
 func (p *PPaxos) HandleP1b(m P1b) {
 	if m.Slot > p.slot {
 		p.slot = m.Slot
@@ -139,6 +143,7 @@ func (p *PPaxos) HandleP1b(m P1b) {
 	}
 }
 
+// HandleP2a handles P2a message
 func (p *PPaxos) HandleP2a(m P2a) {
 	if m.Ballot >= p.ballot {
 		p.ballot = m.Ballot
@@ -160,7 +165,7 @@ func (p *PPaxos) HandleP2a(m P2a) {
 		}
 	}
 
-	p.Send(m.Ballot.ID(), &P2b{
+	p.Send(m.Ballot.ID(), P2b{
 		Key:    p.key,
 		Ballot: p.ballot,
 		ID:     p.ID(),
@@ -169,6 +174,7 @@ func (p *PPaxos) HandleP2a(m P2a) {
 	})
 }
 
+// HandleP2b handles P2b message
 func (p *PPaxos) HandleP2b(m P2b) {
 	if m.Slot > p.slot {
 		p.slot = m.Slot

@@ -10,26 +10,6 @@ const BF_K = 4
 
 var bf_PT uint32
 
-type id int
-
-type Replica struct {
-	paxi.Node
-	N                int // total number of replicas
-	Peers            map[id]string
-	InstanceSpace    map[id][]*Instance
-	crtInstance      map[id]int
-	CommittedUpTo    map[id]int
-	ExecutedUpTo     map[id]int
-	conflicts        map[id]map[paxi.Key]int
-	maxSeqPerKey     map[paxi.Key]int
-	maxSeq           int
-	latestCPReplica  id
-	latestCPInstance int
-
-	Shutdown           bool
-	instancesToRecover chan *instanceId
-}
-
 type Instance struct {
 	cmds    []paxi.Command
 	ballot  int
@@ -40,11 +20,6 @@ type Instance struct {
 	index   int
 	lowlink int
 	bfilter *Bloomfilter
-}
-
-type instanceId struct {
-	replica  id
-	instance int
 }
 
 type RecoveryInstance struct {
@@ -89,43 +64,6 @@ func NewLeaderBookkeeping(proposals []paxi.Request, deps map[id]int) *LeaderBook
 		lb.committedDeps[id] = -1
 	}
 	return lb
-}
-
-func NewReplica(config paxi.Config) *Replica {
-	N := len(config.Addrs)
-	peers := make(map[id]string)
-	for i, addr := range config.Addrs {
-		peers[id(i.Node())] = addr
-	}
-	r := &Replica{
-		N:                  N,
-		Node:               paxi.NewNode(config),
-		Peers:              peers,
-		InstanceSpace:      make(map[id][]*Instance, N),
-		crtInstance:        make(map[id]int, N),
-		CommittedUpTo:      make(map[id]int, N),
-		ExecutedUpTo:       make(map[id]int, N),
-		conflicts:          make(map[id]map[paxi.Key]int, N),
-		maxSeqPerKey:       make(map[paxi.Key]int),
-		maxSeq:             0,
-		latestCPReplica:    0,
-		latestCPInstance:   -1,
-		instancesToRecover: make(chan *instanceId, config.ChanBufferSize),
-	}
-
-	for id := range r.Peers {
-		r.InstanceSpace[id] = make([]*Instance, config.BufferSize)
-		r.crtInstance[id] = 0
-		r.ExecutedUpTo[id] = -1
-		r.conflicts[id] = make(map[paxi.Key]int, HT_INIT_SIZE)
-	}
-
-	return r
-}
-
-// ID overrides paxi.Node.ID() interface
-func (r *Replica) ID() id {
-	return id(r.Node.ID().Node())
 }
 
 /***********************************
@@ -231,26 +169,6 @@ func (r *Replica) updateCommitted(id id) {
 		r.CommittedUpTo[id] = nextSeq
 		nextSeq = nextSeq + 1
 		nextIns = r.InstanceSpace[id][nextSeq]
-	}
-}
-
-func (r *Replica) updateConflicts(cmds []paxi.Command, id id, instance int, seq int) {
-	for _, cmd := range cmds {
-		key := cmd.Key
-		if d, present := r.conflicts[id][key]; present {
-			if d < instance {
-				r.conflicts[id][key] = instance
-			}
-		} else {
-			r.conflicts[id][key] = instance
-		}
-		if s, present := r.maxSeqPerKey[key]; present {
-			if s < seq {
-				r.maxSeqPerKey[key] = seq
-			}
-		} else {
-			r.maxSeqPerKey[key] = seq
-		}
 	}
 }
 

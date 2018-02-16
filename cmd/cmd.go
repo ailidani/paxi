@@ -9,26 +9,26 @@ import (
 	"strings"
 
 	"github.com/ailidani/paxi"
+	"github.com/ailidani/paxi/log"
 )
 
+var id = flag.String("id", "", "node id this client connects to")
 var master = flag.String("master", "", "Master address.")
 
 func usage() string {
-	return fmt.Sprintf("\n\t get key \n\t put key value \n\t consensus key \n\t exit")
+	return fmt.Sprint("\t get key \n\t put key value \n\t consensus key \n\t crash id \n\t exit")
 }
 
 func main() {
 	flag.Parse()
+	log.Setup()
+	paxi.Config.Load()
 
-	id := paxi.GetID()
-	var config paxi.Config
-	if *master == "" {
-		config = paxi.NewConfig(id)
-	} else {
-		config = paxi.ConnectToMaster(*master, true, id)
+	if *master != "" {
+		paxi.ConnectToMaster(*master, true)
 	}
 
-	client := paxi.NewClient(config)
+	client := paxi.NewClient(paxi.ID(*id))
 	client.Start()
 
 	reader := bufio.NewReader(os.Stdin)
@@ -86,6 +86,8 @@ func main() {
 		case "exit":
 			os.Exit(0)
 
+		case "help":
+			fallthrough
 		default:
 			fmt.Println(usage())
 		}

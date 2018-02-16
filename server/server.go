@@ -2,8 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
-	"strconv"
 	"sync"
 
 	"github.com/ailidani/paxi"
@@ -16,100 +14,61 @@ import (
 	"github.com/ailidani/paxi/wpaxos"
 )
 
+var id = flag.String("id", "", "ID in format of Zone.Node.")
+
 var master = flag.String("master", "", "Master address.")
 
-var simulation = flag.Bool("simulation", false, "Mocking network by chan and goroutine.")
-var n = flag.Int("n", 3, "number of servers in each zone")
-var m = flag.Int("m", 3, "number of zones")
-
 func replica(id paxi.ID) {
-	var config paxi.Config
-	if *master == "" {
-		config = paxi.NewConfig(id)
-	} else {
-		config = paxi.ConnectToMaster(*master, false, id)
+	if *master != "" {
+		paxi.ConnectToMaster(*master, false)
 	}
 
-	if *simulation {
-		config.Transport = "chan"
-	}
+	log.Infof("node %v starting...", id)
 
-	log.Infof("server %v started\n", config.ID)
-
-	switch config.Algorithm {
+	switch paxi.Config.Algorithm {
 
 	case "paxos":
-		replica := paxos.NewReplica(config)
-		replica.Run()
+		paxos.NewReplica(id).Run()
 
 	case "wpaxos":
-		replica := wpaxos.NewReplica(config)
-		replica.Run()
+		wpaxos.NewReplica(id).Run()
 
 	// case "epaxos":
-	// 	replica := epaxos.NewReplica(config)
+	// 	replica := epaxos.NewReplica(id)
 	// 	replica.Run()
 
 	case "kpaxos":
-		replica := kpaxos.NewReplica(config)
-		replica.Run()
+		kpaxos.NewReplica(id).Run()
 
 	case "paxos_groups":
-		replica := paxos_group.NewReplica(config)
-		replica.Run()
+		paxos_group.NewReplica(id).Run()
 
 	case "atomic":
-		replica := atomic.NewReplica(config)
-		replica.Run()
+		atomic.NewReplica(id).Run()
 
 	case "ppaxos":
-		replica := ppaxos.NewReplica(config)
-		replica.Run()
+		ppaxos.NewReplica(id).Run()
 
 	default:
-		log.Fatalln("Unknown algorithm.")
-	}
-}
-
-// not used
-func mockConfig() paxi.Config {
-	addrs := make(map[paxi.ID]string, *m**n)
-	http := make(map[paxi.ID]string, *m**n)
-	p := 0
-	for i := 1; i <= *m; i++ {
-		for j := 1; j <= *n; j++ {
-			id := paxi.ID(fmt.Sprintf("%d.%d", i, j))
-			addrs[id] = "127.0.0.1:" + strconv.Itoa(paxi.PORT+p)
-			http[id] = "http://127.0.0.1:" + strconv.Itoa(paxi.HTTP_PORT+p)
-			p++
-		}
-	}
-
-	c := paxi.MakeDefaultConfig()
-	c.Addrs = addrs
-	c.HTTPAddrs = http
-	return c
-}
-
-func mockNodes() {
-	for i := 1; i <= *m; i++ {
-		for j := 1; j <= *n; j++ {
-			id := paxi.ID(fmt.Sprintf("%d.%d", i, j))
-			go replica(id)
-		}
+		panic("Unknown algorithm.")
 	}
 }
 
 func main() {
 	flag.Parse()
+	log.Setup()
+	paxi.Config.Load()
 
-	if *simulation {
+	if paxi.Config.Transport == "chan" {
 		var wg sync.WaitGroup
 		wg.Add(1)
-		mockNodes()
+		for id := range paxi.Config.Addrs {
+			go func(n paxi.ID) {
+				replica(n)
+			}(id)
+		}
 		wg.Wait()
+	} else {
+		replica(paxi.ID(*id))
 	}
-
-	id := paxi.GetID()
-	replica(id)
 }

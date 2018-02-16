@@ -33,7 +33,6 @@ type Socket interface {
 type socket struct {
 	id    ID
 	nodes map[ID]Transport
-	codec Codec
 
 	crash bool
 	drop  map[ID]bool
@@ -42,11 +41,10 @@ type socket struct {
 }
 
 // NewSocket return Socket interface instance given self ID, node list, transport and codec name
-func NewSocket(id ID, addrs map[ID]string, transport, codec string) Socket {
+func NewSocket(id ID, addrs map[ID]string, transport string) Socket {
 	socket := new(socket)
 	socket.id = id
 	socket.nodes = make(map[ID]Transport)
-	socket.codec = NewCodec(codec)
 
 	socket.nodes[id] = NewTransport(transport + "://" + addrs[id])
 	go socket.nodes[id].Listen()
@@ -65,7 +63,7 @@ func NewSocket(id ID, addrs map[ID]string, transport, codec string) Socket {
 	return socket
 }
 
-func (s *socket) Send(to ID, msg interface{}) {
+func (s *socket) Send(to ID, m interface{}) {
 	// TODO also check for slow and flaky
 	if s.drop[to] {
 		return
@@ -74,10 +72,6 @@ func (s *socket) Send(to ID, msg interface{}) {
 	if !ok {
 		log.Fatalf("transport of ID %v does not exists", to)
 	}
-	b := s.codec.Encode(msg)
-	m := NewMessage(len(b))
-	// copy(m.Header, []byte(s.id))
-	m.Body = b
 	t.Send(m)
 }
 
@@ -85,8 +79,7 @@ func (s *socket) Recv() interface{} {
 	for {
 		m := s.nodes[s.id].Recv()
 		if !s.crash {
-			msg := s.codec.Decode(m.Body)
-			return msg
+			return m
 		}
 	}
 }

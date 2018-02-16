@@ -2,14 +2,16 @@ package paxos
 
 import "github.com/ailidani/paxi"
 
+// Replica for one Paxos instance
 type Replica struct {
 	paxi.Node
 	*Paxos
 }
 
-func NewReplica(config paxi.Config) *Replica {
+// NewReplica generates new Paxos replica
+func NewReplica(id paxi.ID) *Replica {
 	r := new(Replica)
-	r.Node = paxi.NewNode(config)
+	r.Node = paxi.NewNode(id)
 	r.Paxos = NewPaxos(r)
 	r.Register(paxi.Request{}, r.handleRequest)
 	r.Register(P1a{}, r.HandleP1a)
@@ -21,7 +23,7 @@ func NewReplica(config paxi.Config) *Replica {
 }
 
 func (r *Replica) handleRequest(m paxi.Request) {
-	if r.Config().Adaptive {
+	if paxi.Config.Adaptive {
 		if r.Paxos.IsLeader() || r.Paxos.Ballot() == 0 {
 			r.Paxos.HandleRequest(m)
 		} else {

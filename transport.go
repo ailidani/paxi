@@ -15,8 +15,8 @@ import (
 // Transport = transport + pipe + client + server
 type Transport interface {
 	Scheme() string
-	Send(*Message)
-	Recv() *Message
+	Send(interface{})
+	Recv() interface{}
 	Dial() error
 	Listen()
 	Close()
@@ -29,11 +29,13 @@ func NewTransport(addr string) Transport {
 		log.Fatalf("error parsing address %s : %s\n", addr, err)
 	}
 
-	transport := new(transport)
-	transport.uri = uri
-	transport.send = make(chan *Message)
-	transport.recv = make(chan *Message)
-	transport.close = make(chan struct{})
+	transport := &transport{
+		uri:   uri,
+		codec: NewCodec(Config.Codec),
+		send:  make(chan interface{}, Config.ChanBufferSize),
+		recv:  make(chan interface{}, Config.ChanBufferSize),
+		close: make(chan struct{}),
+	}
 
 	switch uri.Scheme {
 	case "chan":
@@ -56,9 +58,32 @@ func NewTransport(addr string) Transport {
 
 type transport struct {
 	uri   *url.URL
-	send  chan *Message
-	recv  chan *Message
+	codec Codec
+	send  chan interface{}
+	recv  chan interface{}
 	close chan struct{}
+}
+
+func (t *transport) Send(m interface{}) {
+	select {
+	case <-t.close:
+		return
+	default:
+		t.send <- m
+	}
+}
+
+func (t *transport) Recv() interface{} {
+	select {
+	case <-t.close:
+		return nil
+	case m := <-t.recv:
+		return m
+	}
+}
+
+func (t *transport) Close() {
+	close(t.close)
 }
 
 func (t *transport) Scheme() string {
@@ -73,7 +98,7 @@ func (t *transport) Dial() error {
 
 	go func(conn net.Conn) {
 		defer conn.Close()
-		//w := bufio.NewWriter(conn)
+		// w := bufio.NewWriter(conn)
 		var buf bytes.Buffer
 		var err error
 		for {
@@ -82,71 +107,33 @@ func (t *transport) Dial() error {
 			case <-t.close:
 				return
 			case m := <-t.send:
-				if m.Expired() {
-					m.Free()
-					continue
-				}
-				size := uint64(len(m.Header) + len(m.Body))
+				b := t.codec.Encode(m)
+				size := uint64(len(b))
 				err = binary.Write(&buf, binary.BigEndian, size)
 				if err != nil {
-					log.Errorln(err)
-					m.Free()
-					return
+					log.Error(err)
+					continue
 				}
-				if len(m.Header) > 0 {
-					_, err = buf.Write(m.Header)
-					if err != nil {
-						log.Errorln(err)
-						m.Free()
-						return
-					}
-				}
-				_, err = buf.Write(m.Body)
+				_, err = buf.Write(b)
 				if err != nil {
-					log.Errorln(err)
-					m.Free()
-					return
+					log.Error(err)
+					continue
 				}
 				_, err = conn.Write(buf.Bytes())
 				if err != nil {
-					log.Errorln(err)
-					m.Free()
-					return
+					log.Error(err)
 				}
-				m.Free()
 			}
 		}
 	}(conn)
 	return nil
 }
 
-func (t *transport) Send(m *Message) {
-	select {
-	case <-t.close:
-		return
-	default:
-		t.send <- m
-	}
-}
-
-func (t *transport) Recv() *Message {
-	select {
-	case <-t.close:
-		return nil
-	case m := <-t.recv:
-		return m
-	}
-}
-
-func (t *transport) Close() {
-	close(t.close)
-}
-
 /*******************************
 /* Intra-process communication *
 /*******************************/
 
-var chans = make(map[string]chan *Message)
+var chans = make(map[string]chan interface{})
 var chansLock sync.RWMutex
 
 type channel struct {
@@ -164,16 +151,12 @@ func (c *channel) Dial() error {
 	if !ok {
 		return errors.New("server not ready")
 	}
-	go func(conn chan<- *Message) {
+	go func(conn chan<- interface{}) {
 		for {
 			select {
 			case <-c.close:
 				return
 			case m := <-c.send:
-				if m.Expired() {
-					m.Free()
-					continue
-				}
 				conn <- m
 			}
 		}
@@ -184,8 +167,8 @@ func (c *channel) Dial() error {
 func (c *channel) Listen() {
 	chansLock.Lock()
 	defer chansLock.Unlock()
-	chans[c.uri.Host] = make(chan *Message, CHAN_BUFFER_SIZE)
-	go func(conn <-chan *Message) {
+	chans[c.uri.Host] = make(chan interface{}, Config.ChanBufferSize)
+	go func(conn <-chan interface{}) {
 		for {
 			select {
 			case <-c.close:
@@ -207,14 +190,14 @@ type tcp struct {
 func (t *tcp) Listen() {
 	listener, err := net.Listen("tcp", ":"+t.uri.Port())
 	if err != nil {
-		log.Errorln("TCP Listener error: ", err)
-		log.Fatalln("TCP Listener error: ", err)
+		log.Error("TCP Listener error: ", err)
+		log.Fatal("TCP Listener error: ", err)
 	}
 	defer listener.Close()
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
-			log.Errorln("TCP Accept error: ", err)
+			log.Error("TCP Accept error: ", err)
 			continue
 		}
 
@@ -229,22 +212,20 @@ func (t *tcp) Listen() {
 					var size uint64
 					err := binary.Read(conn, binary.BigEndian, &size)
 					if err != nil {
-						log.Errorln(err)
+						log.Error(err)
 						return
 					}
 					if size < 0 || size > 65536 {
-						log.Errorln("TCP reading size error: ", size)
+						log.Error("TCP reading size error: ", size)
 						return
 					}
-					m := NewMessage(int(size))
-					m.Body = m.Body[0:size]
-					_, err = io.ReadFull(conn, m.Body)
+					b := make([]byte, size)
+					_, err = io.ReadFull(conn, b)
 					if err != nil {
-						log.Errorln(err)
-						m.Free()
-						return
+						log.Error(err)
+						continue
 					}
-					t.recv <- m
+					t.recv <- t.codec.Decode(b)
 				}
 			}
 		}(conn)
@@ -264,32 +245,30 @@ func (u *udp) Listen() {
 		log.Fatal("UDP Listener error: ", err)
 	}
 	defer conn.Close()
-	b := make([]byte, 1024)
+	packet := make([]byte, 1500)
 	for {
-		_, _, err := conn.ReadFrom(b)
+		_, _, err := conn.ReadFrom(packet)
 		if err != nil {
-			log.Errorln("UDP connection read error: ", err)
+			log.Error("UDP connection read error: ", err)
 			continue
 		}
-		buf := bytes.NewBuffer(b)
+		buf := bytes.NewBuffer(packet)
 		var size uint64
 		err = binary.Read(buf, binary.BigEndian, &size)
 		if err != nil {
-			log.Errorln(err)
+			log.Error(err)
 			continue
 		}
 		if size < 0 || size > 1500 {
-			log.Errorln("Size error: ", size)
+			log.Error("Size error: ", size)
 			continue
 		}
-		m := NewMessage(int(size))
-		m.Body = m.Body[0:int(size)]
-		_, err = io.ReadFull(buf, m.Body)
+		b := make([]byte, size)
+		_, err = io.ReadFull(buf, b)
 		if err != nil {
-			log.Errorln(err)
-			m.Free()
+			log.Error(err)
 			continue
 		}
-		u.recv <- m
+		u.recv <- u.codec.Decode(b)
 	}
 }

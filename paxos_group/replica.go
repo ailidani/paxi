@@ -17,9 +17,9 @@ type Replica struct {
 	gid int // current working group id
 }
 
-func NewReplica(config paxi.Config) *Replica {
+func NewReplica(id paxi.ID) *Replica {
 	r := new(Replica)
-	r.Node = paxi.NewNode(config)
+	r.Node = paxi.NewNode(id)
 	r.paxi = make(map[int]*paxos.Paxos)
 
 	r.Register(paxi.Request{}, r.handleReqeust)
@@ -80,12 +80,12 @@ func (r *Replica) handleCommit(m Commit) {
 // Broadcast overrides Socket interface in Node
 func (r *Replica) Broadcast(msg interface{}) {
 	switch m := msg.(type) {
-	case *paxos.P1a:
-		r.Node.Multicast(r.ID().Zone(), &Prepare{r.gid, *m})
-	case *paxos.P2a:
-		r.Node.Multicast(r.ID().Zone(), &Accept{r.gid, *m})
-	case *paxos.P3:
-		r.Node.Multicast(r.ID().Zone(), &Commit{r.gid, *m})
+	case paxos.P1a:
+		r.Node.Multicast(r.ID().Zone(), Prepare{r.gid, m})
+	case paxos.P2a:
+		r.Node.Multicast(r.ID().Zone(), Accept{r.gid, m})
+	case paxos.P3:
+		r.Node.Multicast(r.ID().Zone(), Commit{r.gid, m})
 	default:
 		r.Node.Broadcast(msg)
 	}
@@ -94,10 +94,10 @@ func (r *Replica) Broadcast(msg interface{}) {
 // Send overrides Socket interface in Node
 func (r *Replica) Send(to paxi.ID, msg interface{}) {
 	switch m := msg.(type) {
-	case *paxos.P1b:
-		r.Node.Send(to, &Promise{r.gid, *m})
-	case *paxos.P2b:
-		r.Node.Send(to, &Accepted{r.gid, *m})
+	case paxos.P1b:
+		r.Node.Send(to, Promise{r.gid, m})
+	case paxos.P2b:
+		r.Node.Send(to, Accepted{r.gid, m})
 	default:
 		r.Node.Send(to, msg)
 	}

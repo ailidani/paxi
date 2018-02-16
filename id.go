@@ -1,7 +1,6 @@
 package paxi
 
 import (
-	"flag"
 	"fmt"
 	"strconv"
 	"strings"
@@ -9,19 +8,10 @@ import (
 	"github.com/ailidani/paxi/log"
 )
 
-var id = flag.String("id", "", "ID in format of Zone.Node.")
-
 // ID represents a generic identifier in format of Zone.Node
 type ID string
 
-// GetID gets the current id specified in flag variables
-func GetID() ID {
-	if !flag.Parsed() {
-		log.Warningln("Using ID before parse flag")
-	}
-	return ID(*id)
-}
-
+// NewID returns a new ID type given two int number of zone and node
 func NewID(zone, node int) ID {
 	if zone < 0 {
 		zone = -zone

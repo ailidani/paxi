@@ -12,12 +12,12 @@ import (
 	"github.com/ailidani/paxi/log"
 )
 
+// http request header names
 const (
-	// http request header names
-	HttpClientID  = "id"
-	HttpCommandID = "cid"
-	HttpTimestamp = "timestamp"
-	HttpNodeID    = "id"
+	HTTPClientID  = "id"
+	HTTPCommandID = "cid"
+	HTTPTimestamp = "timestamp"
+	HTTPNodeID    = "id"
 )
 
 // serve serves the http REST API request from clients
@@ -28,7 +28,7 @@ func (n *node) http() {
 	mux.HandleFunc("/crash", n.handleCrash)
 	mux.HandleFunc("/drop", n.handleDrop)
 	// http string should be in form of ":8080"
-	url, err := url.Parse(n.config.HTTPAddrs[n.id])
+	url, err := url.Parse(Config.HTTPAddrs[n.id])
 	if err != nil {
 		log.Fatal("http url parse error: ", err)
 	}
@@ -37,14 +37,15 @@ func (n *node) http() {
 		Addr:    port,
 		Handler: mux,
 	}
-	log.Error(n.server.ListenAndServe())
+	log.Info("http server starting on ", port)
+	log.Fatal(n.server.ListenAndServe())
 }
 
 func (n *node) handleRoot(w http.ResponseWriter, r *http.Request) {
 	var cmd Command
-	cmd.ClientID = ID(r.Header.Get(HttpClientID))
-	cmd.CommandID, _ = strconv.Atoi(r.Header.Get(HttpCommandID))
-	timestamp, _ := strconv.ParseInt(r.Header.Get(HttpTimestamp), 10, 64)
+	cmd.ClientID = ID(r.Header.Get(HTTPClientID))
+	cmd.CommandID, _ = strconv.Atoi(r.Header.Get(HTTPCommandID))
+	timestamp, _ := strconv.ParseInt(r.Header.Get(HTTPTimestamp), 10, 64)
 	if len(r.URL.Path) > 1 {
 		i, err := strconv.Atoi(r.URL.Path[1:])
 		if err != nil {
@@ -56,7 +57,7 @@ func (n *node) handleRoot(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPut || r.Method == http.MethodPost {
 			body, err := ioutil.ReadAll(r.Body)
 			if err != nil {
-				log.Errorln("error reading body: ", err)
+				log.Error("error reading body: ", err)
 				http.Error(w, "cannot read body", http.StatusBadRequest)
 				return
 			}
@@ -65,7 +66,7 @@ func (n *node) handleRoot(w http.ResponseWriter, r *http.Request) {
 	} else {
 		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			log.Errorln("error reading body: ", err)
+			log.Error("error reading body: ", err)
 			http.Error(w, "cannot read body", http.StatusBadRequest)
 			return
 		}
@@ -86,17 +87,17 @@ func (n *node) handleRoot(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, reply.Err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set(HttpClientID, string(reply.Command.ClientID))
-	w.Header().Set(HttpCommandID, strconv.Itoa(reply.Command.CommandID))
-	w.Header().Set(HttpTimestamp, strconv.FormatInt(reply.Timestamp, 10))
+	w.Header().Set(HTTPClientID, string(reply.Command.ClientID))
+	w.Header().Set(HTTPCommandID, strconv.Itoa(reply.Command.CommandID))
+	w.Header().Set(HTTPTimestamp, strconv.FormatInt(reply.Timestamp, 10))
 	_, err := io.WriteString(w, string(reply.Value))
 	if err != nil {
-		log.Errorln(err)
+		log.Error(err)
 	}
 }
 
 func (n *node) handleHistory(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set(HttpNodeID, string(n.id))
+	w.Header().Set(HTTPNodeID, string(n.id))
 	k, err := strconv.Atoi(r.URL.Query().Get("key"))
 	if err != nil {
 		log.Error(err)
