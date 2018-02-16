@@ -24,6 +24,7 @@ func (m P1a) String() string {
 	return fmt.Sprintf("P1a {b=%v}", m.Ballot)
 }
 
+// CommandBallot conbines each command with its ballot number
 type CommandBallot struct {
 	Command paxi.Command
 	Ballot  paxi.Ballot

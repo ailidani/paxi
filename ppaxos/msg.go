@@ -15,6 +15,7 @@ func init() {
 	gob.Register(LeaderChange{})
 }
 
+// P1a message for given key
 type P1a struct {
 	Key    paxi.Key
 	Ballot paxi.Ballot
@@ -24,6 +25,7 @@ func (m P1a) String() string {
 	return fmt.Sprintf("P1a {key=%v b=%v}", m.Key, m.Ballot)
 }
 
+// CommandBallot not used
 type CommandBallot struct {
 	Command paxi.Command
 	Ballot  paxi.Ballot

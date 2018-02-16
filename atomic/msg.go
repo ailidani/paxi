@@ -13,12 +13,14 @@ func init() {
 	gob.Register(SetReply{})
 }
 
+// Get message
 type Get struct {
 	ID  paxi.ID
 	CID int
 	Key paxi.Key
 }
 
+// GetReply message returns value and version
 type GetReply struct {
 	ID      paxi.ID
 	CID     int
@@ -27,6 +29,7 @@ type GetReply struct {
 	Version int
 }
 
+// Set message
 type Set struct {
 	ID      paxi.ID
 	CID     int
