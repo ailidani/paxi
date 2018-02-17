@@ -4,6 +4,8 @@ import (
 	"encoding/gob"
 	"errors"
 	"testing"
+
+	"github.com/ailidani/paxi/log"
 )
 
 var id1 = ID("1.1")
@@ -21,22 +23,24 @@ type MSG struct {
 
 func run(transport string) error {
 	gob.Register(MSG{})
-	send := &MSG{42, "hello"}
+	send := MSG{42, "hello"}
 	go func() {
-		sock1 := NewSocket(id1, Address, transport, "gob")
+		sock1 := NewSocket(id1, Address, transport)
 		defer sock1.Close()
 		sock1.Multicast(id1.Zone(), send)
 	}()
-	sock2 := NewSocket(id2, Address, transport, "gob")
+	sock2 := NewSocket(id2, Address, transport)
 	defer sock2.Close()
 	recv := sock2.Recv()
-	if recv.(MSG) != *send {
+	if recv.(MSG) != send {
 		return errors.New("")
 	}
 	return nil
 }
 
 func TestSocket(t *testing.T) {
+	log.Setup()
+
 	var err error
 	err = run("chan")
 	if err != nil {

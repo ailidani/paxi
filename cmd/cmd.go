@@ -22,10 +22,10 @@ func usage() string {
 func main() {
 	flag.Parse()
 	log.Setup()
-	paxi.Config.Load()
+	paxi.GetConfig().Load()
 
 	if *master != "" {
-		paxi.ConnectToMaster(*master, true)
+		paxi.ConnectToMaster(*master, true, paxi.ID(*id))
 	}
 
 	client := paxi.NewClient(paxi.ID(*id))

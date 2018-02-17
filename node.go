@@ -39,9 +39,9 @@ type node struct {
 func NewNode(id ID) Node {
 	return &node{
 		id:          id,
-		Socket:      NewSocket(id, Config.Addrs, Config.Transport),
+		Socket:      NewSocket(id, config.Addrs, config.Transport),
 		Database:    NewDatabase(),
-		MessageChan: make(chan interface{}, Config.ChanBufferSize),
+		MessageChan: make(chan interface{}, config.ChanBufferSize),
 		handles:     make(map[string]reflect.Value),
 	}
 }
@@ -97,7 +97,7 @@ func (n *node) handle() {
 
 func (n *node) Forward(id ID, m Request) {
 	key := m.Command.Key
-	url := Config.HTTPAddrs[id] + "/" + strconv.Itoa(int(key))
+	url := config.HTTPAddrs[id] + "/" + strconv.Itoa(int(key))
 
 	log.Debugf("Node %v forwarding request %v to %s", n.ID(), m, url)
 

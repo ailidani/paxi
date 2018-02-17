@@ -13,7 +13,7 @@ func init() {
 	gob.Register(Transaction{})
 	gob.Register(TransactionReply{})
 	gob.Register(Register{})
-	gob.Register(config{})
+	gob.Register(Config{})
 }
 
 /***************************
@@ -102,5 +102,6 @@ type TransactionReply struct {
 // Register message type is used to regitster self (node or client) with master node
 type Register struct {
 	Client bool
+	ID     ID
 	Addr   string
 }

@@ -15,17 +15,20 @@ import (
 )
 
 var id = flag.String("id", "", "ID in format of Zone.Node.")
+var simulation = flag.Bool("sim", false, "simulation mode")
 
 var master = flag.String("master", "", "Master address.")
 
 func replica(id paxi.ID) {
 	if *master != "" {
-		paxi.ConnectToMaster(*master, false)
+		paxi.ConnectToMaster(*master, false, id)
 	}
+
+	paxi.GetConfig().Transport = "chan"
 
 	log.Infof("node %v starting...", id)
 
-	switch paxi.Config.Algorithm {
+	switch paxi.GetConfig().Algorithm {
 
 	case "paxos":
 		paxos.NewReplica(id).Run()
@@ -57,12 +60,12 @@ func replica(id paxi.ID) {
 func main() {
 	flag.Parse()
 	log.Setup()
-	paxi.Config.Load()
+	paxi.GetConfig().Load()
 
-	if paxi.Config.Transport == "chan" {
+	if *simulation {
 		var wg sync.WaitGroup
 		wg.Add(1)
-		for id := range paxi.Config.Addrs {
+		for id := range paxi.GetConfig().Addrs {
 			go func(n paxi.ID) {
 				replica(n)
 			}(id)

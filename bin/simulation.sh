@@ -9,7 +9,7 @@ if [ -z "${PID}" ]; then
     go build ../server/
     go build ../client/
     go build ../cmd/
-    ./server -log_dir=logs -log_level=debug &
+    ./server -sim=true -log_dir=logs -log_level=debug &
     echo $! >> ${PID_FILE}
     sleep 3
     ./client -log_level=debug > c1 &

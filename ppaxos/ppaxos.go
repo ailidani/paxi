@@ -29,7 +29,7 @@ func NewPPaxos(node paxi.Node, key paxi.Key) *PPaxos {
 	p := &PPaxos{
 		Node:     node,
 		key:      key,
-		log:      make(map[int]*entry, paxi.Config.BufferSize),
+		log:      make(map[int]*entry, paxi.GetConfig().BufferSize),
 		quorum:   paxi.NewQuorum(),
 		requests: make([]*paxi.Request, 0),
 	}

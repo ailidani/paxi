@@ -31,9 +31,9 @@ func NewTransport(addr string) Transport {
 
 	transport := &transport{
 		uri:   uri,
-		codec: NewCodec(Config.Codec),
-		send:  make(chan interface{}, Config.ChanBufferSize),
-		recv:  make(chan interface{}, Config.ChanBufferSize),
+		codec: NewCodec(config.Codec),
+		send:  make(chan interface{}, config.ChanBufferSize),
+		recv:  make(chan interface{}, config.ChanBufferSize),
 		close: make(chan struct{}),
 	}
 
@@ -167,7 +167,7 @@ func (c *channel) Dial() error {
 func (c *channel) Listen() {
 	chansLock.Lock()
 	defer chansLock.Unlock()
-	chans[c.uri.Host] = make(chan interface{}, Config.ChanBufferSize)
+	chans[c.uri.Host] = make(chan interface{}, config.ChanBufferSize)
 	go func(conn <-chan interface{}) {
 		for {
 			select {

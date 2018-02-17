@@ -8,22 +8,22 @@ import (
 
 func TestConfig(t *testing.T) {
 	flag.Parse()
-	if len(Config.Addrs()) < 1 {
+	*configFile = "bin/config.json"
+	config.Load()
+
+	if len(config.Addrs) < 1 {
 		t.Fatal("expect config to be non-empty")
 	}
 
-	c1 := newConfig("1.1")
+	c1 := MakeDefaultConfig()
 	err := c1.Save()
 	if err != nil {
 		t.Error(err)
 	}
 	defer os.Remove(*configFile)
 
-	c2 := newConfig("1.1")
-	err = c2.Load()
-	if err != nil {
-		t.Error(err)
-	}
+	var c2 Config
+	c2.Load()
 
 	if c1.String() != c2.String() {
 		t.Fail()

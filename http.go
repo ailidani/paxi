@@ -28,7 +28,7 @@ func (n *node) http() {
 	mux.HandleFunc("/crash", n.handleCrash)
 	mux.HandleFunc("/drop", n.handleDrop)
 	// http string should be in form of ":8080"
-	url, err := url.Parse(Config.HTTPAddrs[n.id])
+	url, err := url.Parse(config.HTTPAddrs[n.id])
 	if err != nil {
 		log.Fatal("http url parse error: ", err)
 	}

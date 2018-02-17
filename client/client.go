@@ -59,10 +59,10 @@ func (d *db) Write(k, v int) {
 func main() {
 	flag.Parse()
 	log.Setup()
-	paxi.Config.Load()
+	paxi.GetConfig().Load()
 
 	if *master != "" {
-		paxi.ConnectToMaster(*master, true)
+		paxi.ConnectToMaster(*master, true, paxi.ID(*id))
 	}
 
 	d := new(db)

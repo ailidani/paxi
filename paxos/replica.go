@@ -23,7 +23,7 @@ func NewReplica(id paxi.ID) *Replica {
 }
 
 func (r *Replica) handleRequest(m paxi.Request) {
-	if paxi.Config.Adaptive {
+	if paxi.GetConfig().Adaptive {
 		if r.Paxos.IsLeader() || r.Paxos.Ballot() == 0 {
 			r.Paxos.HandleRequest(m)
 		} else {

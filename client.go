@@ -30,10 +30,10 @@ type Client struct {
 func NewClient(id ID) *Client {
 	return &Client{
 		ID:        id,
-		N:         len(Config.Addrs),
-		addrs:     Config.Addrs,
-		http:      Config.HTTPAddrs,
-		algorithm: Config.Algorithm,
+		N:         len(config.Addrs),
+		addrs:     config.Addrs,
+		http:      config.HTTPAddrs,
+		algorithm: config.Algorithm,
 	}
 }
 

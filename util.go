@@ -46,7 +46,7 @@ func Schedule(what func(), delay time.Duration) chan bool {
 }
 
 // ConnectToMaster connects to master node and set global Config
-func ConnectToMaster(addr string, client bool) {
+func ConnectToMaster(addr string, client bool, id ID) {
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
 		log.Fatal(err)
@@ -54,11 +54,12 @@ func ConnectToMaster(addr string, client bool) {
 	dec := gob.NewDecoder(conn)
 	enc := gob.NewEncoder(conn)
 	msg := &Register{
+		ID:     id,
 		Client: client,
 		Addr:   "",
 	}
 	enc.Encode(msg)
-	err = dec.Decode(&Config)
+	err = dec.Decode(&config)
 	if err != nil {
 		log.Fatal(err)
 	}

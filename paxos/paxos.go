@@ -33,7 +33,7 @@ type Paxos struct {
 
 // NewPaxos creates new paxos instance
 func NewPaxos(n paxi.Node) *Paxos {
-	log := make(map[int]*entry, paxi.Config.BufferSize)
+	log := make(map[int]*entry, paxi.GetConfig().BufferSize)
 	log[0] = &entry{}
 	return &Paxos{
 		Node:     n,
@@ -268,7 +268,7 @@ func (p *Paxos) HandleP2b(m P2b) {
 			log.Debugf("Replica %s broadcast [%v]\n", p.ID(), m)
 			p.Broadcast(m)
 
-			if paxi.Config.ReplyWhenCommit {
+			if paxi.GetConfig().ReplyWhenCommit {
 				r := p.log[m.Slot].request
 				r.Reply(paxi.Reply{
 					Command:   r.Command,

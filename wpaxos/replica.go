@@ -36,7 +36,7 @@ func NewReplica(id paxi.ID) *Replica {
 func (r *Replica) init(key paxi.Key) {
 	if _, exists := r.paxi[key]; !exists {
 		r.paxi[key] = paxos.NewPaxos(r)
-		r.stats[key] = newStat(paxi.Config.Interval)
+		r.stats[key] = newStat(paxi.GetConfig().Interval)
 	}
 }
 
@@ -46,7 +46,7 @@ func (r *Replica) handleRequest(m paxi.Request) {
 	r.init(r.key)
 
 	p := r.paxi[r.key]
-	if paxi.Config.Adaptive {
+	if paxi.GetConfig().Adaptive {
 		if p.IsLeader() || p.Ballot() == 0 {
 			p.HandleRequest(m)
 			to := r.stats[r.key].hit(m.Command.ClientID)

@@ -90,7 +90,6 @@ func main() {
 			} else {
 				c = config
 			}
-			c.ID = msg.ID
 			err = encoder.Encode(c)
 			if err != nil {
 				log.Panicln(err)
