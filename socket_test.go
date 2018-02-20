@@ -2,10 +2,7 @@ package paxi
 
 import (
 	"encoding/gob"
-	"errors"
 	"testing"
-
-	"github.com/ailidani/paxi/log"
 )
 
 var id1 = ID("1.1")
@@ -21,39 +18,27 @@ type MSG struct {
 	S string
 }
 
-func run(transport string) error {
+func run(transport string, t *testing.T) {
 	gob.Register(MSG{})
-	send := MSG{42, "hello"}
+	var send interface{}
+	var recv interface{}
+
+	send = MSG{42, "hello"}
 	go func() {
 		sock1 := NewSocket(id1, Address, transport)
 		defer sock1.Close()
-		sock1.Multicast(id1.Zone(), send)
+		sock1.Broadcast(send)
 	}()
 	sock2 := NewSocket(id2, Address, transport)
 	defer sock2.Close()
-	recv := sock2.Recv()
-	if recv.(MSG) != send {
-		return errors.New("")
+	recv = sock2.Recv()
+	if send.(MSG) != recv.(MSG) {
+		t.Error("expect recv equal to send message")
 	}
-	return nil
 }
 
 func TestSocket(t *testing.T) {
-	log.Setup()
-
-	var err error
-	err = run("chan")
-	if err != nil {
-		t.Error()
-	}
-
-	err = run("udp")
-	if err != nil {
-		t.Error()
-	}
-
-	err = run("tcp")
-	if err != nil {
-		t.Error()
-	}
+	run("chan", t)
+	run("tcp", t)
+	run("udp", t)
 }

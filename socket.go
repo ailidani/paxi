@@ -9,14 +9,14 @@ import (
 // Socket integrates all networking interface and fault injections
 type Socket interface {
 
-	// Send put msg to outbound queue
-	Send(to ID, msg interface{})
+	// Send put message to outbound queue
+	Send(to ID, m interface{})
 
 	// Multicast send msg to all nodes in the same site
-	Multicast(zone int, msg interface{})
+	Multicast(zone int, m interface{})
 
 	// Broadcast send to all peers
-	Broadcast(msg interface{})
+	Broadcast(m interface{})
 
 	// Recv receives a message
 	Recv() interface{}
@@ -42,23 +42,28 @@ type socket struct {
 
 // NewSocket return Socket interface instance given self ID, node list, transport and codec name
 func NewSocket(id ID, addrs map[ID]string, transport string) Socket {
-	socket := new(socket)
-	socket.id = id
-	socket.nodes = make(map[ID]Transport)
+	socket := &socket{
+		id:    id,
+		nodes: make(map[ID]Transport),
+		drop:  make(map[ID]bool),
+		slow:  make(map[ID]bool),
+		flaky: make(map[ID]bool),
+	}
 
 	socket.nodes[id] = NewTransport(transport + "://" + addrs[id])
-	go socket.nodes[id].Listen()
+	socket.nodes[id].Listen()
 
 	for id, addr := range addrs {
 		if id == socket.id {
 			continue
 		}
 		t := NewTransport(transport + "://" + addr)
-		err := t.Dial()
-		for err != nil {
-			err = t.Dial()
+		err := Retry(t.Dial, 10, time.Duration(50)*time.Millisecond)
+		if err == nil {
+			socket.nodes[id] = t
+		} else {
+			panic(err)
 		}
-		socket.nodes[id] = t
 	}
 	return socket
 }
@@ -68,8 +73,8 @@ func (s *socket) Send(to ID, m interface{}) {
 	if s.drop[to] {
 		return
 	}
-	t, ok := s.nodes[to]
-	if !ok {
+	t, exists := s.nodes[to]
+	if !exists {
 		log.Fatalf("transport of ID %v does not exists", to)
 	}
 	t.Send(m)
@@ -84,23 +89,24 @@ func (s *socket) Recv() interface{} {
 	}
 }
 
-func (s *socket) Multicast(zone int, msg interface{}) {
+func (s *socket) Multicast(zone int, m interface{}) {
 	for id := range s.nodes {
 		if id == s.id {
 			continue
 		}
 		if id.Zone() == zone {
-			s.Send(id, msg)
+			s.Send(id, m)
 		}
 	}
 }
 
-func (s *socket) Broadcast(msg interface{}) {
+func (s *socket) Broadcast(m interface{}) {
+	log.Debugf("node %s broadcasting message %v", s.id, m)
 	for id := range s.nodes {
 		if id == s.id {
 			continue
 		}
-		s.Send(id, msg)
+		s.Send(id, m)
 	}
 }
 

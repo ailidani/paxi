@@ -1,79 +1,80 @@
 package paxi
 
 import (
-	"bytes"
 	"encoding/gob"
 	"encoding/json"
+	"io"
 
 	"github.com/ailidani/paxi/log"
 )
 
 // Codec interface provide methods for serialization and deserialization
+// combines json and gob encoder decoder interface
 type Codec interface {
 	Scheme() string
-	Encode(msg interface{}) []byte
-	Decode(data []byte) interface{}
+	Encode(interface{})
+	Decode(interface{})
 }
 
 // NewCodec creates new codec object based on scheme, i.e. json and gob
-func NewCodec(scheme string) Codec {
+func NewCodec(scheme string, rw io.ReadWriter) Codec {
 	switch scheme {
 	case "json":
-		return &jsonCodec{}
+		return &jsonCodec{
+			encoder: json.NewEncoder(rw),
+			decoder: json.NewDecoder(rw),
+		}
 	case "gob":
-		return &gobCodec{}
+		return &gobCodec{
+			encoder: gob.NewEncoder(rw),
+			decoder: gob.NewDecoder(rw),
+		}
 	}
 	return nil
 }
 
-type jsonCodec struct{}
+type jsonCodec struct {
+	encoder *json.Encoder
+	decoder *json.Decoder
+}
 
 func (j *jsonCodec) Scheme() string {
 	return "json"
 }
 
-func (j *jsonCodec) Encode(msg interface{}) []byte {
-	b, err := json.Marshal(msg)
+func (j *jsonCodec) Encode(m interface{}) {
+	err := j.encoder.Encode(m)
 	if err != nil {
 		log.Error(err)
-		return nil
 	}
-	return b
 }
 
-func (j *jsonCodec) Decode(data []byte) interface{} {
-	var msg interface{}
-	err := json.Unmarshal(data, &msg)
+func (j *jsonCodec) Decode(m interface{}) {
+	err := j.decoder.Decode(m)
 	if err != nil {
 		log.Error(err)
-		return nil
 	}
-	return msg
 }
 
-type gobCodec struct{}
+type gobCodec struct {
+	encoder *gob.Encoder
+	decoder *gob.Decoder
+}
 
 func (g *gobCodec) Scheme() string {
 	return "gob"
 }
 
-func (g *gobCodec) Encode(msg interface{}) []byte {
-	buffer := new(bytes.Buffer)
-	encoder := gob.NewEncoder(buffer)
-	err := encoder.Encode(&msg)
+func (g *gobCodec) Encode(m interface{}) {
+	err := g.encoder.Encode(m)
 	if err != nil {
-		log.Fatal(err)
+		log.Error(err)
 	}
-	return buffer.Bytes()
 }
 
-func (g *gobCodec) Decode(data []byte) interface{} {
-	var msg interface{}
-	buffer := bytes.NewBuffer(data)
-	decoder := gob.NewDecoder(buffer)
-	err := decoder.Decode(&msg)
+func (g *gobCodec) Decode(m interface{}) {
+	err := g.decoder.Decode(m)
 	if err != nil {
-		log.Fatal(err)
+		log.Error(err)
 	}
-	return msg
 }

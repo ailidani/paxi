@@ -102,6 +102,12 @@ var log logger
 func init() {
 	flag.StringVar(&log.dir, "log_dir", "", "if empty, write log files in this directory")
 	flag.Var(&log.severity, "log_level", "logs at and above this level")
+
+	format := stdlog.Ldate | stdlog.Ltime | stdlog.Lmicroseconds | stdlog.Lshortfile
+	log.debug = stdlog.New(os.Stdout, "[DEBUG] ", format)
+	log.info = stdlog.New(os.Stdout, "[INFO] ", format)
+	log.warning = stdlog.New(os.Stderr, "[WARNING] ", format)
+	log.err = stdlog.New(os.Stderr, "[ERROR] ", format)
 }
 
 // Setup setup log format and output file

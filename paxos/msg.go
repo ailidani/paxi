@@ -42,7 +42,7 @@ type P1b struct {
 }
 
 func (m P1b) String() string {
-	return fmt.Sprintf("P1b {b=%v, log=%v}", m.Ballot, m.Log)
+	return fmt.Sprintf("P1b {b=%v, id=%s, log=%v}", m.Ballot, m.ID, m.Log)
 }
 
 // P2a accept message
@@ -64,7 +64,7 @@ type P2b struct {
 }
 
 func (m P2b) String() string {
-	return fmt.Sprintf("P2b {b=%v, s=%d}", m.Ballot, m.Slot)
+	return fmt.Sprintf("P2b {b=%v, id=%s, s=%d}", m.Ballot, m.ID, m.Slot)
 }
 
 // P3 commit message

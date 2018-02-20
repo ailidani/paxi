@@ -49,7 +49,7 @@ func TestLinerizabilityChecker(t *testing.T) {
 		&operation{0, nil, 0, 0},
 		&operation{100, nil, 0, 100},
 		&operation{nil, 100, 5, 25}, // reads 100, write time is cut to 25
-		&operation{nil, 0, 30, 60},  // happends after previous read, but read 0
+		&operation{nil, 0, 30, 60},  // happens after previous read, but read 0
 	}
 	if len(c.linearizable(ops)) == 0 {
 		t.Error("expected operations to NOT be linearizable")

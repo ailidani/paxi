@@ -24,8 +24,6 @@ func replica(id paxi.ID) {
 		paxi.ConnectToMaster(*master, false, id)
 	}
 
-	paxi.GetConfig().Transport = "chan"
-
 	log.Infof("node %v starting...", id)
 
 	switch paxi.GetConfig().Algorithm {
@@ -65,6 +63,7 @@ func main() {
 	if *simulation {
 		var wg sync.WaitGroup
 		wg.Add(1)
+		paxi.GetConfig().Transport = "chan"
 		for id := range paxi.GetConfig().Addrs {
 			go func(n paxi.ID) {
 				replica(n)

@@ -2,6 +2,7 @@ package paxi
 
 import (
 	"encoding/gob"
+	"fmt"
 	"net"
 	"time"
 
@@ -27,13 +28,31 @@ func VMax(v ...int) int {
 	return max
 }
 
+// Retry function f sleep time between attempts
+func Retry(f func() error, attempts int, sleep time.Duration) error {
+	var err error
+	for i := 0; ; i++ {
+		err = f()
+		if err == nil {
+			return nil
+		}
+
+		if i >= attempts-1 {
+			break
+		}
+
+		time.Sleep(sleep)
+	}
+	return fmt.Errorf("after %d attempts, last error: %s", attempts, err)
+}
+
 // Schedule repeatedly call function with intervals
-func Schedule(what func(), delay time.Duration) chan bool {
+func Schedule(f func(), delay time.Duration) chan bool {
 	stop := make(chan bool)
 
 	go func() {
 		for {
-			what()
+			f()
 			select {
 			case <-time.After(delay):
 			case <-stop:

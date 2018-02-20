@@ -81,9 +81,7 @@ func (p *Paxos) P1a() {
 	p.ballot.Next(p.ID())
 	p.quorum.Reset()
 	p.quorum.ACK(p.ID())
-	m := P1a{Ballot: p.ballot}
-	log.Debugf("Replica %s broadcast [%v]\n", p.ID(), m)
-	p.Broadcast(m)
+	p.Broadcast(P1a{Ballot: p.ballot})
 }
 
 // P2a starts phase 2 accept
@@ -97,13 +95,11 @@ func (p *Paxos) P2a(r *paxi.Request) {
 		timestamp: time.Now(),
 	}
 	p.log[p.slot].quorum.ACK(p.ID())
-	m := P2a{
+	p.Broadcast(P2a{
 		Ballot:  p.ballot,
 		Slot:    p.slot,
 		Command: r.Command,
-	}
-	log.Debugf("Replica %s broadcast [%v]\n", p.ID(), m)
-	p.Broadcast(m)
+	})
 }
 
 // HandleP1a handles P1a message
@@ -185,13 +181,11 @@ func (p *Paxos) HandleP1b(m P1b) {
 				p.log[i].ballot = p.ballot
 				p.log[i].quorum = paxi.NewQuorum()
 				p.log[i].quorum.ACK(p.ID())
-				m := P2a{
+				p.Broadcast(P2a{
 					Ballot:  p.ballot,
 					Slot:    i,
 					Command: p.log[i].command,
-				}
-				log.Debugf("Replica %s broadcast [%v]\n", p.ID(), m)
-				p.Broadcast(m)
+				})
 			}
 			// propose new commands
 			for _, req := range p.requests {
@@ -261,12 +255,10 @@ func (p *Paxos) HandleP2b(m P2b) {
 		p.log[m.Slot].quorum.ACK(m.ID)
 		if p.log[m.Slot].quorum.Q2() {
 			p.log[m.Slot].commit = true
-			m := P3{
+			p.Broadcast(P3{
 				Slot:    m.Slot,
 				Command: p.log[m.Slot].command,
-			}
-			log.Debugf("Replica %s broadcast [%v]\n", p.ID(), m)
-			p.Broadcast(m)
+			})
 
 			if paxi.GetConfig().ReplyWhenCommit {
 				r := p.log[m.Slot].request
