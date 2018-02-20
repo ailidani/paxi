@@ -58,7 +58,7 @@ func NewSocket(id ID, addrs map[ID]string, transport string) Socket {
 			continue
 		}
 		t := NewTransport(transport + "://" + addr)
-		err := Retry(t.Dial, 10, time.Duration(50)*time.Millisecond)
+		err := Retry(t.Dial, 100, time.Duration(50)*time.Millisecond)
 		if err == nil {
 			socket.nodes[id] = t
 		} else {
