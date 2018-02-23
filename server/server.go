@@ -6,6 +6,7 @@ import (
 
 	"github.com/ailidani/paxi"
 	"github.com/ailidani/paxi/atomic"
+	"github.com/ailidani/paxi/dynamo"
 	"github.com/ailidani/paxi/kpaxos"
 	"github.com/ailidani/paxi/log"
 	"github.com/ailidani/paxi/paxos"
@@ -50,6 +51,9 @@ func replica(id paxi.ID) {
 	case "ppaxos":
 		ppaxos.NewReplica(id).Run()
 
+	case "dynamo":
+		dynamo.NewReplica(id).Run()
+
 	default:
 		panic("Unknown algorithm.")
 	}
@@ -65,9 +69,8 @@ func main() {
 		wg.Add(1)
 		paxi.GetConfig().Transport = "chan"
 		for id := range paxi.GetConfig().Addrs {
-			go func(n paxi.ID) {
-				replica(n)
-			}(id)
+			n := id
+			go replica(n)
 		}
 		wg.Wait()
 	} else {

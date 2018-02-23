@@ -41,7 +41,8 @@ func Retry(f func() error, attempts int, sleep time.Duration) error {
 			break
 		}
 
-		time.Sleep(sleep)
+		// exponential delay
+		time.Sleep(sleep * time.Duration(i+1))
 	}
 	return fmt.Errorf("after %d attempts, last error: %s", attempts, err)
 }

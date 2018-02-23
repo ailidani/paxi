@@ -99,7 +99,7 @@ func (n *node) Forward(id ID, m Request) {
 	key := m.Command.Key
 	url := config.HTTPAddrs[id] + "/" + strconv.Itoa(int(key))
 
-	log.Debugf("Node %v forwarding request %v to %s", n.ID(), m, url)
+	log.Debugf("Node %v forwarding request %v to %s", n.ID(), m, id)
 
 	method := http.MethodGet
 	var body io.Reader
