@@ -2,20 +2,11 @@ package dynamo
 
 import (
 	"encoding/binary"
-	"math/big"
 
 	"github.com/ailidani/paxi"
 	"github.com/ailidani/paxi/lib"
 	"github.com/ailidani/paxi/log"
 )
-
-// elements for hash ring
-type element struct {
-	hash *big.Int
-	id   paxi.ID
-
-	next *element
-}
 
 type Replica struct {
 	paxi.Node
@@ -83,17 +74,10 @@ func (r *Replica) HandleRequest(m paxi.Request) {
 			Value:   v,
 		})
 	} else {
-		r.Forward(id, m)
+		go r.Forward(id, m)
 	}
 }
 
 func (r *Replica) HandleReplicate(m Replicate) {
 	r.Node.Execute(m.Command)
 }
-
-// BigIntSlice attaches the methods of sort.Interface to []*big.Int, sorting in increasing order.
-type BigIntSlice []*big.Int
-
-func (s BigIntSlice) Len() int           { return len(s) }
-func (s BigIntSlice) Less(i, j int) bool { return s[i].Cmp(s[j]) < 0 }
-func (s BigIntSlice) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
