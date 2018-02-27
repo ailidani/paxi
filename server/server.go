@@ -60,9 +60,7 @@ func replica(id paxi.ID) {
 }
 
 func main() {
-	flag.Parse()
-	log.Setup()
-	paxi.GetConfig().Load()
+	paxi.Init()
 
 	if *simulation {
 		var wg sync.WaitGroup

@@ -43,9 +43,12 @@ func (n *node) http() {
 
 func (n *node) handleRoot(w http.ResponseWriter, r *http.Request) {
 	var cmd Command
+	var err error
 	cmd.ClientID = ID(r.Header.Get(HTTPClientID))
-	cmd.CommandID, _ = strconv.Atoi(r.Header.Get(HTTPCommandID))
-	timestamp, _ := strconv.ParseInt(r.Header.Get(HTTPTimestamp), 10, 64)
+	cmd.CommandID, err = strconv.Atoi(r.Header.Get(HTTPCommandID))
+	if err != nil {
+		log.Error(err)
+	}
 	if len(r.URL.Path) > 1 {
 		i, err := strconv.Atoi(r.URL.Path[1:])
 		if err != nil {
@@ -75,7 +78,7 @@ func (n *node) handleRoot(w http.ResponseWriter, r *http.Request) {
 
 	req := Request{
 		Command:   cmd,
-		Timestamp: timestamp,
+		Timestamp: time.Now().UnixNano(),
 		c:         make(chan Reply),
 	}
 
@@ -89,8 +92,7 @@ func (n *node) handleRoot(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set(HTTPClientID, string(reply.Command.ClientID))
 	w.Header().Set(HTTPCommandID, strconv.Itoa(reply.Command.CommandID))
-	w.Header().Set(HTTPTimestamp, strconv.FormatInt(reply.Timestamp, 10))
-	_, err := io.WriteString(w, string(reply.Value))
+	_, err = io.WriteString(w, string(reply.Value))
 	if err != nil {
 		log.Error(err)
 	}

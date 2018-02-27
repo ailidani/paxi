@@ -125,7 +125,10 @@ func (n *node) Forward(id ID, m Request) {
 	}
 	defer res.Body.Close()
 	if res.StatusCode == http.StatusOK {
-		b, _ := ioutil.ReadAll(res.Body)
+		b, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			log.Error(err)
+		}
 		m.Reply(Reply{
 			Command: m.Command,
 			Value:   Value(b),

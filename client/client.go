@@ -5,7 +5,6 @@ import (
 	"flag"
 
 	"github.com/ailidani/paxi"
-	"github.com/ailidani/paxi/log"
 )
 
 var id = flag.String("id", "", "node id this client connects to")
@@ -57,9 +56,7 @@ func (d *db) Write(k, v int) {
 }
 
 func main() {
-	flag.Parse()
-	log.Setup()
-	paxi.GetConfig().Load()
+	paxi.Init()
 
 	if *master != "" {
 		paxi.ConnectToMaster(*master, true, paxi.ID(*id))
