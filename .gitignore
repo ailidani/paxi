@@ -5,5 +5,4 @@ bin/*
 tla/*
 !tla/wpaxos.tla
 cosmos
-epaxos
 .idea

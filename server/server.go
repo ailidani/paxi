@@ -7,6 +7,7 @@ import (
 	"github.com/ailidani/paxi"
 	"github.com/ailidani/paxi/atomic"
 	"github.com/ailidani/paxi/dynamo"
+	"github.com/ailidani/paxi/epaxos"
 	"github.com/ailidani/paxi/kpaxos"
 	"github.com/ailidani/paxi/log"
 	"github.com/ailidani/paxi/paxos"
@@ -35,9 +36,8 @@ func replica(id paxi.ID) {
 	case "wpaxos":
 		wpaxos.NewReplica(id).Run()
 
-	// case "epaxos":
-	// 	replica := epaxos.NewReplica(id)
-	// 	replica.Run()
+	case "epaxos":
+		epaxos.NewReplica(id).Run()
 
 	case "kpaxos":
 		kpaxos.NewReplica(id).Run()

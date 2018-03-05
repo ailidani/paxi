@@ -61,7 +61,7 @@ func ClientRun(port string) {
 func TestHTTP(t *testing.T) {
 	go ServerRun("8087")
 	for i := 0; i < 100; i++ {
-		for j := 0; j < 150; j++ {
+		for j := 0; j < 100; j++ {
 			wg.Add(1)
 			go ClientRun("8087")
 		}

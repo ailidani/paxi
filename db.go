@@ -21,6 +21,13 @@ type Command struct {
 	CommandID int
 }
 
+func (c Command) Empty() bool {
+	if c.Key == 0 && c.Value == nil && c.ClientID == "" && c.CommandID == 0 {
+		return true
+	}
+	return false
+}
+
 // IsRead returns true if command is read
 func (c Command) IsRead() bool {
 	return c.Value == nil

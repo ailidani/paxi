@@ -101,7 +101,7 @@ func (s *socket) Multicast(zone int, m interface{}) {
 }
 
 func (s *socket) Broadcast(m interface{}) {
-	log.Debugf("node %s broadcasting message %v", s.id, m)
+	log.Debugf("node %s broadcasting message %+v", s.id, m)
 	for id := range s.nodes {
 		if id == s.id {
 			continue
