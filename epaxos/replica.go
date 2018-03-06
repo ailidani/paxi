@@ -13,6 +13,9 @@ type Replica struct {
 	executed     map[paxi.ID]int
 	conflicts    map[paxi.ID]map[paxi.Key]int
 	maxSeqPerKey map[paxi.Key]int
+
+	fast int
+	slow int
 }
 
 type status int8
@@ -50,6 +53,15 @@ func (i *instance) merge(seq int, dep map[paxi.ID]int) {
 			i.changed = true
 		}
 	}
+}
+
+// copyDep clones dependency list of instance
+func (i *instance) copyDep() (dep map[paxi.ID]int) {
+	dep = make(map[paxi.ID]int)
+	for id, d := range i.dep {
+		dep[id] = d
+	}
+	return dep
 }
 
 func NewReplica(id paxi.ID) *Replica {
@@ -161,7 +173,7 @@ func (r *Replica) handleRequest(m paxi.Request) {
 		Slot:    s,
 		Command: m.Command,
 		Seq:     seq,
-		Dep:     dep,
+		Dep:     r.log[id][s].copyDep(),
 	})
 }
 
@@ -209,7 +221,7 @@ func (r *Replica) handlePreAccept(m PreAccept) {
 		Slot:      s,
 		Ballot:    i.ballot,
 		Seq:       seq,
-		Dep:       dep,
+		Dep:       i.copyDep(),
 		Committed: c,
 	})
 }
@@ -242,6 +254,9 @@ func (r *Replica) handlePreAcceptReply(m PreAcceptReply) {
 	if i.quorum.Majority() {
 		// fast path or slow path
 		if !i.changed && committed {
+			// fast path
+			r.fast++
+			log.Debugf("Replica %s number of fast instance: %d", r.ID(), r.fast)
 			i.status = COMMITTED
 			r.updateCommit(r.ID())
 			r.Broadcast(Commit{
@@ -250,7 +265,7 @@ func (r *Replica) handlePreAcceptReply(m PreAcceptReply) {
 				Slot:    m.Slot,
 				Command: i.cmd,
 				Seq:     i.seq,
-				Dep:     i.dep,
+				Dep:     i.copyDep(),
 			})
 			if paxi.GetConfig().ReplyWhenCommit {
 				i.request.Reply(paxi.Reply{
@@ -259,6 +274,8 @@ func (r *Replica) handlePreAcceptReply(m PreAcceptReply) {
 			}
 		} else {
 			// slow path
+			r.slow++
+			log.Debugf("Replica %s number of slow instance: %d", r.ID(), r.slow)
 			i.status = ACCEPTED
 			// reset quorum for accept message
 			i.quorum.Reset()
@@ -269,7 +286,7 @@ func (r *Replica) handlePreAcceptReply(m PreAcceptReply) {
 				Replica: r.ID(),
 				Slot:    m.Slot,
 				Seq:     i.seq,
-				Dep:     i.dep,
+				Dep:     i.copyDep(),
 			})
 		}
 	}
@@ -337,7 +354,7 @@ func (r *Replica) handleAcceptReply(m AcceptReply) {
 			Slot:    m.Slot,
 			Command: i.cmd,
 			Seq:     i.seq,
-			Dep:     i.dep,
+			Dep:     i.copyDep(),
 		})
 	}
 }
