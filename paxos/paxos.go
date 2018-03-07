@@ -110,9 +110,11 @@ func (p *Paxos) HandleP1a(m P1a) {
 	if m.Ballot > p.ballot {
 		p.ballot = m.Ballot
 		p.active = false
-		if len(p.requests) > 0 {
-			defer p.P1a()
-		}
+		// forward pending requests to new leader
+		p.forward()
+		// if len(p.requests) > 0 {
+		// 	defer p.P1a()
+		// }
 	}
 
 	l := make(map[int]CommandBallot)
@@ -164,7 +166,9 @@ func (p *Paxos) HandleP1b(m P1b) {
 	if m.Ballot > p.ballot {
 		p.ballot = m.Ballot
 		p.active = false // not necessary
-		p.P1a()
+		// forward pending requests to new leader
+		p.forward()
+		// p.P1a()
 	}
 
 	// ack message
@@ -317,4 +321,12 @@ func (p *Paxos) exec() {
 			e.request = nil
 		}
 	}
+}
+
+func (p *Paxos) forward() {
+	for i := range p.requests {
+		m := *p.requests[i]
+		go p.Forward(p.ballot.ID(), m)
+	}
+	p.requests = nil
 }
