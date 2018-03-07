@@ -21,6 +21,7 @@ type Command struct {
 	CommandID int
 }
 
+// Empty check if empty command
 func (c Command) Empty() bool {
 	if c.Key == 0 && c.Value == nil && c.ClientID == "" && c.CommandID == 0 {
 		return true
@@ -40,9 +41,9 @@ func (c Command) Equal(a Command) bool {
 
 func (c Command) String() string {
 	if c.Value == nil {
-		return fmt.Sprintf("Get{key=%v, id=%s, cid=%d}", c.Key, c.ClientID, c.CommandID)
+		return fmt.Sprintf("Get{key=%v id=%s cid=%d}", c.Key, c.ClientID, c.CommandID)
 	}
-	return fmt.Sprintf("Put{key=%v, value=%x, id=%s, cid=%d", c.Key, c.Value, c.ClientID, c.CommandID)
+	return fmt.Sprintf("Put{key=%v value=%x id=%s cid=%d", c.Key, c.Value, c.ClientID, c.CommandID)
 }
 
 // Database defines a database interface

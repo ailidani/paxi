@@ -18,7 +18,7 @@ var n = flag.Int("n", 1, "N number of replicas, default value 1.")
 var algorithm = flag.String("algorithm", "paxos", "Consensus algorithm name")
 var f = flag.Int("f", 0, "tolerate f zone failures")
 var adaptive = flag.Bool("adaptive", true, "Adaptive leader change")
-var interval = flag.Int("interval", 500, "Threshold for leader change, 0 means immediate")
+var threshold = flag.Int("threshold", 500, "Threshold for leader change, 0 means immediate")
 var backOff = flag.Int("backoff", 100, "Random backoff time")
 var thrifty = flag.Bool("thrifty", false, "")
 var transport = flag.String("transport", "tcp", "Transport protocols, including tcp, udp, chan (local)")
@@ -36,7 +36,7 @@ func main() {
 	config.Algorithm = *algorithm
 	config.F = *f
 	config.Adaptive = *adaptive
-	config.Interval = *interval
+	config.Threshold = *threshold
 	config.BackOff = *backOff
 	config.Thrifty = *thrifty
 

@@ -9,7 +9,7 @@ import (
 type Replica struct {
 	paxi.Node
 	paxi  map[paxi.Key]*PPaxos
-	stats map[paxi.Key]*stat
+	stats map[paxi.Key]Policy
 }
 
 // NewReplica generates a new PPaxos replica
@@ -17,7 +17,7 @@ func NewReplica(id paxi.ID) *Replica {
 	r := new(Replica)
 	r.Node = paxi.NewNode(id)
 	r.paxi = make(map[paxi.Key]*PPaxos)
-	r.stats = make(map[paxi.Key]*stat)
+	r.stats = make(map[paxi.Key]Policy)
 
 	r.Register(paxi.Request{}, r.handleRequest)
 	r.Register(P1a{}, r.handleP1a)
@@ -31,7 +31,7 @@ func NewReplica(id paxi.ID) *Replica {
 func (r *Replica) init(key paxi.Key) {
 	if _, exists := r.paxi[key]; !exists {
 		r.paxi[key] = NewPPaxos(r, key)
-		r.stats[key] = newStat(paxi.GetConfig().Interval)
+		r.stats[key] = NewPolicy(paxi.GetConfig().Policy)
 	}
 }
 

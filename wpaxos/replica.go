@@ -10,7 +10,7 @@ import (
 type Replica struct {
 	paxi.Node
 	paxi  map[paxi.Key]*paxos.Paxos
-	stats map[paxi.Key]*stat
+	stats map[paxi.Key]Policy
 
 	key paxi.Key // current working key
 }
@@ -20,7 +20,7 @@ func NewReplica(id paxi.ID) *Replica {
 	r := new(Replica)
 	r.Node = paxi.NewNode(id)
 	r.paxi = make(map[paxi.Key]*paxos.Paxos)
-	r.stats = make(map[paxi.Key]*stat)
+	r.stats = make(map[paxi.Key]Policy)
 
 	r.Register(paxi.Request{}, r.handleRequest)
 	r.Register(paxi.Transaction{}, r.handleTransaction)
@@ -36,7 +36,7 @@ func NewReplica(id paxi.ID) *Replica {
 func (r *Replica) init(key paxi.Key) {
 	if _, exists := r.paxi[key]; !exists {
 		r.paxi[key] = paxos.NewPaxos(r)
-		r.stats[key] = newStat(paxi.GetConfig().Interval)
+		r.stats[key] = NewPolicy(paxi.GetConfig().Policy)
 	}
 }
 
@@ -98,7 +98,7 @@ func (r *Replica) handleAccepted(m Accepted) {
 }
 
 func (r *Replica) handleCommit(m Commit) {
-	log.Debugf("Replica ===[%v]===>>> Replica %s\n", m, r.ID())
+	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.Ballot.ID(), m, r.ID())
 	r.key = m.Key
 	r.init(r.key)
 	r.paxi[r.key].HandleP3(m.P3)

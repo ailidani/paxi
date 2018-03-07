@@ -52,6 +52,7 @@ func (q *Quorum) Reset() {
 	q.nacks = make(map[ID]bool, config.NumNodes())
 }
 
+// Majority quorum satisfied
 func (q *Quorum) Majority() bool {
 	return q.size > config.NumNodes()/2
 }
@@ -71,6 +72,7 @@ func (q *Quorum) AllZones() bool {
 	return len(q.zones) == config.NumZones()
 }
 
+// ZoneMajority returns true if majority quorum satisfied in any zone
 func (q *Quorum) ZoneMajority() bool {
 	for _, n := range q.zones {
 		if n > config.NumNodes()/config.NumZones()/2 {
@@ -80,10 +82,12 @@ func (q *Quorum) ZoneMajority() bool {
 	return false
 }
 
+// GridRow == AllZones
 func (q *Quorum) GridRow() bool {
 	return q.AllZones()
 }
 
+// GridColumn == all nodes in one zone
 func (q *Quorum) GridColumn() bool {
 	for _, n := range q.zones {
 		if n == config.NumNodes()/config.NumZones() {
@@ -93,6 +97,7 @@ func (q *Quorum) GridColumn() bool {
 	return false
 }
 
+// FGridQ1 is flexible grid quorum for phase 1
 func (q *Quorum) FGridQ1() bool {
 	z := 0
 	for _, n := range q.zones {
@@ -103,6 +108,7 @@ func (q *Quorum) FGridQ1() bool {
 	return z >= config.NumZones()-config.F
 }
 
+// FGridQ2 is flexible grid quorum for phase 2
 func (q *Quorum) FGridQ2() bool {
 	z := 0
 	for _, n := range q.zones {

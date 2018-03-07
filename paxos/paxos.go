@@ -104,7 +104,7 @@ func (p *Paxos) P2a(r *paxi.Request) {
 
 // HandleP1a handles P1a message
 func (p *Paxos) HandleP1a(m P1a) {
-	// log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.Ballot.ID(), m, p.ID())
+	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.Ballot.ID(), m, p.ID())
 
 	// new leader
 	if m.Ballot > p.ballot {
@@ -198,7 +198,7 @@ func (p *Paxos) HandleP1b(m P1b) {
 
 // HandleP2a handles P2a message
 func (p *Paxos) HandleP2a(m P2a) {
-	// log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.Ballot.ID(), m, p.ID())
+	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.Ballot.ID(), m, p.ID())
 
 	if m.Ballot >= p.ballot {
 		p.ballot = m.Ballot
@@ -256,6 +256,7 @@ func (p *Paxos) HandleP2b(m P2b) {
 		if p.log[m.Slot].quorum.Q2() {
 			p.log[m.Slot].commit = true
 			p.Broadcast(P3{
+				Ballot:  m.Ballot,
 				Slot:    m.Slot,
 				Command: p.log[m.Slot].command,
 			})
@@ -275,7 +276,7 @@ func (p *Paxos) HandleP2b(m P2b) {
 
 // HandleP3 handles phase 3 commit message
 func (p *Paxos) HandleP3(m P3) {
-	// log.Debugf("Replica ===[%v]===>>> Replica %s\n", m, p.ID())
+	log.Debugf("Replica ===[%v]===>>> Replica %s\n", m, p.ID())
 
 	p.slot = paxi.Max(p.slot, m.Slot)
 

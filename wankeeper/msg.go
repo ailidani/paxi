@@ -13,6 +13,8 @@ func init() {
 	gob.Register(Accept{})
 	gob.Register(Accepted{})
 	gob.Register(Commit{})
+	gob.Register(Revoke{})
+	gob.Register(RevokeReply{})
 }
 
 /**************************
@@ -70,4 +72,12 @@ type Commit struct {
 
 func (c Commit) String() string {
 	return fmt.Sprintf("Commit {token=%d, lid=%v, bal=%v, slot=%d, cmd=%v}", c.Token, c.Ballot.ID(), c.Ballot, c.Slot, c.Command)
+}
+
+type Revoke struct {
+	Token paxi.Key
+}
+
+type RevokeReply struct {
+	Token paxi.Key
 }

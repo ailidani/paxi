@@ -80,5 +80,5 @@ type LeaderChange struct {
 }
 
 func (l LeaderChange) String() string {
-	return fmt.Sprintf("LeaderChange {key=%d, from=%s, to=%s, bal=%d}", l.Key, l.From, l.To, l.Ballot)
+	return fmt.Sprintf("LeaderChange {key=%d, from=%s, to=%s, bal=%v}", l.Key, l.From, l.To, l.Ballot)
 }

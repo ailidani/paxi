@@ -20,7 +20,8 @@ type Config struct {
 	Transport       string        `json:"transport"`         // not used
 	ReplyWhenCommit bool          `json:"reply_when_commit"` // reply to client when request is committed, instead of executed
 	Adaptive        bool          `json:"adaptive"`          // adaptive leader change, if true paxos forward request to current leader
-	Interval        int           `json:"interval"`          // interval for leader change, 0 means immediate
+	Policy          string        `json:"policy"`            // leader change policy {consecutive, majority}
+	Threshold       int           `json:"threshold"`         // threshold for policy in WPaxos {n consecutive or time interval in ms}
 	BackOff         int           `json:"backoff"`           // random backoff interval
 	Thrifty         bool          `json:"thrifty"`           // only send messages to a quorum
 	BufferSize      int           `json:"buffer_size"`
@@ -44,10 +45,13 @@ func GetConfig() *Config {
 	return &config
 }
 
+// MakeDefaultConfig returns Config object with few default values
+// only used by init() and master
 func MakeDefaultConfig() Config {
 	return Config{
 		Quorum:         "majority",
 		Transport:      "tcp",
+		Policy:         "consecutive",
 		BufferSize:     1024,
 		ChanBufferSize: 1024,
 	}

@@ -16,6 +16,8 @@ type Replica struct {
 	log    []*entry
 	tokens *tokens
 
+	master paxi.ID
+
 	leader   bool
 	ballot   paxi.Ballot     // ballot for local group
 	level    int             // current levels are 1 and 2
@@ -28,6 +30,7 @@ func NewReplica(id paxi.ID) *Replica {
 		Node:     paxi.NewNode(id),
 		log:      make([]*entry, 0),
 		tokens:   newTokens(),
+		master:   paxi.ID("1.3"),
 		level:    1,
 		quorum:   paxi.NewQuorum(),
 		requests: make([]*paxi.Request, 0),
@@ -43,12 +46,22 @@ func NewReplica(id paxi.ID) *Replica {
 
 func (r *Replica) lead(m ...*paxi.Request) {
 	for _, request := range m {
-		r.log = append(r.log, &entry{
-			cmd:    request.Command,
-			req:    request,
-			quorum: paxi.NewQuorum(),
-		})
+		if r.tokens.contains(request.Command.Key) {
+			r.log = append(r.log, &entry{
+				cmd:    request.Command,
+				req:    request,
+				quorum: paxi.NewQuorum(),
+			})
+			r.Multicast(r.ID().Zone(), Accept{
+				Ballot:  r.ballot,
+				Slot:    len(r.log) - 1,
+				Command: request.Command,
+			})
+		} else if r.level == 1 {
+			go r.Forward(r.master, *request)
+		} else {
 
+		}
 	}
 }
 
@@ -58,6 +71,7 @@ func (r *Replica) handleRequest(m paxi.Request) {
 		r.Broadcast(NewLeader{r.ballot})
 		r.requests = append(r.requests, &m)
 	} else if r.leader { // is leader of local group
+		r.lead(&m)
 		r.log = append(r.log, &entry{
 			cmd:    m.Command,
 			req:    &m,
@@ -94,6 +108,7 @@ func (r *Replica) handleVote(m Vote) {
 	}
 
 	if m.Ballot > r.ballot {
+		// step down to follower
 		r.ballot = m.Ballot
 		r.leader = false
 		r.quorum.Reset()
@@ -101,6 +116,7 @@ func (r *Replica) handleVote(m Vote) {
 		r.quorum.ACK(m.ID)
 		if r.quorum.ZoneMajority() {
 			r.leader = true
+			r.lead(r.requests...)
 		}
 	}
 }

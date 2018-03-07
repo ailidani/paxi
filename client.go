@@ -9,7 +9,6 @@ import (
 	"net/http/httputil"
 	"strconv"
 	"sync"
-	"time"
 
 	"github.com/ailidani/paxi/lib"
 	"github.com/ailidani/paxi/log"
@@ -56,7 +55,7 @@ func (c *Client) rest(id ID, key Key, value Value) Value {
 	}
 	r.Header.Set(HTTPClientID, string(c.ID))
 	r.Header.Set(HTTPCommandID, strconv.Itoa(c.cid))
-	r.Header.Set(HTTPTimestamp, strconv.FormatInt(time.Now().UnixNano(), 10))
+	// r.Header.Set(HTTPTimestamp, strconv.FormatInt(time.Now().UnixNano(), 10))
 	res, err := http.DefaultClient.Do(r)
 	if err != nil {
 		log.Error(err)

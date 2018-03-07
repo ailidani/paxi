@@ -69,10 +69,11 @@ func (m P2b) String() string {
 
 // P3 commit message
 type P3 struct {
+	Ballot  paxi.Ballot
 	Slot    int
 	Command paxi.Command
 }
 
 func (m P3) String() string {
-	return fmt.Sprintf("P3 {s=%d, cmd=%v}", m.Slot, m.Command)
+	return fmt.Sprintf("P3 {b=%v s=%d, cmd=%v}", m.Ballot, m.Slot, m.Command)
 }
