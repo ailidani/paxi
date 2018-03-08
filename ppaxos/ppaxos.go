@@ -100,9 +100,10 @@ func (p *PPaxos) HandleP1a(m P1a) {
 	if m.Ballot > p.ballot {
 		p.ballot = m.Ballot
 		p.active = false
-		if len(p.requests) > 0 {
-			defer p.p1a()
-		}
+		p.forward()
+		// if len(p.requests) > 0 {
+		// 	defer p.p1a()
+		// }
 	}
 
 	p.Send(m.Ballot.ID(), P1b{
@@ -128,7 +129,8 @@ func (p *PPaxos) HandleP1b(m P1b) {
 	if m.Ballot > p.ballot {
 		p.ballot = m.Ballot
 		p.active = false
-		p.p1a()
+		p.forward()
+		// p.p1a()
 	}
 
 	if m.Ballot == p.ballot && m.Ballot.ID() == p.ID() {
@@ -190,4 +192,12 @@ func (p *PPaxos) HandleP2b(m P2b) {
 		p.ballot = m.Ballot
 		p.active = false
 	}
+}
+
+func (p *PPaxos) forward() {
+	for i := range p.requests {
+		m := *p.requests[i]
+		go p.Forward(p.ballot.ID(), m)
+	}
+	p.requests = nil
 }
