@@ -24,8 +24,9 @@ type Config struct {
 	Threshold       int           `json:"threshold"`         // threshold for policy in WPaxos {n consecutive or time interval in ms}
 	BackOff         int           `json:"backoff"`           // random backoff interval
 	Thrifty         bool          `json:"thrifty"`           // only send messages to a quorum
-	BufferSize      int           `json:"buffer_size"`
-	ChanBufferSize  int           `json:"chan_buffer_size"`
+	BufferSize      int           `json:"buffer_size"`       // buffer size for maps
+	ChanBufferSize  int           `json:"chan_buffer_size"`  // buffer size for channels
+	Benchmark       bconfig       `json:"benchmark"`         // benchmark configuration
 
 	// for future implementation
 	// Batching bool `json:"batching"`
@@ -54,6 +55,23 @@ func MakeDefaultConfig() Config {
 		Policy:         "consecutive",
 		BufferSize:     1024,
 		ChanBufferSize: 1024,
+		Benchmark: bconfig{
+			T:                    60,
+			N:                    0,
+			K:                    1000,
+			W:                    50,
+			Concurrency:          1,
+			Distribution:         "uniform",
+			LinearizabilityCheck: false,
+			Conflicts:            100,
+			Min:                  0,
+			Mu:                   0,
+			Sigma:                60,
+			Move:                 false,
+			Speed:                500,
+			ZipfianS:             2,
+			ZipfianV:             1,
+		},
 	}
 }
 

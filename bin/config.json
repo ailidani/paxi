@@ -24,7 +24,7 @@
     "transport": "tcp",
     "algorithm": "wpaxos",
     "quorum": "fgrid",
-    "f": 0,
+    "f": 1,
     "adaptive": true,
     "policy": "consecutive",
     "threshold": 3,
@@ -32,5 +32,23 @@
     "thrifty": false,
     "reply_when_commit": false,
     "chan_buffer_size": 1024,
-    "buffer_size": 1024
+    "buffer_size": 1024,
+    "benchmark": {
+        "T": 60,
+        "N": 0,
+        "K": 1000,
+        "W": 0.5,
+        "Throttle": 0,
+        "Concurrency": 1,
+        "Distribution": "uniform",
+        "LinearizabilityCheck": true,
+        "Conflicts": 100,
+        "Min": 0,
+        "Mu": 0,
+        "Sigma": 60,
+        "Move": false,
+        "Speed": 500,
+        "Zipfian_s": 2,
+        "Zipfian_v": 1
+    }
 }

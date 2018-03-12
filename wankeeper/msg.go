@@ -10,11 +10,11 @@ import (
 func init() {
 	gob.Register(NewLeader{})
 	gob.Register(Vote{})
-	gob.Register(Accept{})
-	gob.Register(Accepted{})
+	gob.Register(Proposal{})
+	gob.Register(Ack{})
 	gob.Register(Commit{})
 	gob.Register(Revoke{})
-	gob.Register(RevokeReply{})
+	gob.Register(Token{})
 }
 
 /**************************
@@ -40,25 +40,26 @@ func (m Vote) String() string {
 	return fmt.Sprintf("Vote {lid=%v, b=%v}", m.Ballot.ID(), m.Ballot)
 }
 
-// Accept phase 2a
-type Accept struct {
+// Proposal from leader to followers
+type Proposal struct {
 	Ballot  paxi.Ballot
 	Slot    int
 	Command paxi.Command
 }
 
-func (m Accept) String() string {
+func (m Proposal) String() string {
 	return fmt.Sprintf("Accept {lid=%v, bal=%v, slot=%d, cmd=%v}", m.Ballot.ID(), m.Ballot, m.Slot, m.Command)
 }
 
-// Accepted phase 2b
-type Accepted struct {
-	ID     paxi.ID
+// Ack from follower to leader
+type Ack struct {
 	Ballot paxi.Ballot
+	ID     paxi.ID
 	Slot   int
+	Key    paxi.Key
 }
 
-func (m Accepted) String() string {
+func (m Ack) String() string {
 	return fmt.Sprintf("Accepted {lid=%v, bal=%v, slot=%d}", m.Ballot.ID(), m.Ballot, m.Slot)
 }
 
@@ -74,10 +75,12 @@ func (c Commit) String() string {
 	return fmt.Sprintf("Commit {token=%d, lid=%v, bal=%v, slot=%d, cmd=%v}", c.Token, c.Ballot.ID(), c.Ballot, c.Slot, c.Command)
 }
 
-type Revoke struct {
+// Token sending between regions
+type Token struct {
 	Token paxi.Key
 }
 
-type RevokeReply struct {
+// Revoke tokens
+type Revoke struct {
 	Token paxi.Key
 }

@@ -66,6 +66,5 @@ func main() {
 	d.c = paxi.NewClient(paxi.ID(*id))
 
 	b := paxi.NewBenchmark(d)
-	b.Load()
 	b.Run()
 }

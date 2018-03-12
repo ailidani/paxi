@@ -1,10 +1,8 @@
 package paxi
 
 import (
-	"encoding/json"
 	"flag"
 	"math/rand"
-	"os"
 	"sync"
 	"time"
 
@@ -26,6 +24,7 @@ type bconfig struct {
 	N                    int     // total number of requests
 	K                    int     // key sapce
 	W                    float64 // write ratio
+	Throttle             int     // requests per second throttle, unused if 0
 	Concurrency          int     // number of simulated clients
 	Distribution         string  // distribution
 	LinearizabilityCheck bool    // run linearizability checker at the end of benchmark
@@ -44,20 +43,19 @@ type bconfig struct {
 	// zipfian distribution
 	ZipfianS float64 // zipfian s parameter
 	ZipfianV float64 // zipfian v parameter
-
-	Throttle int // requests per second throttle
 }
 
-// NewBenchmarkConfig returns a default benchmark config
-func newBenchmarkConfig() bconfig {
+// defaultBConfig returns a default benchmark config
+func defaultBConfig() bconfig {
 	return bconfig{
-		T:                    10,
+		T:                    60,
 		N:                    0,
 		K:                    1000,
-		W:                    100,
+		W:                    50,
+		Throttle:             0,
 		Concurrency:          1,
-		Distribution:         "random",
-		LinearizabilityCheck: false,
+		Distribution:         "uniform",
+		LinearizabilityCheck: true,
 		Conflicts:            100,
 		Min:                  0,
 		Mu:                   0,
@@ -67,26 +65,6 @@ func newBenchmarkConfig() bconfig {
 		ZipfianS:             2,
 		ZipfianV:             1,
 	}
-}
-
-// Load reads the benchmark parameters from configuration file
-func (c *bconfig) Load() error {
-	f, err := os.Open(*file)
-	if err != err {
-		return err
-	}
-	decoder := json.NewDecoder(f)
-	return decoder.Decode(c)
-}
-
-// Save saves the benchmark parameters to configuration file
-func (c *bconfig) Save() error {
-	f, err := os.Create(*file)
-	if err != nil {
-		return err
-	}
-	encoder := json.NewEncoder(f)
-	return encoder.Encode(c)
 }
 
 // Benchmark is benchmarking tool that generates workload and collects operation history and latency
@@ -105,7 +83,7 @@ type Benchmark struct {
 func NewBenchmark(db DB) *Benchmark {
 	b := new(Benchmark)
 	b.db = db
-	b.bconfig = newBenchmarkConfig()
+	b.bconfig = config.Benchmark
 	b.History = NewHistory()
 	return b
 }
@@ -202,25 +180,38 @@ func (b *Benchmark) next() int {
 	return key
 }
 
-func (b *Benchmark) worker(keys <-chan int, latencies chan<- time.Duration) {
-	for k := range keys {
-		var s time.Time
-		var e time.Time
-		if rand.Float64() < b.W {
-			v := rand.Int()
-			s = time.Now()
-			b.db.Write(k, v)
-			e = time.Now()
-			b.History.Add(k, v, nil, s.Sub(b.startTime).Nanoseconds(), e.Sub(b.startTime).Nanoseconds())
-		} else {
-			s = time.Now()
-			v := b.db.Read(k)
-			e = time.Now()
-			b.History.Add(k, nil, v, s.Sub(b.startTime).Nanoseconds(), e.Sub(b.startTime).Nanoseconds())
+func (b *Benchmark) worker(keys <-chan int, result chan<- time.Duration) {
+	if b.Throttle > 0 {
+		t := NewLimiter(b.Throttle)
+		for k := range keys {
+			t.Wait()
+			go b.do(k, result)
 		}
-		t := e.Sub(s)
-		latencies <- t
+	} else {
+		for k := range keys {
+			b.do(k, result)
+		}
 	}
+}
+
+// do one read or write operation
+func (b *Benchmark) do(k int, result chan<- time.Duration) {
+	var s time.Time
+	var e time.Time
+	if rand.Float64() < b.W {
+		v := rand.Int()
+		s = time.Now()
+		b.db.Write(k, v)
+		e = time.Now()
+		b.History.Add(k, v, nil, s.Sub(b.startTime).Nanoseconds(), e.Sub(b.startTime).Nanoseconds())
+	} else {
+		s = time.Now()
+		v := b.db.Read(k)
+		e = time.Now()
+		b.History.Add(k, nil, v, s.Sub(b.startTime).Nanoseconds(), e.Sub(b.startTime).Nanoseconds())
+	}
+	t := e.Sub(s)
+	result <- t
 }
 
 func (b *Benchmark) collect(latencies <-chan time.Duration) {
