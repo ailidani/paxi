@@ -5,6 +5,7 @@ import (
 	"time"
 )
 
+// Limiter limits operation rate when used with Wait function
 type Limiter struct {
 	sync.Mutex
 	last     time.Time

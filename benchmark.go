@@ -73,6 +73,7 @@ type Benchmark struct {
 	bconfig
 	*History
 
+	rate      *Limiter
 	cwait     sync.WaitGroup  // wait for all clients to finish
 	latency   []time.Duration // latency per operation
 	startTime time.Time
@@ -85,6 +86,7 @@ func NewBenchmark(db DB) *Benchmark {
 	b.db = db
 	b.bconfig = config.Benchmark
 	b.History = NewHistory()
+	b.rate = NewLimiter(b.Throttle)
 	return b
 }
 
@@ -182,10 +184,9 @@ func (b *Benchmark) next() int {
 
 func (b *Benchmark) worker(keys <-chan int, result chan<- time.Duration) {
 	if b.Throttle > 0 {
-		t := NewLimiter(b.Throttle)
 		for k := range keys {
-			t.Wait()
-			go b.do(k, result)
+			b.rate.Wait()
+			b.do(k, result)
 		}
 	} else {
 		for k := range keys {
