@@ -3,7 +3,6 @@ package paxi
 import (
 	"flag"
 	"math/rand"
-	"sync"
 	"time"
 
 	"github.com/ailidani/paxi/log"
@@ -74,7 +73,6 @@ type Benchmark struct {
 	*History
 
 	rate      *Limiter
-	cwait     sync.WaitGroup  // wait for all clients to finish
 	latency   []time.Duration // latency per operation
 	startTime time.Time
 	zipf      *rand.Zipf
@@ -179,40 +177,32 @@ func (b *Benchmark) next() int {
 		key = int(b.zipf.Uint64())
 	}
 
+	if b.Throttle > 0 {
+		b.rate.Wait()
+	}
+
 	return key
 }
 
 func (b *Benchmark) worker(keys <-chan int, result chan<- time.Duration) {
-	if b.Throttle > 0 {
-		for k := range keys {
-			b.rate.Wait()
-			b.do(k, result)
-		}
-	} else {
-		for k := range keys {
-			b.do(k, result)
-		}
-	}
-}
-
-// do one read or write operation
-func (b *Benchmark) do(k int, result chan<- time.Duration) {
 	var s time.Time
 	var e time.Time
-	if rand.Float64() < b.W {
-		v := rand.Int()
-		s = time.Now()
-		b.db.Write(k, v)
-		e = time.Now()
-		b.History.Add(k, v, nil, s.Sub(b.startTime).Nanoseconds(), e.Sub(b.startTime).Nanoseconds())
-	} else {
-		s = time.Now()
-		v := b.db.Read(k)
-		e = time.Now()
-		b.History.Add(k, nil, v, s.Sub(b.startTime).Nanoseconds(), e.Sub(b.startTime).Nanoseconds())
+	for k := range keys {
+		if rand.Float64() < b.W {
+			v := rand.Int()
+			s = time.Now()
+			b.db.Write(k, v)
+			e = time.Now()
+			b.History.Add(k, v, nil, s.Sub(b.startTime).Nanoseconds(), e.Sub(b.startTime).Nanoseconds())
+		} else {
+			s = time.Now()
+			v := b.db.Read(k)
+			e = time.Now()
+			b.History.Add(k, nil, v, s.Sub(b.startTime).Nanoseconds(), e.Sub(b.startTime).Nanoseconds())
+		}
+		t := e.Sub(s)
+		result <- t
 	}
-	t := e.Sub(s)
-	result <- t
 }
 
 func (b *Benchmark) collect(latencies <-chan time.Duration) {
