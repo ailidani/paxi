@@ -1,6 +1,8 @@
 package wankeeper
 
 import (
+	"log"
+
 	"github.com/ailidani/paxi"
 )
 
@@ -47,6 +49,13 @@ func NewReplica(id paxi.ID) *Replica {
 	r.Register(Revoke{}, r.handleRevoke)
 	r.Register(Token{}, r.handleToken)
 	return r
+}
+
+// Run overrides Node.Run() function to start leader election
+func (r *Replica) Run() {
+	r.Node.Run()
+	r.ballot = paxi.NewBallot(1, r.ID())
+	r.Multicast(r.ID().Zone(), NewLeader{r.ballot})
 }
 
 func (r *Replica) init(key paxi.Key) {
@@ -209,17 +218,25 @@ func (r *Replica) handleCommit(m Commit) {
 		r.tokens.set(m.Command.Key, m.Ballot.ID())
 	} else if r.ID() == r.master {
 		// master
+
 	} else {
 		// leader
 	}
 }
 
 func (r *Replica) handleRevoke(m Revoke) {
-
+	if r.tokens.contains(m.Token) {
+		r.tokens.set(m.Token, r.master)
+		r.Send(r.master, Token{
+			m.Token,
+		})
+	} else {
+		log.Fatalf("replica %v does not have token %v", r.ID(), m.Token)
+	}
 }
 
 func (r *Replica) handleToken(m Token) {
-
+	r.tokens.set(m.Token, r.ID())
 }
 
 // Broadcast overrides Socket interface in Node

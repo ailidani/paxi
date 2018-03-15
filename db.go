@@ -56,7 +56,6 @@ type Database interface {
 }
 
 // Database implements a multi-version key-value datastore as the StateMachine
-// TODO turn on/off multi-verion by config
 type database struct {
 	sync.RWMutex
 	data         map[Key]Value
