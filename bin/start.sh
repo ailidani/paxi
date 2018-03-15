@@ -2,5 +2,5 @@
 
 PID_FILE=server.pid
 
-./server -log_dir=. -log_level=debug -id $1 &
+./server -log_dir=. -log_level=info -id $1 &
 echo $! >> ${PID_FILE}
