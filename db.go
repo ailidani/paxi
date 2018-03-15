@@ -58,14 +58,20 @@ type Database interface {
 // Database implements a multi-version key-value datastore as the StateMachine
 // TODO turn on/off multi-verion by config
 type database struct {
-	data map[Key][]Value
 	sync.RWMutex
+	data         map[Key]Value
+	version      int
+	multiversion bool
+	history      map[Key][]Value
 }
 
 // NewDatabase returns database that impelements Database interface
 func NewDatabase() Database {
 	return &database{
-		data: make(map[Key][]Value),
+		data:         make(map[Key]Value),
+		version:      0,
+		multiversion: config.MultiVersion,
+		history:      make(map[Key][]Value),
 	}
 }
 
@@ -98,7 +104,7 @@ func (d *database) Execute(c Command) Value {
 	defer d.Unlock()
 
 	// get previous value
-	v := d.get(c.Key)
+	v := d.data[c.Key]
 
 	// writes new value
 	d.put(c.Key, c.Value)
@@ -106,27 +112,23 @@ func (d *database) Execute(c Command) Value {
 	return v
 }
 
-func (d *database) get(k Key) Value {
-	n := len(d.data[k])
-	if n > 0 {
-		return d.data[k][n-1]
-	}
-	return nil
-}
-
 // Get gets the current value and version of given key
 func (d *database) Get(k Key) Value {
 	d.RLock()
 	defer d.RUnlock()
-	return d.get(k)
+	return d.data[k]
 }
 
 func (d *database) put(k Key, v Value) {
-	if d.data[k] == nil {
-		d.data[k] = make([]Value, 0)
-	}
 	if v != nil {
-		d.data[k] = append(d.data[k], v)
+		d.data[k] = v
+		d.version++
+		if d.multiversion {
+			if d.history[k] == nil {
+				d.history[k] = make([]Value, 0)
+			}
+			d.history[k] = append(d.history[k], v)
+		}
 	}
 }
 
@@ -141,14 +143,14 @@ func (d *database) Put(k Key, v Value) {
 func (d *database) Version(k Key) int {
 	d.RLock()
 	defer d.RUnlock()
-	return len(d.data[k])
+	return d.version
 }
 
 // History returns entire vlue history in order
 func (d *database) History(k Key) []Value {
 	d.RLock()
 	defer d.RUnlock()
-	return d.data[k]
+	return d.history[k]
 }
 
 func (d *database) String() string {

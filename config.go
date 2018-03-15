@@ -26,6 +26,7 @@ type Config struct {
 	Thrifty         bool          `json:"thrifty"`           // only send messages to a quorum
 	BufferSize      int           `json:"buffer_size"`       // buffer size for maps
 	ChanBufferSize  int           `json:"chan_buffer_size"`  // buffer size for channels
+	MultiVersion    bool          `json:"multiversion"`      // create multi-version database
 	Benchmark       bconfig       `json:"benchmark"`         // benchmark configuration
 
 	// for future implementation

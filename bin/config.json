@@ -33,6 +33,7 @@
     "reply_when_commit": false,
     "chan_buffer_size": 1024,
     "buffer_size": 1024,
+    "multiversion": false,
     "benchmark": {
         "T": 60,
         "N": 0,

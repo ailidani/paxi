@@ -112,7 +112,7 @@ func (n *node) Forward(id ID, m Request) {
 		log.Error(err)
 		return
 	}
-	req.Header.Set(HTTPClientID, string(m.Command.ClientID))
+	req.Header.Set(HTTPClientID, string(n.id))
 	req.Header.Set(HTTPCommandID, strconv.Itoa(m.Command.CommandID))
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
