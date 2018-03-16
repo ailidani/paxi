@@ -1,7 +1,6 @@
 package paxi
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -19,7 +18,8 @@ func NewID(zone, node int) ID {
 	if node < 0 {
 		node = -node
 	}
-	return ID(fmt.Sprintf("%d.%d", zone, node))
+	// return ID(fmt.Sprintf("%d.%d", zone, node))
+	return ID(strconv.Itoa(zone) + "." + strconv.Itoa(node))
 }
 
 // Zone returns Zond ID component

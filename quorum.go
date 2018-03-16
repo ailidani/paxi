@@ -14,9 +14,9 @@ type Quorum struct {
 func NewQuorum() *Quorum {
 	return &Quorum{
 		size:  0,
-		acks:  make(map[ID]bool, config.NumNodes()),
-		zones: make(map[int]int, config.NumZones()),
-		nacks: make(map[ID]bool, config.NumNodes()),
+		acks:  make(map[ID]bool),
+		zones: make(map[int]int),
+		nacks: make(map[ID]bool),
 	}
 }
 
@@ -47,9 +47,9 @@ func (q *Quorum) Size() int {
 // Reset resets the quorum to empty
 func (q *Quorum) Reset() {
 	q.size = 0
-	q.acks = make(map[ID]bool, config.NumNodes())
-	q.zones = make(map[int]int, config.NumZones())
-	q.nacks = make(map[ID]bool, config.NumNodes())
+	q.acks = make(map[ID]bool)
+	q.zones = make(map[int]int)
+	q.nacks = make(map[ID]bool)
 }
 
 // Majority quorum satisfied
