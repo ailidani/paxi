@@ -6,6 +6,8 @@ import "github.com/ailidani/paxi"
 type tokens struct {
 	id     paxi.ID
 	tokens map[paxi.Key]paxi.ID
+	// master token manager can create new tokens
+	master bool
 }
 
 func newTokens(id paxi.ID) *tokens {
@@ -16,7 +18,12 @@ func newTokens(id paxi.ID) *tokens {
 }
 
 func (t *tokens) contains(key paxi.Key) bool {
-	return t.tokens[key] == t.id
+	id, exist := t.tokens[key]
+	if t.master && !exist {
+		t.tokens[key] = t.id
+		return true
+	}
+	return id == t.id
 }
 
 func (t *tokens) add(key paxi.Key) {

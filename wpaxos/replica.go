@@ -10,7 +10,7 @@ import (
 type Replica struct {
 	paxi.Node
 	paxi  map[paxi.Key]*paxos.Paxos
-	stats map[paxi.Key]Policy
+	stats map[paxi.Key]paxi.Policy
 
 	key paxi.Key // current working key
 }
@@ -20,7 +20,7 @@ func NewReplica(id paxi.ID) *Replica {
 	r := new(Replica)
 	r.Node = paxi.NewNode(id)
 	r.paxi = make(map[paxi.Key]*paxos.Paxos)
-	r.stats = make(map[paxi.Key]Policy)
+	r.stats = make(map[paxi.Key]paxi.Policy)
 
 	r.Register(paxi.Request{}, r.handleRequest)
 	r.Register(paxi.Transaction{}, r.handleTransaction)
@@ -36,7 +36,7 @@ func NewReplica(id paxi.ID) *Replica {
 func (r *Replica) init(key paxi.Key) {
 	if _, exists := r.paxi[key]; !exists {
 		r.paxi[key] = paxos.NewPaxos(r)
-		r.stats[key] = NewPolicy(paxi.GetConfig().Policy)
+		r.stats[key] = paxi.NewPolicy()
 	}
 }
 
@@ -49,7 +49,7 @@ func (r *Replica) handleRequest(m paxi.Request) {
 	if paxi.GetConfig().Adaptive {
 		if p.IsLeader() || p.Ballot() == 0 {
 			p.HandleRequest(m)
-			to := r.stats[r.key].hit(m.Command.ClientID)
+			to := r.stats[r.key].Hit(m.Command.ClientID)
 			if to != "" && to.Zone() != r.ID().Zone() {
 				p.Send(to, LeaderChange{
 					Key:    r.key,

@@ -13,6 +13,7 @@ import (
 	"github.com/ailidani/paxi/paxos"
 	"github.com/ailidani/paxi/paxos_group"
 	"github.com/ailidani/paxi/ppaxos"
+	"github.com/ailidani/paxi/wankeeper"
 	"github.com/ailidani/paxi/wpaxos"
 )
 
@@ -53,6 +54,9 @@ func replica(id paxi.ID) {
 
 	case "dynamo":
 		dynamo.NewReplica(id).Run()
+
+	case "wankeeper":
+		wankeeper.NewReplica(id).Run()
 
 	default:
 		panic("Unknown algorithm.")

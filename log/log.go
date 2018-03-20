@@ -33,7 +33,7 @@ func (s *severity) Get() interface{} {
 }
 
 func (s *severity) Set(value string) error {
-	threshold := DEBUG
+	threshold := INFO
 	value = strings.ToUpper(value)
 	for i, name := range names {
 		if name == value {

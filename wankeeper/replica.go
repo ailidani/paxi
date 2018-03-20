@@ -1,9 +1,8 @@
 package wankeeper
 
 import (
-	"log"
-
 	"github.com/ailidani/paxi"
+	"github.com/ailidani/paxi/log"
 )
 
 type entry struct {
@@ -16,18 +15,13 @@ type entry struct {
 type Replica struct {
 	paxi.Node
 
-	log       map[paxi.Key]map[int]*entry
-	slot      int
-	committed int
-	executed  int
-	tokens    *tokens
+	log      map[paxi.Key]map[int]*entry
+	slot     map[paxi.Key]int
+	executed map[paxi.Key]int
+	tokens   *tokens
 
-	master  paxi.ID
-	leaders []paxi.ID
-
-	leader   bool
+	leader   *leader
 	ballot   paxi.Ballot     // ballot for local group
-	quorum   *paxi.Quorum    // quorum for leader election
 	requests []*paxi.Request // pending requests
 }
 
@@ -35,87 +29,61 @@ func NewReplica(id paxi.ID) *Replica {
 	r := &Replica{
 		Node:     paxi.NewNode(id),
 		log:      make(map[paxi.Key]map[int]*entry),
+		slot:     make(map[paxi.Key]int),
+		executed: make(map[paxi.Key]int),
 		tokens:   newTokens(id),
-		master:   paxi.ID("2.3"), // TODO no hardcode
-		quorum:   paxi.NewQuorum(),
 		requests: make([]*paxi.Request, 0),
 	}
 	r.Register(paxi.Request{}, r.handleRequest)
 	r.Register(NewLeader{}, r.handleNewLeader)
-	r.Register(Vote{}, r.handleVote)
+	r.Register(NewBallot{}, r.handleNewBallot)
 	r.Register(Proposal{}, r.handleProposal)
-	r.Register(Ack{}, r.handleAck)
 	r.Register(Commit{}, r.handleCommit)
-	r.Register(Revoke{}, r.handleRevoke)
-	r.Register(Token{}, r.handleToken)
+
 	return r
 }
 
 // Run overrides Node.Run() function to start leader election
 func (r *Replica) Run() {
-	r.Node.Run()
-	r.ballot = paxi.NewBallot(1, r.ID())
-	r.Multicast(r.ID().Zone(), NewLeader{r.ballot})
-}
-
-func (r *Replica) init(key paxi.Key) {
-	if _, exist := r.log[key]; !exist {
-		r.log[key] = make(map[int]*entry)
-	}
-}
-
-func (r *Replica) lead(m ...*paxi.Request) {
-	for _, request := range m {
-		key := request.Command.Key
-		r.init(key)
-		if r.tokens.contains(key) {
-			r.slot++
-			// had token start bcast
-			r.log[key][r.slot] = &entry{
-				cmd:    request.Command,
-				req:    request,
-				quorum: paxi.NewQuorum(),
-			}
-			r.Multicast(r.ID().Zone(), Proposal{
-				Ballot:  r.ballot,
-				Slot:    len(r.log) - 1,
-				Command: request.Command,
-			})
-		} else if r.ID() != r.master {
-			// no token level 1
-			go r.Forward(r.master, *request)
-		} else {
-			// no token level 2
-			id := r.tokens.get(key)
-			r.Send(id, Revoke{key})
-			// add to pending request
-			r.requests = append(r.requests, request)
+	defer r.Node.Run()
+	min := r.ID()
+	for id := range paxi.GetConfig().Addrs {
+		if id.Zone() == min.Zone() && id.Node() < min.Node() {
+			min = id
 		}
 	}
-}
-
-func (r *Replica) handleRequest(m paxi.Request) {
-	if r.ballot == 0 { // start leader election
-		r.ballot = paxi.NewBallot(1, r.ID())
-		r.Broadcast(NewLeader{r.ballot})
-		r.requests = append(r.requests, &m)
-	} else if r.leader {
-		// is leader of local group
-		r.lead(&m)
-	} else if r.ballot.ID() == r.ID() {
-		// in leader election phase
-		r.requests = append(r.requests, &m)
+	r.ballot.Next(min)
+	if min != r.ID() {
+		log.Debugf("replica %s voted for %s", r.ID(), min)
+		r.Send(min, Vote{
+			Ballot: r.ballot,
+			ID:     r.ID(),
+		})
 	} else {
-		// follower
-		go r.Forward(r.ballot.ID(), m)
+		log.Debugf("replica %s create new leader", r.ID())
+		r.leader = newLeader(r)
 	}
+	// r.ballot.Next(r.ID())
+	// r.Multicast(r.ID().Zone(), NewBallot{r.ballot})
 }
 
 func (r *Replica) handleNewLeader(m NewLeader) {
+	if m.Ballot.ID().Zone() != r.ID().Zone() {
+		if r.leader != nil && r.leader.master != nil {
+			r.leader.master.handleNewLeader(m)
+		}
+		return
+	}
 	if m.Ballot > r.ballot {
 		r.ballot = m.Ballot
-		r.leader = false
-		r.quorum.Reset()
+		r.leader = nil
+	}
+}
+
+func (r *Replica) handleNewBallot(m NewBallot) {
+	if m.Ballot > r.ballot {
+		r.ballot = m.Ballot
+		r.leader = nil
 	}
 	r.Send(m.Ballot.ID(), Vote{
 		Ballot: r.ballot,
@@ -123,22 +91,28 @@ func (r *Replica) handleNewLeader(m NewLeader) {
 	})
 }
 
-func (r *Replica) handleVote(m Vote) {
-	if m.Ballot < r.ballot || r.leader {
-		return
+func (r *Replica) init(key paxi.Key) {
+	if _, exist := r.log[key]; !exist {
+		r.log[key] = make(map[int]*entry)
+		r.executed[key] = 1
 	}
+}
 
-	if m.Ballot > r.ballot {
-		// step down to follower
-		r.ballot = m.Ballot
-		r.leader = false
-		r.quorum.Reset()
-	} else if m.Ballot.ID() == r.ID() {
-		r.quorum.ACK(m.ID)
-		if r.quorum.ZoneMajority() {
-			r.leader = true
-			r.lead(r.requests...)
+func (r *Replica) handleRequest(m paxi.Request) {
+	log.Debugf("replica %s received request %v", r.ID(), m)
+	if r.ballot == 0 {
+		// wait leader election
+		r.requests = append(r.requests, &m)
+	} else if r.leader != nil {
+		// is leader of local group
+		if r.leader.active {
+			r.leader.lead(&m)
+		} else {
+			r.requests = append(r.requests, &m)
 		}
+	} else {
+		// follower
+		go r.Forward(r.ballot.ID(), m)
 	}
 }
 
@@ -147,13 +121,16 @@ func (r *Replica) handleProposal(m Proposal) {
 		return
 	}
 
+	log.Debugf("replica %s received proposal %v", r.ID(), m)
+
 	if m.Ballot > r.ballot {
 		r.ballot = m.Ballot
-		r.leader = false
+		r.leader = nil
 	}
 
 	key := m.Command.Key
 	r.init(key)
+	r.slot[key] = paxi.Max(r.slot[key], m.Slot)
 	r.log[key][m.Slot] = &entry{
 		cmd: m.Command,
 	}
@@ -165,81 +142,53 @@ func (r *Replica) handleProposal(m Proposal) {
 	})
 }
 
-func (r *Replica) handleAck(m Ack) {
-	if m.Ballot < r.ballot {
-		return
-	}
-
-	if m.Ballot > r.ballot {
-		r.ballot = m.Ballot
-		r.leader = false
-		return
-	}
-
-	key := m.Key
-
-	e := r.log[key][m.Slot]
-	if e.commit {
-		return
-	}
-
-	e.quorum.ACK(m.ID)
-	if e.quorum.ZoneMajority() {
-		e.commit = true
-		c := Commit{
-			Ballot:  r.ballot,
-			Slot:    m.Slot,
-			Command: e.cmd,
-		}
-		r.Multicast(r.ID().Zone(), c)
-		if r.ID() != r.master {
-			r.Send(r.master, c)
-		} else {
-			// TODO broadcast to leaders only?
-			r.Broadcast(c)
-		}
-	}
-}
-
 func (r *Replica) handleCommit(m Commit) {
+	log.Debugf("replica %s received commit %v", r.ID(), m)
 	key := m.Command.Key
 	r.init(key)
-	if !r.leader {
-		// follower
-		e := r.log[key][m.Slot]
-		if e == nil {
-			r.log[key][m.Slot] = &entry{
-				cmd:    m.Command,
-				commit: true,
-			}
-			e = r.log[key][m.Slot]
+	r.slot[key] = paxi.Max(r.slot[key], m.Slot)
+	// follower
+	e := r.log[key][m.Slot]
+	if e == nil {
+		r.log[key][m.Slot] = &entry{
+			cmd:    m.Command,
+			commit: true,
 		}
-		e.commit = true
-		r.tokens.set(m.Command.Key, m.Ballot.ID())
-	} else if r.ID() == r.master {
-		// master
+		e = r.log[key][m.Slot]
+	}
+	e.commit = true
+	r.tokens.set(m.Command.Key, m.Ballot.ID())
 
-	} else {
-		// leader
+	r.exec(key)
+
+	// leader
+	if r.leader != nil {
+		r.leader.handleCommit(m)
 	}
 }
 
-func (r *Replica) handleRevoke(m Revoke) {
-	if r.tokens.contains(m.Token) {
-		r.tokens.set(m.Token, r.master)
-		r.Send(r.master, Token{
-			m.Token,
-		})
-	} else {
-		log.Fatalf("replica %v does not have token %v", r.ID(), m.Token)
-	}
-}
+func (r *Replica) exec(key paxi.Key) {
+	for {
+		e, exist := r.log[key][r.executed[key]]
+		if !exist || !e.commit {
+			break
+		}
 
-func (r *Replica) handleToken(m Token) {
-	r.tokens.set(m.Token, r.ID())
+		log.Debugf("replica %s execute [s=%d, cmd=%v]", r.ID(), r.executed[key], e.cmd)
+		value := r.Execute(e.cmd)
+		r.executed[key]++
+
+		if e.req != nil {
+			e.req.Reply(paxi.Reply{
+				Command: e.cmd,
+				Value:   value,
+			})
+			e.req = nil
+		}
+	}
 }
 
 // Broadcast overrides Socket interface in Node
-func (r *Replica) Broadcast(msg interface{}) {
-	r.Node.Multicast(r.ID().Zone(), msg)
-}
+// func (r *Replica) Broadcast(msg interface{}) {
+// 	r.Node.Multicast(r.ID().Zone(), msg)
+// }

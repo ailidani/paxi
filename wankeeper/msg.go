@@ -8,8 +8,9 @@ import (
 )
 
 func init() {
-	gob.Register(NewLeader{})
+	gob.Register(NewBallot{})
 	gob.Register(Vote{})
+	gob.Register(NewLeader{})
 	gob.Register(Proposal{})
 	gob.Register(Ack{})
 	gob.Register(Commit{})
@@ -21,16 +22,12 @@ func init() {
  * Intra-Cluster Messages *
  **************************/
 
-// NewLeader message
-type NewLeader struct {
+// NewBallot message starts a new leader election
+type NewBallot struct {
 	Ballot paxi.Ballot
 }
 
-func (m NewLeader) String() string {
-	return fmt.Sprintf("NewLeader {id=%v, b=%v}", m.Ballot.ID(), m.Ballot)
-}
-
-// Vote message acks NewLeader election
+// Vote message acks NewBallot election
 type Vote struct {
 	Ballot paxi.Ballot
 	ID     paxi.ID
@@ -38,6 +35,15 @@ type Vote struct {
 
 func (m Vote) String() string {
 	return fmt.Sprintf("Vote {lid=%v, b=%v}", m.Ballot.ID(), m.Ballot)
+}
+
+// NewLeader message actives leader
+type NewLeader struct {
+	Ballot paxi.Ballot
+}
+
+func (m NewLeader) String() string {
+	return fmt.Sprintf("NewLeader {id=%v, b=%v}", m.Ballot.ID(), m.Ballot)
 }
 
 // Proposal from leader to followers
@@ -48,7 +54,7 @@ type Proposal struct {
 }
 
 func (m Proposal) String() string {
-	return fmt.Sprintf("Accept {lid=%v, bal=%v, slot=%d, cmd=%v}", m.Ballot.ID(), m.Ballot, m.Slot, m.Command)
+	return fmt.Sprintf("Proposal {bal=%v, slot=%d, cmd=%v}", m.Ballot, m.Slot, m.Command)
 }
 
 // Ack from follower to leader
@@ -60,27 +66,26 @@ type Ack struct {
 }
 
 func (m Ack) String() string {
-	return fmt.Sprintf("Accepted {lid=%v, bal=%v, slot=%d}", m.Ballot.ID(), m.Ballot, m.Slot)
+	return fmt.Sprintf("Ack {id=%v, bal=%v, slot=%d}", m.ID, m.Ballot, m.Slot)
 }
 
 // Commit phase 3
 type Commit struct {
-	Token   paxi.Key
 	Ballot  paxi.Ballot
 	Slot    int
 	Command paxi.Command
 }
 
 func (c Commit) String() string {
-	return fmt.Sprintf("Commit {token=%d, lid=%v, bal=%v, slot=%d, cmd=%v}", c.Token, c.Ballot.ID(), c.Ballot, c.Slot, c.Command)
+	return fmt.Sprintf("Commit {bal=%v, slot=%d, cmd=%v}", c.Ballot, c.Slot, c.Command)
 }
 
 // Token sending between regions
 type Token struct {
-	Token paxi.Key
+	Key paxi.Key
 }
 
 // Revoke tokens
 type Revoke struct {
-	Token paxi.Key
+	Key paxi.Key
 }

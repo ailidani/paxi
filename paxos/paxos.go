@@ -309,7 +309,7 @@ func (p *Paxos) exec() {
 			break
 		}
 
-		log.Debugf("Replica %s execute [s=%d, cmd=%v]\n", p.ID(), p.execute, e.command)
+		log.Debugf("Replica %s execute [s=%d, cmd=%v]", p.ID(), p.execute, e.command)
 		value := p.Execute(e.command)
 		p.execute++
 

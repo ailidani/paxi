@@ -1,41 +1,40 @@
-package wpaxos
+package paxi
 
 import (
-	"log"
 	"time"
 
-	"github.com/ailidani/paxi"
+	"github.com/ailidani/paxi/log"
 )
 
 type Policy interface {
-	hit(id paxi.ID) paxi.ID
+	Hit(id ID) ID
 }
 
-func NewPolicy(name string) Policy {
-	switch name {
+func NewPolicy() Policy {
+	switch config.Policy {
 	case "consecutive":
 		p := new(consecutive)
-		p.n = paxi.GetConfig().Threshold
+		p.n = config.Threshold
 		return p
 	case "majority":
 		p := new(majority)
-		p.interval = paxi.GetConfig().Threshold
-		p.hits = make(map[paxi.ID]int)
+		p.interval = config.Threshold
+		p.hits = make(map[ID]int)
 		p.time = time.Now()
 		return p
 	default:
-		log.Fatal("unknown policy name ", name)
+		log.Fatal("unknown policy name ", config.Policy)
 		return nil
 	}
 }
 
 type consecutive struct {
-	last paxi.ID
+	last ID
 	hits int
 	n    int
 }
 
-func (c *consecutive) hit(id paxi.ID) paxi.ID {
+func (c *consecutive) Hit(id ID) ID {
 	if id == c.last {
 		c.hits++
 	} else {
@@ -50,17 +49,17 @@ func (c *consecutive) hit(id paxi.ID) paxi.ID {
 
 // stat of access history in previous interval time
 type majority struct {
-	hits     map[paxi.ID]int
+	hits     map[ID]int
 	interval int       // in milliseconds
 	time     time.Time // last start time
 	sum      int       // total hits in current interval
 }
 
 // hit record access id and return the
-func (m *majority) hit(id paxi.ID) paxi.ID {
+func (m *majority) Hit(id ID) ID {
 	m.hits[id]++
 	m.sum++
-	var res paxi.ID
+	var res ID
 	if m.sum > 1 && time.Since(m.time) >= time.Millisecond*time.Duration(m.interval) {
 		for id, n := range m.hits {
 			if n >= m.sum/2 {
