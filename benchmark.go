@@ -42,6 +42,9 @@ type bconfig struct {
 	// zipfian distribution
 	ZipfianS float64 // zipfian s parameter
 	ZipfianV float64 // zipfian v parameter
+
+	// exponential distribution
+	Lambda float64 // rate parameter
 }
 
 // defaultBConfig returns a default benchmark config
@@ -63,6 +66,7 @@ func defaultBConfig() bconfig {
 		Speed:                500,
 		ZipfianS:             2,
 		ZipfianV:             1,
+		Lambda:               0.01,
 	}
 }
 
@@ -177,6 +181,12 @@ func (b *Benchmark) next() int {
 
 	case "zipfan":
 		key = int(b.zipf.Uint64())
+
+	case "exponential":
+		key = int(rand.ExpFloat64() / b.Lambda)
+
+	default:
+		log.Fatalf("unknown distribution %s", b.Distribution)
 	}
 
 	if b.Throttle > 0 {

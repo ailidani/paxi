@@ -35,6 +35,7 @@ func (q *Quorum) NACK(id ID) {
 	}
 }
 
+// ADD increase ack size by one
 func (q *Quorum) ADD() {
 	q.size++
 }

@@ -24,7 +24,7 @@
     "transport": "tcp",
     "algorithm": "wpaxos",
     "quorum": "fgrid",
-    "f": 1,
+    "f": 0,
     "adaptive": true,
     "policy": "consecutive",
     "threshold": 3,
@@ -50,6 +50,7 @@
         "Move": false,
         "Speed": 500,
         "Zipfian_s": 2,
-        "Zipfian_v": 1
+        "Zipfian_v": 1,
+        "Lambda": 0.01
     }
 }
