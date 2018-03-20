@@ -99,7 +99,7 @@ func (r *Replica) init(key paxi.Key) {
 }
 
 func (r *Replica) handleRequest(m paxi.Request) {
-	log.Debugf("replica %s received request %v", r.ID(), m)
+	log.Debugf("replica %s received %v", r.ID(), m)
 	if r.ballot == 0 {
 		// wait leader election
 		r.requests = append(r.requests, &m)
@@ -121,7 +121,7 @@ func (r *Replica) handleProposal(m Proposal) {
 		return
 	}
 
-	log.Debugf("replica %s received proposal %v", r.ID(), m)
+	log.Debugf("replica %s received %v", r.ID(), m)
 
 	if m.Ballot > r.ballot {
 		r.ballot = m.Ballot
@@ -143,7 +143,7 @@ func (r *Replica) handleProposal(m Proposal) {
 }
 
 func (r *Replica) handleCommit(m Commit) {
-	log.Debugf("replica %s received commit %v", r.ID(), m)
+	log.Debugf("replica %s received %v", r.ID(), m)
 	key := m.Command.Key
 	r.init(key)
 	r.slot[key] = paxi.Max(r.slot[key], m.Slot)

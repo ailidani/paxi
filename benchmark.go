@@ -84,7 +84,9 @@ func NewBenchmark(db DB) *Benchmark {
 	b.db = db
 	b.bconfig = config.Benchmark
 	b.History = NewHistory()
-	b.rate = NewLimiter(b.Throttle)
+	if b.Throttle > 0 {
+		b.rate = NewLimiter(b.Throttle)
+	}
 	return b
 }
 
