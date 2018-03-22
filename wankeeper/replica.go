@@ -157,7 +157,7 @@ func (r *Replica) handleCommit(m Commit) {
 		e = r.log[key][m.Slot]
 	}
 	e.commit = true
-	r.tokens.set(m.Command.Key, m.Ballot.ID())
+	// r.tokens.set(m.Command.Key, m.Ballot.ID())
 
 	r.exec(key)
 
