@@ -197,7 +197,7 @@ func (p *PPaxos) HandleP2b(m P2b) {
 func (p *PPaxos) forward() {
 	for i := range p.requests {
 		m := *p.requests[i]
-		go p.Forward(p.ballot.ID(), m)
+		p.Forward(p.ballot.ID(), m)
 	}
 	p.requests = nil
 }

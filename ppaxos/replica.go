@@ -54,7 +54,7 @@ func (r *Replica) handleRequest(m paxi.Request) {
 				})
 			}
 		} else {
-			go r.Forward(p.Leader(), m)
+			r.Forward(p.Leader(), m)
 		}
 	} else {
 		p.handleRequest(m)
