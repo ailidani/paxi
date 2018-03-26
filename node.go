@@ -1,13 +1,9 @@
 package paxi
 
 import (
-	"bytes"
-	"errors"
-	"io"
-	"io/ioutil"
 	"net/http"
 	"reflect"
-	"strconv"
+	"sync"
 
 	"github.com/ailidani/paxi/log"
 )
@@ -33,6 +29,9 @@ type node struct {
 	MessageChan chan interface{}
 	handles     map[string]reflect.Value
 	server      *http.Server
+
+	sync.RWMutex
+	forwards map[string]*Request
 }
 
 // NewNode creates a new Node object from configuration
@@ -43,6 +42,7 @@ func NewNode(id ID) Node {
 		Database:    NewDatabase(),
 		MessageChan: make(chan interface{}, config.ChanBufferSize),
 		handles:     make(map[string]reflect.Value),
+		forwards:    make(map[string]*Request),
 	}
 }
 
@@ -77,7 +77,22 @@ func (n *node) Run() {
 // recv receives messages from socket and pass to message channel
 func (n *node) recv() {
 	for {
-		n.MessageChan <- n.Recv()
+		m := n.Recv()
+		switch m := m.(type) {
+		case Request:
+			m.c = make(chan Reply)
+			go func() {
+				n.Send(m.NodeID, <-m.c)
+			}()
+
+		case Reply:
+			n.RLock()
+			r := n.forwards[m.Command.String()]
+			n.RUnlock()
+			r.Reply(m)
+			continue
+		}
+		n.MessageChan <- m
 	}
 }
 
@@ -95,6 +110,7 @@ func (n *node) handle() {
 	}
 }
 
+/*
 func (n *node) Forward(id ID, m Request) {
 	key := m.Command.Key
 	url := config.HTTPAddrs[id] + "/" + strconv.Itoa(int(key))
@@ -139,4 +155,14 @@ func (n *node) Forward(id ID, m Request) {
 			Err:     errors.New(res.Status),
 		})
 	}
+}
+*/
+
+func (n *node) Forward(id ID, m Request) {
+	log.Debugf("Node %v forwarding %v to %s", n.ID(), m, id)
+	m.NodeID = n.id
+	n.Lock()
+	n.forwards[m.Command.String()] = &m
+	n.Unlock()
+	n.Send(id, m)
 }

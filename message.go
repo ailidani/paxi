@@ -1,128 +1,108 @@
 package paxi
 
 import (
-	"sync"
-	"sync/atomic"
-	"time"
+	"encoding/gob"
+	"fmt"
 )
 
-const HEADER_SIZE int = 32
+func init() {
+	gob.Register(Request{})
+	gob.Register(Reply{})
+	gob.Register(Read{})
+	gob.Register(ReadReply{})
+	gob.Register(Transaction{})
+	gob.Register(TransactionReply{})
+	gob.Register(Register{})
+	gob.Register(Config{})
+}
 
 /***************************
- * Transport layer message *
+ * Client-Replica Messages *
  ***************************/
 
-type Message struct {
-	Header []byte
-	Body   []byte
+// Request is client reqeust with http response channel
+type Request struct {
+	Command   Command
+	Timestamp int64
+	NodeID    ID // forward by node
 
-	bbuf   []byte
-	hbuf   []byte
-	bsize  int
-	refcnt int32
-	expire time.Time
-	pool   *sync.Pool
+	c chan Reply // reply channel created by request receiver
 }
 
-type msgCacheInfo struct {
-	maxbody int
-	pool    *sync.Pool
+// Reply replies to current client session
+func (r *Request) Reply(reply Reply) {
+	r.c <- reply
 }
 
-func newMsg(sz int) *Message {
-	m := &Message{}
-	m.bbuf = make([]byte, 0, sz)
-	m.hbuf = make([]byte, 0, HEADER_SIZE)
-	m.bsize = sz
-	return m
+func (r Request) String() string {
+	return fmt.Sprintf("Request {cmd=%v}", r.Command)
 }
 
-// We can tweak these!
-var messageCache = []msgCacheInfo{
-	{
-		maxbody: 64,
-		pool: &sync.Pool{
-			New: func() interface{} { return newMsg(64) },
-		},
-	}, {
-		maxbody: 128,
-		pool: &sync.Pool{
-			New: func() interface{} { return newMsg(128) },
-		},
-	}, {
-		maxbody: 256,
-		pool: &sync.Pool{
-			New: func() interface{} { return newMsg(256) },
-		},
-	}, {
-		maxbody: 512,
-		pool: &sync.Pool{
-			New: func() interface{} { return newMsg(512) },
-		},
-	}, {
-		maxbody: 1024,
-		pool: &sync.Pool{
-			New: func() interface{} { return newMsg(1024) },
-		},
-	}, {
-		maxbody: 4096,
-		pool: &sync.Pool{
-			New: func() interface{} { return newMsg(4096) },
-		},
-	}, {
-		maxbody: 8192,
-		pool: &sync.Pool{
-			New: func() interface{} { return newMsg(8192) },
-		},
-	}, {
-		maxbody: 65536,
-		pool: &sync.Pool{
-			New: func() interface{} { return newMsg(65536) },
-		},
-	},
+// Reply includes all info that might replies to back the client for the coresponding reqeust
+type Reply struct {
+	Command   Command
+	Value     Value
+	Timestamp int64
+	Err       error
 }
 
-func (m *Message) Free() {
-	if v := atomic.AddInt32(&m.refcnt, -1); v > 0 {
-		return
-	}
-	for i := range messageCache {
-		if m.bsize == messageCache[i].maxbody {
-			messageCache[i].pool.Put(m)
-			return
-		}
-	}
+func (r Reply) String() string {
+	return fmt.Sprintf("Reply {cmd=%v}", r.Command)
 }
 
-func (m *Message) Dup() *Message {
-	atomic.AddInt32(&m.refcnt, 1)
-	return m
+// Read can be used as a special request that directly read the value of key without go through replication protocol in Replica
+type Read struct {
+	CommandID int
+	Key       Key
 }
 
-func (m *Message) Expired() bool {
-	if m.expire.IsZero() {
-		return false
-	}
-	if m.expire.After(time.Now()) {
-		return false
-	}
-	return true
+func (r Read) String() string {
+	return fmt.Sprintf("Read {cid=%d, key=%d}", r.CommandID, r.Key)
 }
 
-func NewMessage(sz int) *Message {
-	var m *Message
-	for i := range messageCache {
-		if sz < messageCache[i].maxbody {
-			m = messageCache[i].pool.Get().(*Message)
-			break
-		}
-	}
-	if m == nil {
-		m = newMsg(sz)
-	}
+// ReadReply cid and value of reading key
+type ReadReply struct {
+	CommandID int
+	Value     Value
+}
 
-	m.refcnt = 1
-	m.Body = m.bbuf
-	m.Header = m.hbuf
-	return m
+func (r ReadReply) String() string {
+	return fmt.Sprintf("ReadReply {cid=%d, val=%v}", r.CommandID, r.Value)
+}
+
+// Transaction contains arbitrary number of commands in one request
+// TODO read-only or write-only transactions
+type Transaction struct {
+	Commands  []Command
+	Timestamp int64
+
+	c chan TransactionReply
+}
+
+// Reply replies to current client session
+func (t *Transaction) Reply(r TransactionReply) {
+	t.c <- r
+}
+
+func (t Transaction) String() string {
+	return fmt.Sprintf("Transaction {cmds=%v}", t.Commands)
+}
+
+// TransactionReply is the result of transaction struct
+type TransactionReply struct {
+	OK        bool
+	Commands  []Command
+	Timestamp int64
+	Err       error
+}
+
+/**************************
+ *     Config Related     *
+ **************************/
+
+// Register message type is used to regitster self (node or client) with master node
+type Register struct {
+	Client bool
+	ID     ID
+	Addr   string
 }

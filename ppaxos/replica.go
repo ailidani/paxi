@@ -9,7 +9,7 @@ import (
 type Replica struct {
 	paxi.Node
 	paxi  map[paxi.Key]*PPaxos
-	stats map[paxi.Key]Policy
+	stats map[paxi.Key]paxi.Policy
 }
 
 // NewReplica generates a new PPaxos replica
@@ -17,7 +17,7 @@ func NewReplica(id paxi.ID) *Replica {
 	r := new(Replica)
 	r.Node = paxi.NewNode(id)
 	r.paxi = make(map[paxi.Key]*PPaxos)
-	r.stats = make(map[paxi.Key]Policy)
+	r.stats = make(map[paxi.Key]paxi.Policy)
 
 	r.Register(paxi.Request{}, r.handleRequest)
 	r.Register(P1a{}, r.handleP1a)
@@ -31,7 +31,7 @@ func NewReplica(id paxi.ID) *Replica {
 func (r *Replica) init(key paxi.Key) {
 	if _, exists := r.paxi[key]; !exists {
 		r.paxi[key] = NewPPaxos(r, key)
-		r.stats[key] = NewPolicy(paxi.GetConfig().Policy)
+		r.stats[key] = paxi.NewPolicy()
 	}
 }
 
@@ -44,7 +44,7 @@ func (r *Replica) handleRequest(m paxi.Request) {
 	if paxi.GetConfig().Adaptive {
 		if p.IsLeader() || p.Ballot() == 0 {
 			p.handleRequest(m)
-			to := r.stats[key].hit(m.Command.ClientID)
+			to := r.stats[key].Hit(m.Command.ClientID)
 			if to != "" && to.Zone() != r.ID().Zone() {
 				p.Send(to, LeaderChange{
 					Key:    key,
