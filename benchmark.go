@@ -3,6 +3,7 @@ package paxi
 import (
 	"flag"
 	"math/rand"
+	"sync"
 	"time"
 
 	"github.com/ailidani/paxi/log"
@@ -80,6 +81,8 @@ type Benchmark struct {
 	latency   []time.Duration // latency per operation
 	startTime time.Time
 	zipf      *rand.Zipf
+
+	wait sync.WaitGroup // waiting for all generated keys to complete
 }
 
 // NewBenchmark returns new Benchmark object given implementation of DB interface
@@ -126,11 +129,13 @@ func (b *Benchmark) Run() {
 			case <-timer.C:
 				break loop
 			default:
+				b.wait.Add(1)
 				keys <- b.next()
 			}
 		}
 	} else {
 		for i := 0; i < b.N; i++ {
+			b.wait.Add(1)
 			keys <- b.next()
 		}
 	}
@@ -138,6 +143,7 @@ func (b *Benchmark) Run() {
 
 	b.db.Stop()
 	close(keys)
+	b.wait.Wait()
 	stat := Statistic(b.latency)
 
 	log.Infof("Benchmark took %v\n", t)
@@ -220,5 +226,6 @@ func (b *Benchmark) worker(keys <-chan int, result chan<- time.Duration) {
 func (b *Benchmark) collect(latencies <-chan time.Duration) {
 	for t := range latencies {
 		b.latency = append(b.latency, t)
+		b.wait.Done()
 	}
 }
