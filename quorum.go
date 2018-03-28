@@ -8,16 +8,30 @@ type Quorum struct {
 	acks  map[ID]bool
 	zones map[int]int
 	nacks map[ID]bool
+
+	n   int         // total number of nodes
+	z   int         // total number of zones
+	npz map[int]int // nodes per zone
+	f   int         // zone failures
 }
 
 // NewQuorum returns a new Quorum
 func NewQuorum() *Quorum {
-	return &Quorum{
+	q := &Quorum{
 		size:  0,
 		acks:  make(map[ID]bool),
 		zones: make(map[int]int),
 		nacks: make(map[ID]bool),
+		npz:   make(map[int]int),
 	}
+	ids := config.IDs()
+	q.n = len(ids)
+	for _, id := range ids {
+		q.npz[id.Zone()]++
+	}
+	q.z = len(q.npz)
+	q.f = config.F
+	return q
 }
 
 // ACK adds id to quorum ack records
@@ -55,28 +69,23 @@ func (q *Quorum) Reset() {
 
 // Majority quorum satisfied
 func (q *Quorum) Majority() bool {
-	return q.size > config.NumNodes()/2
+	return q.size > q.n/2
 }
 
-// this is not correct
+// FastQuorum from fast paxos
 func (q *Quorum) FastQuorum() bool {
-	return q.size >= config.NumNodes()-1
-}
-
-// this should be fast quorum (from fast paxos)
-func (q *Quorum) FastPath() bool {
-	return q.size >= config.NumNodes()*3/4
+	return q.size >= q.n*3/4
 }
 
 // AllZones returns true if there is at one ack from each zone
 func (q *Quorum) AllZones() bool {
-	return len(q.zones) == config.NumZones()
+	return len(q.zones) == q.z
 }
 
 // ZoneMajority returns true if majority quorum satisfied in any zone
 func (q *Quorum) ZoneMajority() bool {
-	for _, n := range q.zones {
-		if n > config.NumNodes()/config.NumZones()/2 {
+	for z, n := range q.zones {
+		if n > q.npz[z]/2 {
 			return true
 		}
 	}
@@ -90,8 +99,8 @@ func (q *Quorum) GridRow() bool {
 
 // GridColumn == all nodes in one zone
 func (q *Quorum) GridColumn() bool {
-	for _, n := range q.zones {
-		if n == config.NumNodes()/config.NumZones() {
+	for z, n := range q.zones {
+		if n == q.npz[z] {
 			return true
 		}
 	}
@@ -100,24 +109,24 @@ func (q *Quorum) GridColumn() bool {
 
 // FGridQ1 is flexible grid quorum for phase 1
 func (q *Quorum) FGridQ1() bool {
-	z := 0
-	for _, n := range q.zones {
-		if n > config.NumNodes()/config.NumZones()/2 {
-			z++
+	zone := 0
+	for z, n := range q.zones {
+		if n > q.npz[z]/2 {
+			zone++
 		}
 	}
-	return z >= config.NumZones()-config.F
+	return zone >= q.z-q.f
 }
 
 // FGridQ2 is flexible grid quorum for phase 2
 func (q *Quorum) FGridQ2() bool {
-	z := 0
-	for _, n := range q.zones {
-		if n > config.NumNodes()/config.NumZones()/2 {
-			z++
+	zone := 0
+	for z, n := range q.zones {
+		if n > q.npz[z]/2 {
+			zone++
 		}
 	}
-	return z >= config.F+1
+	return zone >= q.f+1
 }
 
 // Q1 returns true if config.Quorum type is satisfied
@@ -132,7 +141,7 @@ func (q *Quorum) Q1() bool {
 	case "group":
 		return q.ZoneMajority()
 	case "count":
-		return q.size >= config.NumNodes()-config.F
+		return q.size >= q.n-q.f
 	default:
 		log.Error("Unknown quorum type")
 		return false
@@ -151,7 +160,7 @@ func (q *Quorum) Q2() bool {
 	case "group":
 		return q.ZoneMajority()
 	case "count":
-		return q.size > config.F
+		return q.size > q.f
 	default:
 		log.Error("Unknown quorum type")
 		return false

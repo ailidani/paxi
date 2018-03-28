@@ -76,18 +76,13 @@ func MakeDefaultConfig() Config {
 	}
 }
 
-// NumNodes returns number of total nodes
-func (c Config) NumNodes() int {
-	return len(c.Addrs)
-}
-
-// NumZones returns number of zones
-func (c Config) NumZones() int {
-	zones := make(map[int]int)
+// IDs returns all node ids
+func (c Config) IDs() []ID {
+	ids := make([]ID, 0)
 	for id := range c.Addrs {
-		zones[id.Zone()]++
+		ids = append(ids, id)
 	}
-	return len(zones)
+	return ids
 }
 
 // String is implemented to print the config

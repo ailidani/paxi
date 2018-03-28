@@ -80,10 +80,10 @@ func (n *node) recv() {
 		m := n.Recv()
 		switch m := m.(type) {
 		case Request:
-			m.c = make(chan Reply)
-			go func() {
-				n.Send(m.NodeID, <-m.c)
-			}()
+			m.c = make(chan Reply, 1)
+			go func(r Request) {
+				n.Send(r.NodeID, <-r.c)
+			}(m)
 
 		case Reply:
 			n.RLock()

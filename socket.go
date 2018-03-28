@@ -90,6 +90,7 @@ func (s *socket) Recv() interface{} {
 }
 
 func (s *socket) Multicast(zone int, m interface{}) {
+	log.Debugf("node %s broadcasting message %+v in zone %d", s.id, m, zone)
 	for id := range s.nodes {
 		if id == s.id {
 			continue

@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/ailidani/paxi"
-	"github.com/ailidani/paxi/log"
 )
 
 // entry in log
@@ -61,7 +60,7 @@ func (p *Paxos) Ballot() paxi.Ballot {
 
 // HandleRequest handles request and start phase 1 or phase 2
 func (p *Paxos) HandleRequest(r paxi.Request) {
-	log.Debugf("Replica %s received %v\n", p.ID(), r)
+	// log.Debugf("Replica %s received %v\n", p.ID(), r)
 	if !p.active {
 		p.requests = append(p.requests, &r)
 		// current phase 1 pending
@@ -104,7 +103,7 @@ func (p *Paxos) P2a(r *paxi.Request) {
 
 // HandleP1a handles P1a message
 func (p *Paxos) HandleP1a(m P1a) {
-	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.Ballot.ID(), m, p.ID())
+	// log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.Ballot.ID(), m, p.ID())
 
 	// new leader
 	if m.Ballot > p.ballot {
@@ -158,7 +157,7 @@ func (p *Paxos) HandleP1b(m P1b) {
 		return
 	}
 
-	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.ID, m, p.ID())
+	// log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.ID, m, p.ID())
 
 	p.update(m.Log)
 
@@ -202,7 +201,7 @@ func (p *Paxos) HandleP1b(m P1b) {
 
 // HandleP2a handles P2a message
 func (p *Paxos) HandleP2a(m P2a) {
-	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.Ballot.ID(), m, p.ID())
+	// log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.Ballot.ID(), m, p.ID())
 
 	if m.Ballot >= p.ballot {
 		p.ballot = m.Ballot
@@ -243,7 +242,7 @@ func (p *Paxos) HandleP2b(m P2b) {
 		return
 	}
 
-	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.ID, m, p.ID())
+	// log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.ID, m, p.ID())
 
 	// reject message
 	// node update its ballot number and falls back to acceptor
@@ -280,26 +279,34 @@ func (p *Paxos) HandleP2b(m P2b) {
 
 // HandleP3 handles phase 3 commit message
 func (p *Paxos) HandleP3(m P3) {
-	log.Debugf("Replica ===[%v]===>>> Replica %s\n", m, p.ID())
+	// log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.Ballot.ID(), m, p.ID())
 
 	p.slot = paxi.Max(p.slot, m.Slot)
 
-	if e, exists := p.log[m.Slot]; exists {
+	e, exist := p.log[m.Slot]
+	if exist {
 		if !e.command.Equal(m.Command) && e.request != nil {
 			p.Retry(*e.request)
 			e.request = nil
 		}
-		// update command
-		e.command = m.Command
-		e.commit = true
 	} else {
-		p.log[m.Slot] = &entry{
-			command: m.Command,
-			commit:  true,
-		}
+		p.log[m.Slot] = &entry{}
+		e = p.log[m.Slot]
 	}
 
-	p.exec()
+	e.command = m.Command
+	e.commit = true
+
+	if paxi.GetConfig().ReplyWhenCommit {
+		if e.request != nil {
+			e.request.Reply(paxi.Reply{
+				Command:   e.request.Command,
+				Timestamp: e.request.Timestamp,
+			})
+		}
+	} else {
+		p.exec()
+	}
 }
 
 func (p *Paxos) exec() {
@@ -309,7 +316,7 @@ func (p *Paxos) exec() {
 			break
 		}
 
-		log.Debugf("Replica %s execute [s=%d, cmd=%v]", p.ID(), p.execute, e.command)
+		// log.Debugf("Replica %s execute [s=%d, cmd=%v]", p.ID(), p.execute, e.command)
 		value := p.Execute(e.command)
 		p.execute++
 

@@ -42,6 +42,7 @@ func (c *consecutive) Hit(id ID) ID {
 		c.hits = 1
 	}
 	if c.hits >= c.n {
+		c.hits = 0
 		return c.last
 	}
 	return ""
