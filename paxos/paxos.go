@@ -32,12 +32,10 @@ type Paxos struct {
 
 // NewPaxos creates new paxos instance
 func NewPaxos(n paxi.Node) *Paxos {
-	log := make(map[int]*entry, paxi.GetConfig().BufferSize)
-	log[0] = &entry{}
 	return &Paxos{
 		Node:     n,
-		log:      log,
-		execute:  1,
+		log:      make(map[int]*entry, paxi.GetConfig().BufferSize),
+		slot:     -1,
 		quorum:   paxi.NewQuorum(),
 		requests: make([]*paxi.Request, 0),
 	}
@@ -109,6 +107,7 @@ func (p *Paxos) HandleP1a(m P1a) {
 	if m.Ballot > p.ballot {
 		p.ballot = m.Ballot
 		p.active = false
+		// TODO use BackOff time or forward
 		// forward pending requests to new leader
 		p.forward()
 		// if len(p.requests) > 0 {
@@ -331,9 +330,8 @@ func (p *Paxos) exec() {
 }
 
 func (p *Paxos) forward() {
-	for i := range p.requests {
-		m := *p.requests[i]
-		go p.Forward(p.ballot.ID(), m)
+	for _, m := range p.requests {
+		p.Forward(p.ballot.ID(), *m)
 	}
-	p.requests = nil
+	p.requests = make([]*paxi.Request, 0)
 }

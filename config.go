@@ -27,7 +27,7 @@ type Config struct {
 	BufferSize      int           `json:"buffer_size"`       // buffer size for maps
 	ChanBufferSize  int           `json:"chan_buffer_size"`  // buffer size for channels
 	MultiVersion    bool          `json:"multiversion"`      // create multi-version database
-	Benchmark       bconfig       `json:"benchmark"`         // benchmark configuration
+	Benchmark       Bconfig       `json:"benchmark"`         // benchmark configuration
 
 	// for future implementation
 	// Batching bool `json:"batching"`
@@ -54,25 +54,10 @@ func MakeDefaultConfig() Config {
 		Quorum:         "majority",
 		Transport:      "tcp",
 		Policy:         "consecutive",
+		Threshold:      3,
 		BufferSize:     1024,
 		ChanBufferSize: 1024,
-		Benchmark: bconfig{
-			T:                    60,
-			N:                    0,
-			K:                    1000,
-			W:                    50,
-			Concurrency:          1,
-			Distribution:         "uniform",
-			LinearizabilityCheck: false,
-			Conflicts:            100,
-			Min:                  0,
-			Mu:                   0,
-			Sigma:                60,
-			Move:                 false,
-			Speed:                500,
-			ZipfianS:             2,
-			ZipfianV:             1,
-		},
+		Benchmark:      defaultBConfig(),
 	}
 }
 
@@ -109,7 +94,7 @@ func (c *Config) Load() {
 }
 
 // Save saves configuration to file in JSON format
-func (c *Config) Save() error {
+func (c Config) Save() error {
 	file, err := os.Create(*configFile)
 	if err != nil {
 		return err

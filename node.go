@@ -51,6 +51,7 @@ func (n *node) ID() ID {
 }
 
 func (n *node) Retry(r Request) {
+	log.Debugf("node %v retry reqeust %v", n.id, r)
 	n.MessageChan <- r
 }
 

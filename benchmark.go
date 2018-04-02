@@ -1,7 +1,6 @@
 package paxi
 
 import (
-	"flag"
 	"math/rand"
 	"sync"
 	"time"
@@ -17,9 +16,7 @@ type DB interface {
 	Stop()
 }
 
-var file = flag.String("bconfig", "benchmark.json", "benchmark configuration file")
-
-type bconfig struct {
+type Bconfig struct {
 	T                    int     // total number of running time in seconds
 	N                    int     // total number of requests
 	K                    int     // key sapce
@@ -49,8 +46,8 @@ type bconfig struct {
 }
 
 // defaultBConfig returns a default benchmark config
-func defaultBConfig() bconfig {
-	return bconfig{
+func defaultBConfig() Bconfig {
+	return Bconfig{
 		T:                    60,
 		N:                    0,
 		K:                    1000,
@@ -74,7 +71,7 @@ func defaultBConfig() bconfig {
 // Benchmark is benchmarking tool that generates workload and collects operation history and latency
 type Benchmark struct {
 	db DB // read/write operation interface
-	bconfig
+	Bconfig
 	*History
 
 	rate      *Limiter
@@ -89,7 +86,7 @@ type Benchmark struct {
 func NewBenchmark(db DB) *Benchmark {
 	b := new(Benchmark)
 	b.db = db
-	b.bconfig = config.Benchmark
+	b.Bconfig = config.Benchmark
 	b.History = NewHistory()
 	if b.Throttle > 0 {
 		b.rate = NewLimiter(b.Throttle)

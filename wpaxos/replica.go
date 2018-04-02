@@ -30,7 +30,7 @@ func NewReplica(id paxi.ID) *Replica {
 
 func (r *Replica) init(key paxi.Key) {
 	if _, exists := r.paxi[key]; !exists {
-		r.paxi[key] = newKPaxos(key, r)
+		r.paxi[key] = newKPaxos(key, r.Node)
 	}
 }
 
@@ -65,25 +65,25 @@ func (r *Replica) handleTransaction(m paxi.Transaction) {
 }
 
 func (r *Replica) handlePrepare(m Prepare) {
-	// log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.Ballot.ID(), m, r.ID())
+	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.Ballot.ID(), m, r.ID())
 	r.init(m.Key)
 	r.paxi[m.Key].HandleP1a(m.P1a)
 }
 
 func (r *Replica) handlePromise(m Promise) {
-	// log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.ID, m, r.ID())
+	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.ID, m, r.ID())
 	r.paxi[m.Key].HandleP1b(m.P1b)
 	// log.Debugf("Number of keys: %d", r.keys())
 }
 
 func (r *Replica) handleAccept(m Accept) {
-	// log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.Ballot.ID(), m, r.ID())
+	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.Ballot.ID(), m, r.ID())
 	r.init(m.Key)
 	r.paxi[m.Key].HandleP2a(m.P2a)
 }
 
 func (r *Replica) handleAccepted(m Accepted) {
-	// log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.ID, m, r.ID())
+	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.ID, m, r.ID())
 	r.paxi[m.Key].HandleP2b(m.P2b)
 }
 
