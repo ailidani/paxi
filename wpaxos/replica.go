@@ -88,7 +88,7 @@ func (r *Replica) handleAccepted(m Accepted) {
 }
 
 func (r *Replica) handleCommit(m Commit) {
-	// log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.Ballot.ID(), m, r.ID())
+	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.Ballot.ID(), m, r.ID())
 	r.init(m.Key)
 	r.paxi[m.Key].HandleP3(m.P3)
 }

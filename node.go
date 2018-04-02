@@ -85,10 +85,13 @@ func (n *node) recv() {
 			go func(r Request) {
 				n.Send(r.NodeID, <-r.c)
 			}(m)
+			n.MessageChan <- m
+			continue
 
 		case Reply:
 			n.RLock()
 			r := n.forwards[m.Command.String()]
+			log.Debugf("node %v received reply %v", n.id, m)
 			n.RUnlock()
 			r.Reply(m)
 			continue
