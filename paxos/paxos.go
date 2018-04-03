@@ -20,6 +20,8 @@ type entry struct {
 type Paxos struct {
 	paxi.Node
 
+	config []paxi.ID
+
 	log     map[int]*entry // log ordered by slot
 	execute int            // next execute slot number
 	active  bool           // active leader
@@ -212,7 +214,8 @@ func (p *Paxos) HandleP2a(m P2a) {
 			if !e.commit && m.Ballot > e.ballot {
 				// different command and request is not nil
 				if !e.command.Equal(m.Command) && e.request != nil {
-					p.Retry(*e.request)
+					p.Forward(m.Ballot.ID(), *e.request)
+					// p.Retry(*e.request)
 					e.request = nil
 				}
 				e.command = m.Command
@@ -285,7 +288,8 @@ func (p *Paxos) HandleP3(m P3) {
 	e, exist := p.log[m.Slot]
 	if exist {
 		if !e.command.Equal(m.Command) && e.request != nil {
-			p.Retry(*e.request)
+			// p.Retry(*e.request)
+			p.Forward(m.Ballot.ID(), *e.request)
 			e.request = nil
 		}
 	} else {

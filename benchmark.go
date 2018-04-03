@@ -45,13 +45,13 @@ type Bconfig struct {
 	Lambda float64 // rate parameter
 }
 
-// defaultBConfig returns a default benchmark config
-func defaultBConfig() Bconfig {
+// DefaultBConfig returns a default benchmark config
+func DefaultBConfig() Bconfig {
 	return Bconfig{
 		T:                    60,
 		N:                    0,
 		K:                    1000,
-		W:                    50,
+		W:                    0.5,
 		Throttle:             0,
 		Concurrency:          1,
 		Distribution:         "uniform",
@@ -78,6 +78,7 @@ type Benchmark struct {
 	latency   []time.Duration // latency per operation
 	startTime time.Time
 	zipf      *rand.Zipf
+	counter   int
 
 	wait sync.WaitGroup // waiting for all generated keys to complete
 }
@@ -166,11 +167,23 @@ func (b *Benchmark) Run() {
 func (b *Benchmark) next() int {
 	var key int
 	switch b.Distribution {
+	case "order":
+		key = b.counter
+		b.counter++
+
 	case "uniform":
 		if rand.Intn(100) < b.Conflicts {
 			key = rand.Intn(b.K)
 		} else {
 			key = rand.Intn(b.K) + b.Min
+		}
+
+	case "conflict":
+		if rand.Intn(100) < b.Conflicts {
+			key = 0
+		} else {
+			b.counter++
+			key = b.counter
 		}
 
 	case "normal":
