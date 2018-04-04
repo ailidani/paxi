@@ -9,6 +9,7 @@ import (
 
 var id = flag.String("id", "", "node id this client connects to")
 var api = flag.String("api", "", "Client API type [rest, json, quorum]")
+var load = flag.Bool("load", false, "Load K keys into DB")
 var master = flag.String("master", "", "Master address.")
 
 // db implements Paxi.DB interface for benchmarking
@@ -66,5 +67,9 @@ func main() {
 	d.c = paxi.NewClient(paxi.ID(*id))
 
 	b := paxi.NewBenchmark(d)
-	b.Run()
+	if *load {
+		b.Load()
+	} else {
+		b.Run()
+	}
 }

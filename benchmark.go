@@ -16,6 +16,7 @@ type DB interface {
 	Stop()
 }
 
+// Bconfig holds all benchmark configuration
 type Bconfig struct {
 	T                    int     // total number of running time in seconds
 	N                    int     // total number of requests
@@ -92,15 +93,42 @@ func NewBenchmark(db DB) *Benchmark {
 	if b.Throttle > 0 {
 		b.rate = NewLimiter(b.Throttle)
 	}
+	rand.Seed(time.Now().UTC().UnixNano())
+	r := rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
+	b.zipf = rand.NewZipf(r, b.ZipfianS, b.ZipfianV, uint64(b.K))
 	return b
+}
+
+// Load will create all K keys to DB
+func (b *Benchmark) Load() {
+	b.db.Init()
+	keys := make(chan int, b.Concurrency)
+	latencies := make(chan time.Duration, 1000)
+	defer close(latencies)
+	go b.collect(latencies)
+
+	b.startTime = time.Now()
+	for i := 0; i < b.Concurrency; i++ {
+		go b.worker(keys, latencies)
+	}
+	for i := 0; i < b.K; i++ {
+		b.wait.Add(1)
+		keys <- i
+	}
+	t := time.Now().Sub(b.startTime)
+
+	b.db.Stop()
+	close(keys)
+	b.wait.Wait()
+	stat := Statistic(b.latency)
+
+	log.Infof("Benchmark took %v\n", t)
+	log.Infof("Throughput %f\n", float64(len(b.latency))/t.Seconds())
+	log.Info(stat)
 }
 
 // Run starts the main logic of benchmarking
 func (b *Benchmark) Run() {
-	rand.Seed(time.Now().UTC().UnixNano())
-	r := rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
-	b.zipf = rand.NewZipf(r, b.ZipfianS, b.ZipfianV, uint64(b.K))
-
 	var stop chan bool
 	if b.Move {
 		move := func() { b.Mu = float64(int(b.Mu+1) % b.K) }
