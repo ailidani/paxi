@@ -79,6 +79,7 @@ func (n *node) handleRoot(w http.ResponseWriter, r *http.Request) {
 	req := Request{
 		Command:   cmd,
 		Timestamp: time.Now().UnixNano(),
+		NodeID:    n.id,
 		c:         make(chan Reply, 1),
 	}
 

@@ -43,7 +43,7 @@ func (r *Replica) handleRequest(m paxi.Request) {
 	if paxi.GetConfig().Adaptive {
 		if p.IsLeader() || p.Ballot() == 0 {
 			p.HandleRequest(m)
-			to := p.Hit(m.Command.ClientID)
+			to := p.Hit(m.NodeID)
 			if to != "" && to.Zone() != r.ID().Zone() {
 				p.Send(to, LeaderChange{
 					Key:    key,
@@ -97,7 +97,7 @@ func (r *Replica) handleLeaderChange(m LeaderChange) {
 	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.From, m, r.ID())
 	p := r.paxi[m.Key]
 	if m.Ballot == p.Ballot() && m.To == r.ID() {
-		log.Debugf("Replica %s : change leader of key %d\n", r.ID(), m.Key)
+		// log.Debugf("Replica %s : change leader of key %d\n", r.ID(), m.Key)
 		p.P1a()
 	}
 }

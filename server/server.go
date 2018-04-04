@@ -69,7 +69,7 @@ func main() {
 	if *simulation {
 		var wg sync.WaitGroup
 		wg.Add(1)
-		paxi.GetConfig().Transport = "chan"
+		paxi.Simulation()
 		for id := range paxi.GetConfig().Addrs {
 			n := id
 			go replica(n)

@@ -58,6 +58,16 @@ func (p *Paxos) Ballot() paxi.Ballot {
 	return p.ballot
 }
 
+// SetActive sets current paxos instance as active leader
+func (p *Paxos) SetActive(active bool) {
+	p.active = active
+}
+
+// SetBallot sets a new ballot number
+func (p *Paxos) SetBallot(b paxi.Ballot) {
+	p.ballot = b
+}
+
 // HandleRequest handles request and start phase 1 or phase 2
 func (p *Paxos) HandleRequest(r paxi.Request) {
 	// log.Debugf("Replica %s received %v\n", p.ID(), r)
@@ -318,11 +328,8 @@ func (p *Paxos) exec() {
 		if !ok || !e.commit {
 			break
 		}
-
 		// log.Debugf("Replica %s execute [s=%d, cmd=%v]", p.ID(), p.execute, e.command)
 		value := p.Execute(e.command)
-		p.execute++
-
 		if e.request != nil {
 			e.request.Reply(paxi.Reply{
 				Command: e.command,
@@ -330,6 +337,8 @@ func (p *Paxos) exec() {
 			})
 			e.request = nil
 		}
+		// delete(p.log, p.execute)
+		p.execute++
 	}
 }
 

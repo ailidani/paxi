@@ -101,6 +101,9 @@ func NewBenchmark(db DB) *Benchmark {
 
 // Load will create all K keys to DB
 func (b *Benchmark) Load() {
+	b.W = 1.0
+	b.Throttle = 0
+
 	b.db.Init()
 	keys := make(chan int, b.Concurrency)
 	latencies := make(chan time.Duration, 1000)
@@ -164,12 +167,12 @@ func (b *Benchmark) Run() {
 			b.wait.Add(1)
 			keys <- b.next()
 		}
+		b.wait.Wait()
 	}
 	t := time.Now().Sub(b.startTime)
 
 	b.db.Stop()
 	close(keys)
-	b.wait.Wait()
 	stat := Statistic(b.latency)
 
 	log.Infof("Benchmark took %v\n", t)
