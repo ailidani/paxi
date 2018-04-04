@@ -203,18 +203,14 @@ func (b *Benchmark) next() int {
 		b.counter++
 
 	case "uniform":
-		if rand.Intn(100) < b.Conflicts {
-			key = rand.Intn(b.K)
-		} else {
-			key = rand.Intn(b.K) + b.Min
-		}
+		key = rand.Intn(b.K)
 
 	case "conflict":
 		if rand.Intn(100) < b.Conflicts {
 			key = 0
 		} else {
 			b.counter++
-			key = b.counter
+			key = b.counter + b.Min
 		}
 
 	case "normal":
