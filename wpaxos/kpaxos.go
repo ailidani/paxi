@@ -18,12 +18,13 @@ func newKPaxos(key paxi.Key, node paxi.Node) *kpaxos {
 	k.key = key
 	k.Policy = paxi.NewPolicy()
 	k.Paxos = paxos.NewPaxos(k)
-	zone := int(key)%paxi.GetConfig().Z() + 1
-	id := paxi.NewID(zone, 1)
-	k.Paxos.SetBallot(paxi.NewBallot(1, id))
-	if node.ID() == id {
-		k.Paxos.SetActive(true)
-	}
+
+	// zone := int(key)%paxi.GetConfig().Z() + 1
+	// id := paxi.NewID(zone, 1)
+	// k.Paxos.SetBallot(paxi.NewBallot(1, id))
+	// if node.ID() == id {
+	// 	k.Paxos.SetActive(true)
+	// }
 	return k
 }
 
