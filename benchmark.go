@@ -28,7 +28,7 @@ type Bconfig struct {
 	LinearizabilityCheck bool    // run linearizability checker at the end of benchmark
 	// rounds       int    // repeat in many rounds sequentially
 
-	// random distribution
+	// conflict distribution
 	Conflicts int // percentage of conflicting keys
 	Min       int // min key
 
@@ -114,7 +114,7 @@ func (b *Benchmark) Load() {
 	for i := 0; i < b.Concurrency; i++ {
 		go b.worker(keys, latencies)
 	}
-	for i := 0; i < b.K; i++ {
+	for i := b.Min; i < b.Min+b.K; i++ {
 		b.wait.Add(1)
 		keys <- i
 	}

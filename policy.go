@@ -13,6 +13,10 @@ type Policy interface {
 
 func NewPolicy() Policy {
 	switch config.Policy {
+	case "static":
+		p := new(static)
+		return p
+
 	case "consecutive":
 		p := new(consecutive)
 		p.n = int(config.Threshold)
@@ -115,5 +119,11 @@ func (e *ema) Hit(id ID) ID {
 		e.zone = z
 		return NewID(e.zone, 1)
 	}
+	return ""
+}
+
+type static struct{}
+
+func (s *static) Hit(id ID) ID {
 	return ""
 }
