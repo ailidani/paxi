@@ -1,6 +1,7 @@
 package paxi
 
 import (
+	"math"
 	"time"
 
 	"github.com/ailidani/paxi/log"
@@ -27,6 +28,7 @@ func NewPolicy() Policy {
 	case "ema":
 		p := new(ema)
 		p.alpha = config.Threshold
+		p.epsilon = 0.1
 		return p
 
 	default:
@@ -90,9 +92,10 @@ func (m *majority) reset() {
 
 // ema is exponential moving average policy
 type ema struct {
-	alpha float64
-	s     float64
-	zone  int
+	alpha   float64
+	s       float64
+	epsilon float64
+	zone    int
 }
 
 func (e *ema) Hit(id ID) ID {
@@ -102,8 +105,14 @@ func (e *ema) Hit(id ID) ID {
 	}
 
 	e.s = e.alpha*float64(id.Zone()) + (1-e.alpha)*e.s
-	if int(e.s) != e.zone {
-		e.zone = int(e.s)
+	if math.Abs(e.s-math.Round(e.s)) > e.epsilon {
+		// no signifigant changes
+		return ""
+	}
+	z := int(math.Round(e.s))
+	if z != e.zone {
+		// new zone value
+		e.zone = z
 		return NewID(e.zone, 1)
 	}
 	return ""
