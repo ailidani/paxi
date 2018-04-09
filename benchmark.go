@@ -140,16 +140,17 @@ func (b *Benchmark) Run() {
 	}
 
 	b.latency = make([]time.Duration, 0)
-	b.db.Init()
 	keys := make(chan int, b.Concurrency)
 	latencies := make(chan time.Duration, 1000)
 	defer close(latencies)
 	go b.collect(latencies)
 
-	b.startTime = time.Now()
 	for i := 0; i < b.Concurrency; i++ {
 		go b.worker(keys, latencies)
 	}
+
+	b.db.Init()
+	b.startTime = time.Now()
 	if b.T > 0 {
 		timer := time.NewTimer(time.Second * time.Duration(b.T))
 	loop:

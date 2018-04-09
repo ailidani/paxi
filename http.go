@@ -123,12 +123,12 @@ func (n *node) handleCrash(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	n.Socket.Crash(t)
-	timer := time.NewTimer(time.Duration(t) * time.Second)
-	go func() {
-		n.server.Close()
-		<-timer.C
-		log.Error(n.server.ListenAndServe())
-	}()
+	// timer := time.NewTimer(time.Duration(t) * time.Second)
+	// go func() {
+	// 	n.server.Close()
+	// 	<-timer.C
+	// 	log.Error(n.server.ListenAndServe())
+	// }()
 }
 
 func (n *node) handleDrop(w http.ResponseWriter, r *http.Request) {

@@ -69,6 +69,9 @@ func NewSocket(id ID, addrs map[ID]string, transport string) Socket {
 }
 
 func (s *socket) Send(to ID, m interface{}) {
+	if s.crash {
+		return
+	}
 	// TODO also check for slow and flaky
 	if s.drop[to] {
 		return
@@ -146,9 +149,11 @@ func (s *socket) Flaky(id ID, t int) {
 
 func (s *socket) Crash(t int) {
 	s.crash = true
-	timer := time.NewTimer(time.Duration(t) * time.Second)
-	go func() {
-		<-timer.C
-		s.crash = false
-	}()
+	if t > 0 {
+		timer := time.NewTimer(time.Duration(t) * time.Second)
+		go func() {
+			<-timer.C
+			s.crash = false
+		}()
+	}
 }

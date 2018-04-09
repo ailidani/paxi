@@ -258,6 +258,20 @@ func (c *Client) Drop(from, to ID, t int) {
 	r.Body.Close()
 }
 
+func (c *Client) Partition(t int, nodes ...ID) {
+	s := lib.NewSet()
+	for _, id := range nodes {
+		s.Add(id)
+	}
+	for from := range c.addrs {
+		if !s.Has(from) {
+			for _, to := range nodes {
+				c.Drop(from, to, t)
+			}
+		}
+	}
+}
+
 // Start connects to server before actual requests (for future)
 func (c *Client) Start() {}
 

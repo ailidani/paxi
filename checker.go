@@ -1,102 +1,12 @@
 package paxi
 
 import (
-	"bufio"
-	"fmt"
-	"os"
 	"sort"
-	"sync"
 
 	"github.com/ailidani/paxi/lib"
 )
 
-// History client operation history mapped by key
-type History struct {
-	sync.RWMutex
-	data map[int][]*operation
-}
-
-// NewHistory creates a History map
-func NewHistory() *History {
-	return &History{
-		data: make(map[int][]*operation),
-	}
-}
-
-// Add puts an operation in History
-func (h *History) Add(key int, input, output interface{}, start, end int64) {
-	h.Lock()
-	defer h.Unlock()
-	if _, exists := h.data[key]; !exists {
-		h.data[key] = make([]*operation, 0)
-	}
-	h.data[key] = append(h.data[key], &operation{input, output, start, end})
-}
-
-// Linearizable concurrently checks if each partition of the history is linearizable and returns the total number of anomaly reads
-func (h *History) Linearizable() int {
-	anomalies := make(chan []*operation)
-	h.RLock()
-	defer h.RUnlock()
-	for _, partition := range h.data {
-		c := newChecker()
-		go func(p []*operation) {
-			anomalies <- c.linearizable(p)
-		}(partition)
-	}
-	sum := 0
-	for range h.data {
-		a := <-anomalies
-		sum += len(a)
-	}
-	return sum
-}
-
-// WriteFile writes entire operation history into file
-func (h *History) WriteFile(path string) error {
-	file, err := os.Create(path)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	w := bufio.NewWriter(file)
-	h.RLock()
-	defer h.RUnlock()
-	for k, ops := range h.data {
-		fmt.Fprintf(w, "key=%d\n", k)
-		for _, o := range ops {
-			fmt.Fprintln(w, o)
-		}
-	}
-	return w.Flush()
-}
-
 // A simple linearizability checker based on https://pdos.csail.mit.edu/6.824/papers/fb-consistency.pdf
-
-type operation struct {
-	input  interface{}
-	output interface{}
-	// timestamps
-	start int64
-	end   int64
-}
-
-func (a operation) happenBefore(b operation) bool {
-	return a.end < b.start
-}
-
-func (a operation) concurrent(b operation) bool {
-	return !a.happenBefore(b) && !b.happenBefore(a)
-}
-
-func (a operation) equal(b operation) bool {
-	return a.input == b.input && a.output == b.output && a.start == b.start && a.end == b.end
-}
-
-func (a operation) String() string {
-	return fmt.Sprintf("{input=%v, output=%v, start=%d, end=%d}", a.input, a.output, a.start, a.end)
-}
 
 type checker struct {
 	*lib.Graph
@@ -189,10 +99,3 @@ func (c *checker) linearizable(history []*operation) []*operation {
 	}
 	return anomaly
 }
-
-// sort operations by invocation time
-type byTime []*operation
-
-func (a byTime) Len() int           { return len(a) }
-func (a byTime) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a byTime) Less(i, j int) bool { return a[i].start < a[j].start }
