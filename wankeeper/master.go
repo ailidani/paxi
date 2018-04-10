@@ -44,6 +44,7 @@ func (m *master) handleCommit(c Commit) {
 	if c.Ballot.ID() == m.ID() {
 		id := m.policy.Hit(c.Command.ClientID)
 		if id != "" && id != m.ID() {
+			m.leader.Replica.tokens.set(c.Command.Key, id)
 			defer m.Send(id, Token{c.Command.Key})
 		}
 	}
