@@ -130,7 +130,7 @@ func (l *leader) handleRevoke(m Revoke) {
 		l.tokens.set(m.Key, l.masterID)
 		l.Send(l.masterID, Token{m.Key})
 	} else {
-		log.Fatalf("leader %v does not have token %v", l.ID(), m.Key)
+		log.Errorf("leader %v does not have token %v", l.ID(), m.Key)
 	}
 }
 

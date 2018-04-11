@@ -25,10 +25,10 @@ func (m *master) lead(r *paxi.Request) {
 	// when it reach here, master don't have token
 	key := r.Command.Key
 	id := m.tokens.get(key)
-	m.Send(id, Revoke{key})
 	// add to pending request
 	if m.pending[key] == nil {
 		m.pending[key] = make([]*paxi.Request, 0)
+		m.Send(id, Revoke{key})
 	}
 	m.pending[key] = append(m.pending[key], r)
 }
@@ -37,6 +37,7 @@ func (m *master) handleToken(t Token) {
 	// received revoked token
 	if len(m.pending[t.Key]) > 0 {
 		m.leader.lead(m.pending[t.Key]...)
+		m.pending[t.Key] = nil
 	}
 }
 
