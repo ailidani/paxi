@@ -105,8 +105,8 @@ func main() {
 	client = paxi.NewClient(paxi.ID(*id))
 	client.Start()
 
-	if len(os.Args[1:]) > 0 {
-		run(os.Args[1], os.Args[2:])
+	if len(flag.Args()) > 0 {
+		run(flag.Args()[0], flag.Args()[1:])
 	} else {
 		reader := bufio.NewReader(os.Stdin)
 		for {

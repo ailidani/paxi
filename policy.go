@@ -50,6 +50,7 @@ type consecutive struct {
 }
 
 func (c *consecutive) Hit(id ID) ID {
+	var res ID
 	if id == c.last {
 		c.hits++
 	} else {
@@ -57,11 +58,11 @@ func (c *consecutive) Hit(id ID) ID {
 		c.hits = 1
 	}
 	if c.hits >= c.n {
+		res = c.last
 		c.last = ""
 		c.hits = 0
-		return c.last
 	}
-	return ""
+	return res
 }
 
 // stat of access history in previous interval time
