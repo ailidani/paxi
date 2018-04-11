@@ -7,7 +7,7 @@ type master struct {
 
 	leaders map[int]paxi.ID
 	pending map[paxi.Key][]*paxi.Request
-	policy  paxi.Policy
+	policy  map[paxi.Key]paxi.Policy
 }
 
 func newMaster(l *leader) *master {
@@ -15,7 +15,7 @@ func newMaster(l *leader) *master {
 		leader:  l,
 		leaders: make(map[int]paxi.ID),
 		pending: make(map[paxi.Key][]*paxi.Request),
-		policy:  paxi.NewPolicy(),
+		policy:  make(map[paxi.Key]paxi.Policy),
 	}
 	m.leader.Replica.tokens.master = true
 	return m
@@ -42,10 +42,14 @@ func (m *master) handleToken(t Token) {
 
 func (m *master) handleCommit(c Commit) {
 	if c.Ballot.ID() == m.ID() {
-		id := m.policy.Hit(c.Command.ClientID)
+		k := c.Command.Key
+		if m.policy[k] == nil {
+			m.policy[k] = paxi.NewPolicy()
+		}
+		id := m.policy[k].Hit(c.Command.ClientID)
 		if id != "" && id != m.ID() {
-			m.leader.Replica.tokens.set(c.Command.Key, id)
-			defer m.Send(id, Token{c.Command.Key})
+			m.leader.Replica.tokens.set(k, id)
+			defer m.Send(id, Token{k})
 		}
 	}
 	for _, id := range m.leaders {
