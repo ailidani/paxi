@@ -11,10 +11,18 @@ type tokens struct {
 }
 
 func newTokens(id paxi.ID) *tokens {
-	return &tokens{
+	t := &tokens{
 		id:     id,
 		tokens: make(map[paxi.Key]paxi.ID),
 	}
+	for i := 0; i <= paxi.GetConfig().Benchmark.K; i++ {
+		k := paxi.Key(i + paxi.GetConfig().Benchmark.Min)
+		if k == 0 {
+			continue
+		}
+		t.tokens[k] = id
+	}
+	return t
 }
 
 func (t *tokens) contains(key paxi.Key) bool {
