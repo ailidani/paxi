@@ -42,8 +42,8 @@ func (m *master) handleToken(t Token) {
 }
 
 func (m *master) handleCommit(c Commit) {
-	if c.Ballot.ID() == m.ID() {
-		k := c.Command.Key
+	k := c.Command.Key
+	if c.Ballot.ID() == m.ID() && m.tokens.contains(k) {
 		if m.policy[k] == nil {
 			m.policy[k] = paxi.NewPolicy()
 		}
