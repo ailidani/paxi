@@ -26,8 +26,9 @@ Algorithms:
 - [x] KPaxos (Static partitioned Paxos)
 - [x] Atomic Storage ([Majority Replication](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.174.7245&rep=rep1&type=pdf))
 - [x] [Dynamo Key-value Store](https://dl.acm.org/citation.cfm?id=1294281)
+- [x] [WanKeeper](http://ieeexplore.ieee.org/abstract/document/7980095/)
 - [ ] [Vertical Paxos](https://www.microsoft.com/en-us/research/wp-content/uploads/2009/08/Vertical-Paxos-and-Primary-Backup-Replication-.pdf)
-- [ ] [WanKeeper](http://ieeexplore.ieee.org/abstract/document/7980095/)
+
 
 Features:
 - [x] Benchmarking
