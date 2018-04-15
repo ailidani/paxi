@@ -11,7 +11,7 @@ import (
 )
 
 // PREFIX is the leading zeros in hash value as proof of work
-var PREFIX = []byte("0000")
+var PREFIX = []byte{0, 0, 0, 0}
 
 func init() {
 	gob.Register(Block{})
@@ -41,6 +41,7 @@ func (b *Block) Next(data []byte) *Block {
 }
 
 func (b *Block) mine() {
+	log.Debugf("start mining block %d", b.Index)
 	h := sha256.New()
 	h.Write(b.bytes())
 	for i := uint64(0); i <= math.MaxUint64; i++ {
@@ -54,7 +55,8 @@ func (b *Block) mine() {
 		if bytes.HasPrefix(thash, PREFIX) {
 			b.Nonce = i
 			b.Hash = thash
-			log.Debugf("Nonce found %d", i)
+			log.Debugf("block %d nonce found %d", b.Index, b.Nonce)
+			return
 		}
 	}
 	log.Errorf("Cannot find nonce for block %d", b.Index)
