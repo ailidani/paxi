@@ -33,9 +33,10 @@ Algorithms:
 Features:
 - [x] Benchmarking
 - [x] Linerizability checker
+- [x] Fault injection
 - [ ] Transactions
 - [ ] Dynamic quorums
-- [ ] Fault injection
+
 
 
 # How to build
