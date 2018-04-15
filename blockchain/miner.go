@@ -23,9 +23,11 @@ func NewMiner(id paxi.ID) *Miner {
 	miner := &Miner{
 		Node:       paxi.NewNode(id),
 		blockchain: make(map[uint64]*Block),
+		chain:      Genesis(),
+		requests:   make(map[uint64]*paxi.Request),
 	}
 	miner.Node.Register(paxi.Request{}, miner.handleRequest)
-	miner.Node.Register(paxi.Request{}, miner.handleBlock)
+	miner.Node.Register(Block{}, miner.handleBlock)
 	return miner
 }
 

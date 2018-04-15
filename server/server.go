@@ -13,6 +13,7 @@ import (
 	"github.com/ailidani/paxi/paxos"
 	"github.com/ailidani/paxi/paxos_group"
 	"github.com/ailidani/paxi/ppaxos"
+	"github.com/ailidani/paxi/vpaxos"
 	"github.com/ailidani/paxi/wankeeper"
 	"github.com/ailidani/paxi/wpaxos"
 )
@@ -33,6 +34,9 @@ func replica(id paxi.ID) {
 
 	case "paxos":
 		paxos.NewReplica(id).Run()
+
+	case "vpaxos":
+		vpaxos.NewReplica(id).Run()
 
 	case "wpaxos":
 		wpaxos.NewReplica(id).Run()

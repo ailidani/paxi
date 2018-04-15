@@ -35,25 +35,29 @@ func (b *Block) Next(data []byte) *Block {
 		Data:  data,
 		Prev:  b.Hash,
 	}
+	next.mine()
 	b.next = next
+	return b.next
+}
+
+func (b *Block) mine() {
 	h := sha256.New()
-	h.Write(next.bytes())
+	h.Write(b.bytes())
 	for i := uint64(0); i <= math.MaxUint64; i++ {
 		t := h
 		err := binary.Write(t, binary.LittleEndian, i)
 		if err != nil {
 			log.Error("binary write failed: ", err)
-			return nil
+			break
 		}
 		thash := t.Sum(nil)
 		if bytes.HasPrefix(thash, PREFIX) {
-			next.Nonce = i
-			next.Hash = thash
+			b.Nonce = i
+			b.Hash = thash
 			log.Debugf("Nonce found %d", i)
-			return next
 		}
 	}
-	return nil
+	log.Errorf("Cannot find nonce for block %d", b.Index)
 }
 
 func (b *Block) bytes() []byte {
@@ -66,4 +70,17 @@ func (b *Block) bytes() []byte {
 	buf.Write(b.Data)
 	buf.Write(b.Prev)
 	return buf.Bytes()
+}
+
+// Genesis gets the genesis block which has byte[1024] data byte[256] prev hash
+func Genesis() *Block {
+	data := make([]byte, 1024)
+	prev := make([]byte, 256)
+	b := &Block{
+		Index: 0,
+		Data:  data,
+		Prev:  prev,
+	}
+	b.mine()
+	return b
 }
