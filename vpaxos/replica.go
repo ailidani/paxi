@@ -34,6 +34,7 @@ func NewReplica(id paxi.ID) *Replica {
 
 	r.Register(paxi.Request{}, r.handleRequest)
 	r.Register(Info{}, r.handleInfo)
+	r.Register(Move{}, r.handleMove)
 	r.Register(Prepare{}, r.handlePrepare)
 	r.Register(Promise{}, r.handlePromise)
 	r.Register(Accept{}, r.handleAccept)
@@ -41,6 +42,22 @@ func NewReplica(id paxi.ID) *Replica {
 	r.Register(Commit{}, r.handleCommit)
 
 	return r
+}
+
+func (r *Replica) monitor(k paxi.Key, id paxi.ID) {
+	_, exist := r.policy[k]
+	if !exist {
+		r.policy[k] = paxi.NewPolicy()
+	}
+	to := r.policy[k].Hit(id)
+	if to != "" && to.Zone() != r.ID().Zone() {
+		r.Send(mid, Move{
+			Key:       k,
+			From:      r.ID(),
+			To:        to,
+			OldBallot: r.paxos.Ballot(),
+		})
+	}
 }
 
 func (r *Replica) handleRequest(m paxi.Request) {
@@ -67,6 +84,7 @@ func (r *Replica) handleRequest(m paxi.Request) {
 	}
 	if b.ID().Zone() == r.paxos.gid {
 		r.paxos.HandleRequest(m)
+		r.monitor(k, m.NodeID)
 	} else {
 		r.Forward(b.ID(), m)
 	}
@@ -79,6 +97,16 @@ func (r *Replica) handleInfo(m Info) {
 		for _, request := range r.pending[m.Key] {
 			r.handleRequest(request)
 		}
+	}
+}
+
+func (r *Replica) handleMove(m Move) {
+	log.Debugf("replica %v received Move %+v", r.ID(), m)
+	if m.OldBallot == r.index[m.Key] {
+		r.index[m.Key] = m.NewBallot
+	}
+	if r.master != nil {
+		r.master.handleMove(m)
 	}
 }
 

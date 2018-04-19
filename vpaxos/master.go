@@ -38,3 +38,14 @@ func (m *master) handleQuery(q Query) {
 		Ballot: m.keys[q.Key],
 	})
 }
+
+func (m *master) handleMove(v Move) {
+	log.Debugf("master %v received Move %+v ", m.ID(), v)
+	b := m.keys[v.Key]
+	if b.ID() == v.From && b == v.OldBallot {
+		b.Next(v.To)
+		m.keys[v.Key] = b
+		v.NewBallot = b
+		m.Node.Broadcast(v)
+	}
+}
