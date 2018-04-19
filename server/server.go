@@ -6,6 +6,7 @@ import (
 
 	"github.com/ailidani/paxi"
 	"github.com/ailidani/paxi/atomic"
+	"github.com/ailidani/paxi/blockchain"
 	"github.com/ailidani/paxi/dynamo"
 	"github.com/ailidani/paxi/epaxos"
 	"github.com/ailidani/paxi/kpaxos"
@@ -41,6 +42,9 @@ func replica(id paxi.ID) {
 	case "wpaxos":
 		wpaxos.NewReplica(id).Run()
 
+	case "wankeeper":
+		wankeeper.NewReplica(id).Run()
+
 	case "epaxos":
 		epaxos.NewReplica(id).Run()
 
@@ -59,8 +63,8 @@ func replica(id paxi.ID) {
 	case "dynamo":
 		dynamo.NewReplica(id).Run()
 
-	case "wankeeper":
-		wankeeper.NewReplica(id).Run()
+	case "blockchain":
+		blockchain.NewMiner(id).Run()
 
 	default:
 		panic("Unknown algorithm.")

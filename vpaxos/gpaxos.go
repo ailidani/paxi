@@ -9,7 +9,6 @@ type gpaxos struct {
 	paxi.Node
 	gid int
 	*paxos.Paxos
-	// master paxi.ID
 }
 
 func newGPaxos(gid int, node paxi.Node) *gpaxos {

@@ -1,42 +1,40 @@
 package vpaxos
 
-import "github.com/ailidani/paxi"
+import (
+	"github.com/ailidani/paxi"
+	"github.com/ailidani/paxi/log"
+)
 
 type nodes []paxi.ID
 
 type master struct {
-	paxi.Node
-	keys    map[paxi.Key]int    // key -> gid
-	ballots map[int]paxi.Ballot // gid -> ballot
-	configs map[int]nodes
+	*Replica
+	keys map[paxi.Key]paxi.Ballot
 }
 
-func newMaster(node paxi.Node) *master {
+func newMaster(r *Replica) *master {
 	m := &master{
-		Node:    node,
-		keys:    make(map[paxi.Key]int),
-		ballots: make(map[int]paxi.Ballot),
-		configs: make(map[int]nodes),
+		Replica: r,
+		keys:    make(map[paxi.Key]paxi.Ballot),
 	}
 	m.Node.Register(Query{}, m.handleQuery)
 	return m
 }
 
 func (m *master) create(k paxi.Key) {
-	gid := m.Node.ID().Zone()
-	m.keys[k] = gid
+	b := paxi.NewBallot(1, m.Node.ID())
+	m.keys[k] = b
 }
 
 func (m *master) handleQuery(q Query) {
-	gid, ok := m.keys[q.Key]
+	log.Debugf("master %v received Query %+v ", m.ID(), q)
+	b, ok := m.keys[q.Key]
 	if !ok {
-		gid = q.ID.Zone()
-		m.keys[q.Key] = gid
-		m.ballots[gid] = q.Ballot
+		b = paxi.NewBallot(1, q.ID)
+		m.keys[q.Key] = b
 	}
 	m.Node.Send(q.ID, Info{
-		Key:     q.Key,
-		GroupID: m.keys[q.Key],
-		Ballot:  m.ballots[gid],
+		Key:    q.Key,
+		Ballot: m.keys[q.Key],
 	})
 }

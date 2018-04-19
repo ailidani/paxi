@@ -2,6 +2,7 @@ package vpaxos
 
 import (
 	"encoding/gob"
+	"fmt"
 
 	"github.com/ailidani/paxi"
 	"github.com/ailidani/paxi/paxos"
@@ -13,6 +14,8 @@ func init() {
 	gob.Register(Accept{})
 	gob.Register(Accepted{})
 	gob.Register(Commit{})
+	gob.Register(Query{})
+	gob.Register(Info{})
 	gob.Register(Move{})
 }
 
@@ -23,6 +26,10 @@ func init() {
 type Prepare struct {
 	GroupID int
 	paxos.P1a
+}
+
+func (p Prepare) String() string {
+	return fmt.Sprintf("Prepare {gid=%v, %v}", p.GroupID, p.P1a)
 }
 
 type Promise struct {
@@ -50,21 +57,19 @@ type Commit struct {
  ***********************/
 
 type Query struct {
-	Key    paxi.Key
-	ID     paxi.ID
-	Ballot paxi.Ballot
+	Key paxi.Key
+	ID  paxi.ID
 }
 
 type Info struct {
-	Key     paxi.Key
-	GroupID int
-	Ballot  paxi.Ballot
+	Key    paxi.Key
+	Ballot paxi.Ballot
 }
 
 type Move struct {
 	Key       paxi.Key
-	From      int
-	To        int
+	From      paxi.ID
+	To        paxi.ID
 	OldBallot paxi.Ballot
 	NewBallot paxi.Ballot
 }
