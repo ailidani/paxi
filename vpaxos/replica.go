@@ -78,8 +78,7 @@ func (r *Replica) handleRequest(m paxi.Request) {
 			})
 			return
 		}
-		r.master.create(k)
-		b = paxi.NewBallot(1, r.ID())
+		b = r.master.query(k, r.ID())
 		r.index[k] = b
 	}
 	if b.ID().Zone() == r.paxos.gid {

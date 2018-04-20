@@ -21,21 +21,21 @@ func newMaster(r *Replica) *master {
 	return m
 }
 
-func (m *master) create(k paxi.Key) {
-	b := paxi.NewBallot(1, m.Node.ID())
-	m.keys[k] = b
+func (m *master) query(k paxi.Key, id paxi.ID) paxi.Ballot {
+	b, ok := m.keys[k]
+	if !ok {
+		b = paxi.NewBallot(1, id)
+		m.keys[k] = b
+	}
+	return b
 }
 
 func (m *master) handleQuery(q Query) {
 	log.Debugf("master %v received Query %+v ", m.ID(), q)
-	b, ok := m.keys[q.Key]
-	if !ok {
-		b = paxi.NewBallot(1, q.ID)
-		m.keys[q.Key] = b
-	}
+	b := m.query(q.Key, q.ID)
 	m.Node.Send(q.ID, Info{
 		Key:    q.Key,
-		Ballot: m.keys[q.Key],
+		Ballot: b,
 	})
 }
 
