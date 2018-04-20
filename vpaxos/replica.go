@@ -97,6 +97,7 @@ func (r *Replica) handleInfo(m Info) {
 		for _, request := range r.pending[m.Key] {
 			r.handleRequest(request)
 		}
+		r.pending[m.Key] = make([]paxi.Request, 0)
 	}
 }
 
