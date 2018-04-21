@@ -1,9 +1,8 @@
 language: go
+go:
+  - "1.10.x"
 
 sudo: false
-
-go:
-  - 1.10
 
 install:
 - go get ./...
