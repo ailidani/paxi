@@ -42,13 +42,14 @@ func (d *db) Read(k int) (int, error) {
 	if len(v) == 0 {
 		return 0, nil
 	}
-	return int(binary.LittleEndian.Uint64(v)), err
+	x, _ := binary.Uvarint(v)
+	return int(x), err
 }
 
 func (d *db) Write(k, v int) error {
 	key := paxi.Key(k)
-	value := make([]byte, 8)
-	binary.LittleEndian.PutUint64(value, uint64(v))
+	value := make([]byte, binary.MaxVarintLen64)
+	binary.PutUvarint(value, uint64(v))
 	var err error
 	switch *api {
 	case "rest":
