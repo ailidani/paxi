@@ -35,8 +35,8 @@ func run(cmd string, args []string) {
 			return
 		}
 		k, _ := strconv.Atoi(args[0])
-		v := client.Get(paxi.Key(k))
-		fmt.Println(string(v))
+		v, _ := client.Get(paxi.Key(k))
+		fmt.Printf("%x", v)
 
 	case "put":
 		if len(args) < 2 {
@@ -44,8 +44,8 @@ func run(cmd string, args []string) {
 			return
 		}
 		k, _ := strconv.Atoi(args[0])
-		v := client.Put(paxi.Key(k), []byte(args[1]))
-		fmt.Println(string(v))
+		v, _ := client.Put(paxi.Key(k), []byte(args[1]))
+		fmt.Printf("%x", v)
 
 	case "consensus":
 		if len(args) < 1 {

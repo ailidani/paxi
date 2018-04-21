@@ -10,10 +10,10 @@ import (
 
 // DB is general interface implemented by client to call client library
 type DB interface {
-	Init()
-	Read(key int) int
-	Write(key, value int)
-	Stop()
+	Init() error
+	Read(key int) (int, error)
+	Write(key, value int) error
+	Stop() error
 }
 
 // Bconfig holds all benchmark configuration
@@ -243,18 +243,25 @@ func (b *Benchmark) next() int {
 func (b *Benchmark) worker(keys <-chan int, result chan<- time.Duration) {
 	var s time.Time
 	var e time.Time
+	var v int
+	var err error
 	for k := range keys {
 		if rand.Float64() < b.W {
-			v := rand.Int()
+			v = rand.Int()
 			s = time.Now()
-			b.db.Write(k, v)
+			err = b.db.Write(k, v)
 			e = time.Now()
 			b.History.Add(k, v, nil, s.Sub(b.startTime).Nanoseconds(), e.Sub(b.startTime).Nanoseconds())
 		} else {
 			s = time.Now()
-			v := b.db.Read(k)
+			v, err = b.db.Read(k)
 			e = time.Now()
 			b.History.Add(k, nil, v, s.Sub(b.startTime).Nanoseconds(), e.Sub(b.startTime).Nanoseconds())
+		}
+		// TODO write error in history
+		if err != nil {
+			log.Error(err)
+			continue
 		}
 		t := e.Sub(s)
 		result <- t

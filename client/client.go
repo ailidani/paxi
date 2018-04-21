@@ -17,43 +17,48 @@ type db struct {
 	c *paxi.Client
 }
 
-func (d *db) Init() {
+func (d *db) Init() error {
 	d.c.Start()
+	return nil
 }
 
-func (d *db) Stop() {
+func (d *db) Stop() error {
 	d.c.Stop()
+	return nil
 }
 
-func (d *db) Read(k int) int {
+func (d *db) Read(k int) (int, error) {
 	key := paxi.Key(k)
 	var v paxi.Value
+	var err error
 	switch *api {
 	case "rest":
-		v = d.c.RESTGet(key)
+		v, err = d.c.RESTGet(key)
 	case "json":
-		v = d.c.JSONGet(key)
+		v, err = d.c.JSONGet(key)
 	default:
-		v = d.c.Get(key)
+		v, err = d.c.Get(key)
 	}
 	if len(v) == 0 {
-		return 0
+		return 0, nil
 	}
-	return int(binary.LittleEndian.Uint64(v))
+	return int(binary.LittleEndian.Uint64(v)), err
 }
 
-func (d *db) Write(k, v int) {
+func (d *db) Write(k, v int) error {
 	key := paxi.Key(k)
 	value := make([]byte, 8)
 	binary.LittleEndian.PutUint64(value, uint64(v))
+	var err error
 	switch *api {
 	case "rest":
-		d.c.RESTPut(key, value)
+		_, err = d.c.RESTPut(key, value)
 	case "json":
-		d.c.JSONPut(key, value)
+		_, err = d.c.JSONPut(key, value)
 	default:
-		d.c.Put(paxi.Key(k), value)
+		_, err = d.c.Put(paxi.Key(k), value)
 	}
+	return err
 }
 
 func main() {

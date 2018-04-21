@@ -3,6 +3,7 @@ package paxi
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -38,7 +39,7 @@ func NewClient(id ID) *Client {
 
 // rest accesses server's REST API with url = http://ip:port/key
 // if value == nil, it's read
-func (c *Client) rest(id ID, key Key, value Value) Value {
+func (c *Client) rest(id ID, key Key, value Value) (Value, error) {
 	url := c.http[id] + "/" + strconv.Itoa(int(key))
 
 	method := http.MethodGet
@@ -49,9 +50,8 @@ func (c *Client) rest(id ID, key Key, value Value) Value {
 	}
 	r, err := http.NewRequest(method, url, body)
 	if err != nil {
-		// TODO should return error for the operation
 		log.Error(err)
-		return nil
+		return nil, err
 	}
 	r.Header.Set(HTTPClientID, string(c.ID))
 	r.Header.Set(HTTPCommandID, strconv.Itoa(c.cid))
@@ -59,25 +59,29 @@ func (c *Client) rest(id ID, key Key, value Value) Value {
 	res, err := http.DefaultClient.Do(r)
 	if err != nil {
 		log.Error(err)
-		return nil
+		return nil, err
 	}
 	defer res.Body.Close()
 	if res.StatusCode == http.StatusOK {
-		b, _ := ioutil.ReadAll(res.Body)
+		b, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			log.Error(err)
+			return nil, err
+		}
 		if value == nil {
 			log.Debugf("node=%v type=%s key=%v value=%x", id, method, key, Value(b))
 		} else {
 			log.Debugf("node=%v type=%s key=%v value=%x", id, method, key, value)
 		}
-		return Value(b)
+		return Value(b), nil
 	}
 	dump, _ := httputil.DumpResponse(res, true)
 	log.Debugf("%q", dump)
-	return nil
+	return nil, errors.New(res.Status)
 }
 
 // RESTGet gets value of given key
-func (c *Client) RESTGet(key Key) Value {
+func (c *Client) RESTGet(key Key) (Value, error) {
 	c.cid++
 	id := c.ID
 	if id == "" {
@@ -89,7 +93,7 @@ func (c *Client) RESTGet(key Key) Value {
 }
 
 // RESTPut puts new value as http.request body and return previous value
-func (c *Client) RESTPut(key Key, value Value) Value {
+func (c *Client) RESTPut(key Key, value Value) (Value, error) {
 	c.cid++
 	id := c.ID
 	if id == "" {
@@ -101,16 +105,16 @@ func (c *Client) RESTPut(key Key, value Value) Value {
 }
 
 // Get gets value of given key (use REST)
-func (c *Client) Get(key Key) Value {
+func (c *Client) Get(key Key) (Value, error) {
 	return c.RESTGet(key)
 }
 
 // Put puts new key value pair and return previous value (use REST)
-func (c *Client) Put(key Key, value Value) Value {
+func (c *Client) Put(key Key, value Value) (Value, error) {
 	return c.RESTPut(key, value)
 }
 
-func (c *Client) json(id ID, key Key, value Value) Value {
+func (c *Client) json(id ID, key Key, value Value) (Value, error) {
 	url := c.http[id]
 	cmd := Command{
 		Key:       key,
@@ -122,27 +126,27 @@ func (c *Client) json(id ID, key Key, value Value) Value {
 	res, err := http.Post(url, "json", bytes.NewBuffer(data))
 	if err != nil {
 		log.Error(err)
-		return nil
+		return nil, err
 	}
 	defer res.Body.Close()
 	if res.StatusCode == http.StatusOK {
 		b, _ := ioutil.ReadAll(res.Body)
 		log.Debugf("key=%v value=%x", key, Value(b))
-		return Value(b)
+		return Value(b), nil
 	}
 	dump, _ := httputil.DumpResponse(res, true)
 	log.Debugf("%q", dump)
-	return nil
+	return nil, errors.New(res.Status)
 }
 
 // JSONGet posts get request in json format to server url
-func (c *Client) JSONGet(key Key) Value {
+func (c *Client) JSONGet(key Key) (Value, error) {
 	c.cid++
 	return c.json(c.ID, key, nil)
 }
 
 // JSONPut posts put request in json format to server url
-func (c *Client) JSONPut(key Key, value Value) Value {
+func (c *Client) JSONPut(key Key, value Value) (Value, error) {
 	c.cid++
 	return c.json(c.ID, key, value)
 }
@@ -158,7 +162,12 @@ func (c *Client) QuorumGet(key Key) []Value {
 			break
 		}
 		go func(id ID) {
-			out <- c.rest(id, key, nil)
+			v, err := c.rest(id, key, nil)
+			if err != nil {
+				log.Error(err)
+				return
+			}
+			out <- v
 		}(id)
 	}
 	set := lib.NewCSet()
