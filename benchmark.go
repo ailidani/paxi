@@ -200,11 +200,11 @@ func (b *Benchmark) next() int {
 	var key int
 	switch b.Distribution {
 	case "order":
-		key = b.counter
-		b.counter++
+		key = b.counter + b.Min
+		b.counter = (b.counter + 1) % b.K
 
 	case "uniform":
-		key = rand.Intn(b.K)
+		key = rand.Intn(b.K) + b.Min
 
 	case "conflict":
 		if rand.Intn(100) < b.Conflicts {
