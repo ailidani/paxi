@@ -105,6 +105,10 @@ func (r *Replica) handleMove(m Move) {
 	if r.master == nil {
 		if m.OldBallot == r.index[m.Key] {
 			r.index[m.Key] = m.NewBallot
+			if m.NewBallot.ID() == r.ID() {
+				r.paxos.SetBallot(m.NewBallot)
+				r.paxos.SetActive(true)
+			}
 		}
 	} else {
 		r.master.handleMove(m)
