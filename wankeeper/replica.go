@@ -25,7 +25,9 @@ type Replica struct {
 	requests []*paxi.Request // pending requests
 }
 
+// NewReplica creates new replica object for wankeeper
 func NewReplica(id paxi.ID) *Replica {
+	log.Debug("creating replica for wankeeper")
 	r := &Replica{
 		Node:     paxi.NewNode(id),
 		log:      make(map[paxi.Key]map[int]*entry),
