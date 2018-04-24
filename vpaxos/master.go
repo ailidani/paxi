@@ -47,5 +47,7 @@ func (m *master) handleMove(v Move) {
 		m.keys[v.Key] = b
 		v.NewBallot = b
 		m.Node.Broadcast(v)
+		// update local replica
+		m.Replica.index[v.Key] = b
 	}
 }

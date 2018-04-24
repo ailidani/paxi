@@ -102,10 +102,11 @@ func (r *Replica) handleInfo(m Info) {
 
 func (r *Replica) handleMove(m Move) {
 	log.Debugf("replica %v received Move %+v", r.ID(), m)
-	if m.OldBallot == r.index[m.Key] {
-		r.index[m.Key] = m.NewBallot
-	}
-	if r.master != nil {
+	if r.master == nil {
+		if m.OldBallot == r.index[m.Key] {
+			r.index[m.Key] = m.NewBallot
+		}
+	} else {
 		r.master.handleMove(m)
 	}
 }
