@@ -33,10 +33,14 @@ func (m *master) query(k paxi.Key, id paxi.ID) paxi.Ballot {
 func (m *master) handleQuery(q Query) {
 	log.Debugf("master %v received Query %+v ", m.ID(), q)
 	b := m.query(q.Key, q.ID)
-	m.Node.Send(q.ID, Info{
+	m.Node.Broadcast(Info{
 		Key:    q.Key,
 		Ballot: b,
 	})
+	// m.Node.Send(q.ID, Info{
+	// 	Key:    q.Key,
+	// 	Ballot: b,
+	// })
 }
 
 func (m *master) handleMove(v Move) {
