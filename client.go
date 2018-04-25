@@ -10,7 +10,6 @@ import (
 	"net/http/httputil"
 	"strconv"
 	"sync"
-	"time"
 
 	"github.com/ailidani/paxi/lib"
 	"github.com/ailidani/paxi/log"
@@ -24,19 +23,19 @@ type Client struct {
 	http      map[ID]string
 	algorithm string
 
-	cid        int // command id
-	httpClient *http.Client
+	cid int // command id
+	*http.Client
 }
 
 // NewClient creates a new Client from config
 func NewClient(id ID) *Client {
 	return &Client{
-		ID:         id,
-		N:          len(config.Addrs),
-		addrs:      config.Addrs,
-		http:       config.HTTPAddrs,
-		algorithm:  config.Algorithm,
-		httpClient: &http.Client{Timeout: time.Second * 1},
+		ID:        id,
+		N:         len(config.Addrs),
+		addrs:     config.Addrs,
+		http:      config.HTTPAddrs,
+		algorithm: config.Algorithm,
+		Client:    &http.Client{},
 	}
 }
 
@@ -59,7 +58,7 @@ func (c *Client) rest(id ID, key Key, value Value) (Value, error) {
 	r.Header.Set(HTTPClientID, string(c.ID))
 	r.Header.Set(HTTPCommandID, strconv.Itoa(c.cid))
 	// r.Header.Set(HTTPTimestamp, strconv.FormatInt(time.Now().UnixNano(), 10))
-	res, err := c.httpClient.Do(r)
+	res, err := c.Client.Do(r)
 	if err != nil {
 		log.Error(err)
 		return nil, err
@@ -126,7 +125,7 @@ func (c *Client) json(id ID, key Key, value Value) (Value, error) {
 		CommandID: c.cid,
 	}
 	data, err := json.Marshal(cmd)
-	res, err := c.httpClient.Post(url, "json", bytes.NewBuffer(data))
+	res, err := c.Client.Post(url, "json", bytes.NewBuffer(data))
 	if err != nil {
 		log.Error(err)
 		return nil, err
@@ -208,7 +207,7 @@ func (c *Client) Consensus(k Key) bool {
 	h := make(map[ID][]Value)
 	for id, url := range c.http {
 		h[id] = make([]Value, 0)
-		r, err := c.httpClient.Get(url + "/history?key=" + strconv.Itoa(int(k)))
+		r, err := c.Client.Get(url + "/history?key=" + strconv.Itoa(int(k)))
 		if err != nil {
 			log.Error(err)
 			continue
@@ -251,7 +250,7 @@ func (c *Client) Consensus(k Key) bool {
 // node crash forever if t < 0
 func (c *Client) Crash(id ID, t int) {
 	url := c.http[id] + "/crash?t=" + strconv.Itoa(t)
-	r, err := c.httpClient.Get(url)
+	r, err := c.Client.Get(url)
 	if err != nil {
 		log.Error(err)
 		return
@@ -262,7 +261,7 @@ func (c *Client) Crash(id ID, t int) {
 // Drop drops every message send for t seconds
 func (c *Client) Drop(from, to ID, t int) {
 	url := c.http[from] + "/drop?id=" + string(to) + "&t=" + strconv.Itoa(t)
-	r, err := c.httpClient.Get(url)
+	r, err := c.Client.Get(url)
 	if err != nil {
 		log.Error(err)
 		return

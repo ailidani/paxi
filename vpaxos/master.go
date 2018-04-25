@@ -18,6 +18,7 @@ func newMaster(r *Replica) *master {
 		keys:    make(map[paxi.Key]paxi.Ballot),
 	}
 	m.Node.Register(Query{}, m.handleQuery)
+	m.Node.Register(Move{}, m.handleMove)
 	return m
 }
 
@@ -46,12 +47,13 @@ func (m *master) handleQuery(q Query) {
 func (m *master) handleMove(v Move) {
 	log.Debugf("master %v received Move %+v ", m.ID(), v)
 	b := m.keys[v.Key]
-	if b.ID() == v.From && b == v.OldBallot {
-		b.Next(v.To)
-		m.keys[v.Key] = b
-		v.NewBallot = b
-		m.Node.Broadcast(v)
-		// update local replica
-		m.Replica.index[v.Key] = b
-	}
+	b.Next(v.To)
+	m.keys[v.Key] = b
+	m.Node.Broadcast(Info{
+		Key:    v.Key,
+		Ballot: b,
+	})
+	// update local replica
+	m.Replica.index[v.Key] = b
+	m.Replica.paxos.ballot = b
 }

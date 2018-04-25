@@ -5,15 +5,12 @@ import (
 	"fmt"
 
 	"github.com/ailidani/paxi"
-	"github.com/ailidani/paxi/paxos"
 )
 
 func init() {
-	gob.Register(Prepare{})
-	gob.Register(Promise{})
-	gob.Register(Accept{})
-	gob.Register(Accepted{})
-	gob.Register(Commit{})
+	gob.Register(P2a{})
+	gob.Register(P2b{})
+	gob.Register(P3{})
 	gob.Register(Query{})
 	gob.Register(Info{})
 	gob.Register(Move{})
@@ -23,33 +20,37 @@ func init() {
  *   Paxos Messages   *
  **********************/
 
-type Prepare struct {
-	GroupID int
-	paxos.P1a
+// P2a accept message
+type P2a struct {
+	Ballot  paxi.Ballot
+	Slot    int
+	Command paxi.Command
 }
 
-func (p Prepare) String() string {
-	return fmt.Sprintf("Prepare {gid=%v, %v}", p.GroupID, p.P1a)
+func (m P2a) String() string {
+	return fmt.Sprintf("P2a {b=%v, s=%d, c=%v}", m.Ballot, m.Slot, m.Command)
 }
 
-type Promise struct {
-	GroupID int
-	paxos.P1b
+// P2b accepted message
+type P2b struct {
+	Ballot paxi.Ballot
+	ID     paxi.ID // from node id
+	Slot   int
 }
 
-type Accept struct {
-	GroupID int
-	paxos.P2a
+func (m P2b) String() string {
+	return fmt.Sprintf("P2b {b=%v, id=%s, s=%d}", m.Ballot, m.ID, m.Slot)
 }
 
-type Accepted struct {
-	GroupID int
-	paxos.P2b
+// P3 commit message
+type P3 struct {
+	Ballot  paxi.Ballot
+	Slot    int
+	Command paxi.Command
 }
 
-type Commit struct {
-	GroupID int
-	paxos.P3
+func (m P3) String() string {
+	return fmt.Sprintf("P3 {b=%v s=%d, cmd=%v}", m.Ballot, m.Slot, m.Command)
 }
 
 /***********************
@@ -67,9 +68,7 @@ type Info struct {
 }
 
 type Move struct {
-	Key       paxi.Key
-	From      paxi.ID
-	To        paxi.ID
-	OldBallot paxi.Ballot
-	NewBallot paxi.Ballot
+	Key  paxi.Key
+	From paxi.ID
+	To   paxi.ID
 }

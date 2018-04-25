@@ -11,7 +11,7 @@ var mid = paxi.ID("2.1")
 type Replica struct {
 	paxi.Node
 
-	paxos  *gpaxos
+	paxos  *vpaxos
 	index  map[paxi.Key]paxi.Ballot
 	policy map[paxi.Key]paxi.Policy
 
@@ -26,7 +26,7 @@ func NewReplica(id paxi.ID) *Replica {
 		policy:  make(map[paxi.Key]paxi.Policy),
 		pending: make(map[paxi.Key][]paxi.Request),
 	}
-	r.paxos = newGPaxos(id.Zone(), r.Node)
+	r.paxos = new(r.Node)
 
 	if r.ID() == mid {
 		r.master = newMaster(r)
@@ -34,13 +34,6 @@ func NewReplica(id paxi.ID) *Replica {
 
 	r.Register(paxi.Request{}, r.handleRequest)
 	r.Register(Info{}, r.handleInfo)
-	r.Register(Move{}, r.handleMove)
-	r.Register(Prepare{}, r.handlePrepare)
-	r.Register(Promise{}, r.handlePromise)
-	r.Register(Accept{}, r.handleAccept)
-	r.Register(Accepted{}, r.handleAccepted)
-	r.Register(Commit{}, r.handleCommit)
-
 	return r
 }
 
@@ -51,12 +44,17 @@ func (r *Replica) monitor(k paxi.Key, id paxi.ID) {
 	}
 	to := r.policy[k].Hit(id)
 	if to != "" && to.Zone() != r.ID().Zone() {
-		r.Send(mid, Move{
-			Key:       k,
-			From:      r.ID(),
-			To:        to,
-			OldBallot: r.paxos.Ballot(),
-		})
+		move := Move{
+			Key:  k,
+			From: r.ID(),
+			To:   to,
+		}
+		if r.master == nil {
+			r.Send(mid, move)
+		} else {
+			r.master.handleMove(move)
+		}
+
 	}
 }
 
@@ -80,9 +78,10 @@ func (r *Replica) handleRequest(m paxi.Request) {
 		}
 		b = r.master.query(k, r.ID())
 		r.index[k] = b
+		r.paxos.ballot = b
 	}
-	if b.ID().Zone() == r.paxos.gid {
-		r.paxos.HandleRequest(m)
+	if b.ID().Zone() == r.ID().Zone() {
+		r.paxos.handleRequest(m)
 		r.monitor(k, m.NodeID)
 	} else {
 		r.Forward(b.ID(), m)
@@ -92,50 +91,13 @@ func (r *Replica) handleRequest(m paxi.Request) {
 func (r *Replica) handleInfo(m Info) {
 	log.Debugf("replica %v received Info %+v", r.ID(), m)
 	r.index[m.Key] = m.Ballot
+	if m.Ballot.ID() == r.ID() {
+		r.paxos.ballot = m.Ballot
+	}
 	if len(r.pending[m.Key]) > 0 {
 		for _, request := range r.pending[m.Key] {
 			r.handleRequest(request)
 		}
 		r.pending[m.Key] = make([]paxi.Request, 0)
 	}
-}
-
-func (r *Replica) handleMove(m Move) {
-	log.Debugf("replica %v received Move %+v", r.ID(), m)
-	if r.master == nil {
-		if m.OldBallot == r.index[m.Key] {
-			r.index[m.Key] = m.NewBallot
-			if m.NewBallot.ID() == r.ID() {
-				r.paxos.SetBallot(m.NewBallot)
-				r.paxos.SetActive(true)
-			}
-		}
-	} else {
-		r.master.handleMove(m)
-	}
-}
-
-func (r *Replica) handlePrepare(m Prepare) {
-	log.Debugf("replica %v received Prepare %+v", r.ID(), m)
-	r.paxos.HandleP1a(m.P1a)
-}
-
-func (r *Replica) handlePromise(m Promise) {
-	log.Debugf("replica %v received Promise %+v", r.ID(), m)
-	r.paxos.HandleP1b(m.P1b)
-}
-
-func (r *Replica) handleAccept(m Accept) {
-	log.Debugf("replica %v received Accept %+v", r.ID(), m)
-	r.paxos.HandleP2a(m.P2a)
-}
-
-func (r *Replica) handleAccepted(m Accepted) {
-	log.Debugf("replica %v received Accepted %+v", r.ID(), m)
-	r.paxos.HandleP2b(m.P2b)
-}
-
-func (r *Replica) handleCommit(m Commit) {
-	log.Debugf("replica %v received Commit %+v", r.ID(), m)
-	r.paxos.HandleP3(m.P3)
 }
