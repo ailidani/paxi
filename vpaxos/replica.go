@@ -60,6 +60,12 @@ func (r *Replica) monitor(k paxi.Key, id paxi.ID) {
 func (r *Replica) handleRequest(m paxi.Request) {
 	log.Debugf("replica %v received %v", r.ID(), m)
 	k := m.Command.Key
+	if m.NodeID != r.ID() {
+		// this is forward request
+		r.pending[k] = append(r.pending[k], m)
+		return
+	}
+
 	b, exist := r.index[k]
 	if !exist {
 		if r.master == nil {
