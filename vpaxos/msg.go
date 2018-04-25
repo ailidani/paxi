@@ -57,16 +57,19 @@ func (m P3) String() string {
  *   Master Messages   *
  ***********************/
 
+// Query message request the current info on key from master
 type Query struct {
 	Key paxi.Key
 	ID  paxi.ID
 }
 
+// Info is reply message for both query and Move message
 type Info struct {
 	Key    paxi.Key
 	Ballot paxi.Ballot
 }
 
+// Move message suggest master to move an object
 type Move struct {
 	Key  paxi.Key
 	From paxi.ID

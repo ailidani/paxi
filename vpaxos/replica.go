@@ -54,7 +54,6 @@ func (r *Replica) monitor(k paxi.Key, id paxi.ID) {
 		} else {
 			r.master.handleMove(move)
 		}
-
 	}
 }
 
@@ -80,7 +79,7 @@ func (r *Replica) handleRequest(m paxi.Request) {
 		r.index[k] = b
 		r.paxos.ballot = b
 	}
-	if b.ID().Zone() == r.ID().Zone() {
+	if b.ID() == r.ID() {
 		r.paxos.handleRequest(m)
 		r.monitor(k, m.NodeID)
 	} else {
@@ -90,14 +89,16 @@ func (r *Replica) handleRequest(m paxi.Request) {
 
 func (r *Replica) handleInfo(m Info) {
 	log.Debugf("replica %v received Info %+v", r.ID(), m)
-	r.index[m.Key] = m.Ballot
-	if m.Ballot.ID() == r.ID() {
-		r.paxos.ballot = m.Ballot
-	}
-	if len(r.pending[m.Key]) > 0 {
-		for _, request := range r.pending[m.Key] {
-			r.handleRequest(request)
+	if m.Ballot >= r.index[m.Key] {
+		r.index[m.Key] = m.Ballot
+		if m.Ballot.ID() == r.ID() {
+			r.paxos.ballot = m.Ballot
 		}
-		r.pending[m.Key] = make([]paxi.Request, 0)
+		if len(r.pending[m.Key]) > 0 {
+			for _, request := range r.pending[m.Key] {
+				r.handleRequest(request)
+			}
+			r.pending[m.Key] = make([]paxi.Request, 0)
+		}
 	}
 }
