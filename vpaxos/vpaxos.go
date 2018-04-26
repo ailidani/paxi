@@ -27,6 +27,7 @@ func new(node paxi.Node) *vpaxos {
 	v := &vpaxos{
 		Node: node,
 		log:  make(map[int]*entry),
+		// ballot: paxi.NewBallot(1, paxi.NewID(node.ID().Zone(), 1)),
 		slot: -1,
 	}
 

@@ -62,6 +62,7 @@ func (r *Replica) handleRequest(m paxi.Request) {
 	k := m.Command.Key
 	b, exist := r.index[k]
 	if !exist {
+		log.Debugf("unknown key %v in replica %v", k, r.ID())
 		if r.master == nil {
 			// if unknown key, save request and query to master
 			_, ok := r.pending[k]
@@ -77,13 +78,19 @@ func (r *Replica) handleRequest(m paxi.Request) {
 		}
 		b = r.master.query(k, r.ID())
 		r.index[k] = b
-		r.paxos.ballot = b
+		if b.ID() == r.ID() {
+			r.paxos.ballot = b
+		}
 	}
 	if b.ID() == r.ID() {
 		r.paxos.handleRequest(m)
 		r.monitor(k, m.NodeID)
 	} else {
-		r.Forward(b.ID(), m)
+		if m.NodeID != r.ID() {
+			r.pending[k] = append(r.pending[k], m)
+		} else {
+			r.Forward(b.ID(), m)
+		}
 	}
 }
 

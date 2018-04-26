@@ -50,7 +50,7 @@ type P3 struct {
 }
 
 func (m P3) String() string {
-	return fmt.Sprintf("P3 {b=%v s=%d, cmd=%v}", m.Ballot, m.Slot, m.Command)
+	return fmt.Sprintf("P3 {b=%v s=%d cmd=%v}", m.Ballot, m.Slot, m.Command)
 }
 
 /***********************
@@ -63,10 +63,18 @@ type Query struct {
 	ID  paxi.ID
 }
 
+func (m Query) String() string {
+	return fmt.Sprintf("Query {key=%d id=%v}", m.Key, m.ID)
+}
+
 // Info is reply message for both query and Move message
 type Info struct {
 	Key    paxi.Key
 	Ballot paxi.Ballot
+}
+
+func (m Info) String() string {
+	return fmt.Sprintf("Info {key=%d ballot=%v}", m.Key, m.Ballot)
 }
 
 // Move message suggest master to move an object
@@ -74,4 +82,8 @@ type Move struct {
 	Key  paxi.Key
 	From paxi.ID
 	To   paxi.ID
+}
+
+func (m Move) String() string {
+	return fmt.Sprintf("Move {key=%d from=%v to=%v}", m.Key, m.From, m.To)
 }

@@ -9,13 +9,15 @@ type nodes []paxi.ID
 
 type master struct {
 	*Replica
-	keys map[paxi.Key]paxi.Ballot
+	ballots map[int]paxi.Ballot
+	keys    map[paxi.Key]int
 }
 
 func newMaster(r *Replica) *master {
 	m := &master{
 		Replica: r,
-		keys:    make(map[paxi.Key]paxi.Ballot),
+		ballots: make(map[int]paxi.Ballot),
+		keys:    make(map[paxi.Key]int),
 	}
 	m.Node.Register(Query{}, m.handleQuery)
 	m.Node.Register(Move{}, m.handleMove)
@@ -23,37 +25,45 @@ func newMaster(r *Replica) *master {
 }
 
 func (m *master) query(k paxi.Key, id paxi.ID) paxi.Ballot {
-	b, ok := m.keys[k]
+	z, ok := m.keys[k]
 	if !ok {
-		b = paxi.NewBallot(1, id)
-		m.keys[k] = b
+		z = id.Zone()
+		m.keys[k] = z
+		_, ok := m.ballots[z]
+		if !ok {
+			m.ballots[z] = paxi.NewBallot(1, id)
+		}
 	}
-	return b
+	return m.ballots[z]
 }
 
 func (m *master) handleQuery(q Query) {
-	log.Debugf("master %v received Query %+v ", m.ID(), q)
+	log.Debugf("master %v received %v ", m.ID(), q)
 	b := m.query(q.Key, q.ID)
-	m.Node.Broadcast(Info{
-		Key:    q.Key,
-		Ballot: b,
-	})
-	// m.Node.Send(q.ID, Info{
+	// m.Node.Broadcast(Info{
 	// 	Key:    q.Key,
 	// 	Ballot: b,
 	// })
+	m.Node.Send(q.ID, Info{
+		Key:    q.Key,
+		Ballot: b,
+	})
 }
 
 func (m *master) handleMove(v Move) {
-	log.Debugf("master %v received Move %+v ", m.ID(), v)
-	b := m.keys[v.Key]
+	log.Debugf("master %v received %v ", m.ID(), v)
+	z := v.To.Zone()
+	m.keys[v.Key] = z
+	b := m.ballots[z]
 	b.Next(v.To)
-	m.keys[v.Key] = b
+	m.ballots[z] = b
 	m.Node.Broadcast(Info{
 		Key:    v.Key,
 		Ballot: b,
 	})
 	// update local replica
 	m.Replica.index[v.Key] = b
-	m.Replica.paxos.ballot = b
+	if b.ID() == m.ID() {
+		m.Replica.paxos.ballot = b
+	}
 }

@@ -35,7 +35,7 @@ func (r *Request) Reply(reply Reply) {
 }
 
 func (r Request) String() string {
-	return fmt.Sprintf("Request {cmd=%v}", r.Command)
+	return fmt.Sprintf("Request {cmd=%v nid=%v}", r.Command, r.NodeID)
 }
 
 // Reply includes all info that might replies to back the client for the coresponding reqeust
@@ -47,7 +47,7 @@ type Reply struct {
 }
 
 func (r Reply) String() string {
-	return fmt.Sprintf("Reply {cmd=%v}", r.Command)
+	return fmt.Sprintf("Reply {cmd=%v value=%v}", r.Command, r.Value)
 }
 
 // Read can be used as a special request that directly read the value of key without go through replication protocol in Replica
