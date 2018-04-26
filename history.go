@@ -78,7 +78,7 @@ func (h *History) WriteFile(path string) error {
 		latency += end - start
 		throughput++
 		if end > s {
-			fmt.Fprintf(w, "PerSecond %f %d\n", latency/float64(throughput), throughput)
+			fmt.Fprintf(w, "PerSecond %f %d\n", latency/float64(throughput)*1000.0, throughput)
 			latency = 0
 			throughput = 0
 			s++
