@@ -52,10 +52,10 @@ func (m *master) handleQuery(q Query) {
 
 func (m *master) handleMove(v Move) {
 	log.Debugf("master %v received %v ", m.ID(), v)
+	old := m.ballots[m.keys[v.Key]]
 	z := v.To.Zone()
 	m.keys[v.Key] = z
 	b := m.ballots[z]
-	old := b
 	b.Next(v.To)
 	m.ballots[z] = b
 	m.Node.Broadcast(Info{
