@@ -1,9 +1,14 @@
 package wankeeper
 
 import (
+	"flag"
+
 	"github.com/ailidani/paxi"
 	"github.com/ailidani/paxi/log"
 )
+
+// master node id
+var mid = paxi.ID(*flag.String("wankeeper_mid", "2.1", "Master ID in format of Zone.Node"))
 
 type entry struct {
 	cmd    paxi.Command

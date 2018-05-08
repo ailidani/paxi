@@ -19,7 +19,7 @@ func newLeader(r *Replica) *leader {
 	l := &leader{
 		Replica:  r,
 		zone:     r.ID().Zone(),
-		masterID: "2.1",
+		masterID: mid,
 		active:   false,
 		quorum:   paxi.NewQuorum(),
 	}
