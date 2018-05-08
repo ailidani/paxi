@@ -8,6 +8,8 @@ import (
 )
 
 func init() {
+	gob.Register(P1a{})
+	gob.Register(P1b{})
 	gob.Register(P2a{})
 	gob.Register(P2b{})
 	gob.Register(P3{})
@@ -20,6 +22,26 @@ func init() {
  *   Paxos Messages   *
  **********************/
 
+type P1a struct {
+	Key    paxi.Key
+	Ballot paxi.Ballot
+}
+
+func (m P1a) String() string {
+	return fmt.Sprintf("P1a {key=%v b=%v}", m.Key, m.Ballot)
+}
+
+type P1b struct {
+	Key    paxi.Key
+	Ballot paxi.Ballot
+	ID     paxi.ID
+	Log    map[int]paxi.Command
+}
+
+func (m P1b) String() string {
+	return fmt.Sprintf("P1b {key=%v b=%v id=%s", m.Key, m.Ballot, m.ID)
+}
+
 // P2a accept message
 type P2a struct {
 	Ballot  paxi.Ballot
@@ -28,7 +50,7 @@ type P2a struct {
 }
 
 func (m P2a) String() string {
-	return fmt.Sprintf("P2a {b=%v, s=%d, c=%v}", m.Ballot, m.Slot, m.Command)
+	return fmt.Sprintf("P2a {b=%v s=%d c=%v}", m.Ballot, m.Slot, m.Command)
 }
 
 // P2b accepted message
@@ -39,7 +61,7 @@ type P2b struct {
 }
 
 func (m P2b) String() string {
-	return fmt.Sprintf("P2b {b=%v, id=%s, s=%d}", m.Ballot, m.ID, m.Slot)
+	return fmt.Sprintf("P2b {b=%v id=%s s=%d}", m.Ballot, m.ID, m.Slot)
 }
 
 // P3 commit message
@@ -68,13 +90,15 @@ func (m Query) String() string {
 }
 
 // Info is reply message for both query and Move message
+// Info announce new ballot number
 type Info struct {
-	Key    paxi.Key
-	Ballot paxi.Ballot
+	Key       paxi.Key
+	Ballot    paxi.Ballot
+	OldBallot paxi.Ballot
 }
 
 func (m Info) String() string {
-	return fmt.Sprintf("Info {key=%d ballot=%v}", m.Key, m.Ballot)
+	return fmt.Sprintf("Info {key=%d b=%v ob=%v}", m.Key, m.Ballot, m.OldBallot)
 }
 
 // Move message suggest master to move an object

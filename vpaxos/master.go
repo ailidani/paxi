@@ -55,11 +55,13 @@ func (m *master) handleMove(v Move) {
 	z := v.To.Zone()
 	m.keys[v.Key] = z
 	b := m.ballots[z]
+	old := b
 	b.Next(v.To)
 	m.ballots[z] = b
 	m.Node.Broadcast(Info{
-		Key:    v.Key,
-		Ballot: b,
+		Key:       v.Key,
+		Ballot:    b,
+		OldBallot: old,
 	})
 	// update local replica
 	m.Replica.index[v.Key] = b
