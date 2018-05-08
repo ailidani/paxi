@@ -8,7 +8,7 @@ import (
 )
 
 // master node id
-var mid = paxi.ID(*flag.String("wankeeper_mid", "2.1", "Master ID in format of Zone.Node"))
+var mid = paxi.ID(*flag.String("wankeeper_mid", "3.1", "Master ID in format of Zone.Node"))
 
 type entry struct {
 	cmd    paxi.Command
