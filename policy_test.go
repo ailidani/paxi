@@ -6,13 +6,16 @@ import (
 )
 
 func uniformTest(p Policy, t *testing.T) {
-	for i := 0; i < 10000; i++ {
+	sum := 0
+	for i := 0; i < 1000; i++ {
 		zone := rand.Intn(3) + 1
+		// time.Sleep(time.Duration(10) * time.Millisecond)
 		id := p.Hit(NewID(zone, 1))
 		if id != "" {
-			t.Logf("round %d hit %v", i, id)
+			sum++
 		}
 	}
+	t.Logf("sum %d", sum)
 }
 
 func TestPolicy(t *testing.T) {
@@ -20,19 +23,25 @@ func TestPolicy(t *testing.T) {
 
 	t.Log("EMA:")
 	config.Policy = "ema"
-	config.Threshold = 0.5
-	p = NewPolicy()
-	uniformTest(p, t)
+	for k := 0.1; k >= 0.1; k -= 0.1 {
+		config.Threshold = k
+		p = NewPolicy()
+		uniformTest(p, t)
+	}
 
 	t.Log("Consecutive")
 	config.Policy = "consecutive"
-	config.Threshold = 3
-	p = NewPolicy()
-	uniformTest(p, t)
+	for k := 2; k <= 10; k++ {
+		config.Threshold = float64(k)
+		p = NewPolicy()
+		uniformTest(p, t)
+	}
 
 	t.Log("Majority")
 	config.Policy = "majority"
-	config.Threshold = 1
-	p = NewPolicy()
-	uniformTest(p, t)
+	for k := 1; k <= 2; k++ {
+		config.Threshold = float64(k)
+		p = NewPolicy()
+		uniformTest(p, t)
+	}
 }
