@@ -39,10 +39,9 @@ func (r *Replica) hash(key paxi.Key) paxi.ID {
 	return r.ring.Get(b).(paxi.ID)
 }
 
-// replicas returns the next N neighbors of current node as its replicas
-func (r *Replica) replicas() []paxi.ID {
+// replicas returns the next 2 neighbors of current node as its replicas
+func (r *Replica) replicas(id paxi.ID) []paxi.ID {
 	replicas := make([]paxi.ID, 0)
-	id := r.ID()
 	for i := 0; i < 2; i++ {
 		if r.ring.Next(id) == nil {
 			log.Errorf("next of id %v is nil", id)
@@ -54,6 +53,8 @@ func (r *Replica) replicas() []paxi.ID {
 	return replicas
 }
 
+// HandleRequest handles read request if node is one of replica, otherwise forward to random replica
+// write request will only write to first node in replica set, and replicate asynchronously
 func (r *Replica) HandleRequest(m paxi.Request) {
 	key := m.Command.Key
 	id, exists := r.index[key]
@@ -62,19 +63,35 @@ func (r *Replica) HandleRequest(m paxi.Request) {
 		r.index[key] = id
 	}
 
-	if id == r.ID() {
-		v := r.Node.Execute(m.Command)
-		for _, id := range r.replicas() {
-			r.Send(id, Replicate{
-				Command: m.Command,
-			})
+	replicas := r.replicas(id)
+	if m.Command.IsRead() {
+		var replica paxi.ID
+		for _, replica = range replicas {
+			if r.ID() == replica {
+				v := r.Node.Execute(m.Command)
+				m.Reply(paxi.Reply{
+					Command: m.Command,
+					Value:   v,
+				})
+				return
+			}
 		}
-		m.Reply(paxi.Reply{
-			Command: m.Command,
-			Value:   v,
-		})
+		go r.Forward(replica, m)
 	} else {
-		go r.Forward(id, m)
+		if id == r.ID() {
+			v := r.Node.Execute(m.Command)
+			for _, id := range r.replicas(r.ID()) {
+				r.Send(id, Replicate{
+					Command: m.Command,
+				})
+			}
+			m.Reply(paxi.Reply{
+				Command: m.Command,
+				Value:   v,
+			})
+		} else {
+			go r.Forward(id, m)
+		}
 	}
 }
 
