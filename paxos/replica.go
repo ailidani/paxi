@@ -1,6 +1,9 @@
 package paxos
 
-import "github.com/ailidani/paxi"
+import (
+	"github.com/ailidani/paxi"
+	"github.com/ailidani/paxi/log"
+)
 
 // Replica for one Paxos instance
 type Replica struct {
@@ -23,6 +26,7 @@ func NewReplica(id paxi.ID) *Replica {
 }
 
 func (r *Replica) handleRequest(m paxi.Request) {
+	log.Debugf("Replica %s received %v\n", r.ID(), m)
 	if paxi.GetConfig().Adaptive {
 		if r.Paxos.IsLeader() || r.Paxos.Ballot() == 0 {
 			r.Paxos.HandleRequest(m)
