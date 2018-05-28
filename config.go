@@ -19,6 +19,7 @@ type Config struct {
 	F               int           `json:"f"`                 // number of failure zones in general grid quorums
 	Transport       string        `json:"transport"`         // not used
 	ReplyWhenCommit bool          `json:"reply_when_commit"` // reply to client when request is committed, instead of executed
+	FastRead        bool          `json:"fast_read"`         // read from local copy
 	Adaptive        bool          `json:"adaptive"`          // adaptive leader change, if true paxos forward request to current leader
 	Policy          string        `json:"policy"`            // leader change policy {consecutive, majority}
 	Threshold       float64       `json:"threshold"`         // threshold for policy in WPaxos {n consecutive or time interval in ms}

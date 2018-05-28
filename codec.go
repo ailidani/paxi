@@ -20,12 +20,12 @@ type Codec interface {
 func NewCodec(scheme string, rw io.ReadWriter) Codec {
 	switch scheme {
 	case "json":
-		return &jsonCodec{
+		return &codecJSON{
 			encoder: json.NewEncoder(rw),
 			decoder: json.NewDecoder(rw),
 		}
 	case "gob":
-		return &gobCodec{
+		return &codecGOB{
 			encoder: gob.NewEncoder(rw),
 			decoder: gob.NewDecoder(rw),
 		}
@@ -33,46 +33,46 @@ func NewCodec(scheme string, rw io.ReadWriter) Codec {
 	return nil
 }
 
-type jsonCodec struct {
+type codecJSON struct {
 	encoder *json.Encoder
 	decoder *json.Decoder
 }
 
-func (j *jsonCodec) Scheme() string {
+func (j *codecJSON) Scheme() string {
 	return "json"
 }
 
-func (j *jsonCodec) Encode(m interface{}) {
+func (j *codecJSON) Encode(m interface{}) {
 	err := j.encoder.Encode(m)
 	if err != nil {
 		log.Error(err)
 	}
 }
 
-func (j *jsonCodec) Decode(m interface{}) {
+func (j *codecJSON) Decode(m interface{}) {
 	err := j.decoder.Decode(m)
 	if err != nil {
 		log.Error(err)
 	}
 }
 
-type gobCodec struct {
+type codecGOB struct {
 	encoder *gob.Encoder
 	decoder *gob.Decoder
 }
 
-func (g *gobCodec) Scheme() string {
+func (g *codecGOB) Scheme() string {
 	return "gob"
 }
 
-func (g *gobCodec) Encode(m interface{}) {
+func (g *codecGOB) Encode(m interface{}) {
 	err := g.encoder.Encode(m)
 	if err != nil {
 		log.Error(err)
 	}
 }
 
-func (g *gobCodec) Decode(m interface{}) {
+func (g *codecGOB) Decode(m interface{}) {
 	err := g.decoder.Decode(m)
 	if err != nil {
 		log.Error(err)

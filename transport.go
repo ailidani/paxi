@@ -119,7 +119,7 @@ type tcp struct {
 }
 
 func (t *tcp) Listen() {
-	log.Debug("start listenning ", t.uri.Port())
+	log.Debug("start listening ", t.uri.Port())
 	listener, err := net.Listen("tcp", ":"+t.uri.Port())
 	if err != nil {
 		log.Fatal("TCP Listener error: ", err)
