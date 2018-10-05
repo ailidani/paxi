@@ -103,7 +103,7 @@ func (r *Replica) handleInfo(m Info) {
 		} else {
 			r.paxos.active = false
 			zone := m.OldBallot.ID().Zone()
-			r.Multicast(zone, P1a{
+			r.MulticastZone(zone, P1a{
 				Key:    m.Key,
 				Ballot: m.Ballot,
 			})

@@ -12,8 +12,11 @@ type Socket interface {
 	// Send put message to outbound queue
 	Send(to ID, m interface{})
 
-	// Multicast send msg to all nodes in the same site
-	Multicast(zone int, m interface{})
+	// MulticastZone send msg to all nodes in the same site
+	MulticastZone(zone int, m interface{})
+
+	// MulticastQuorum sends msg to random number of nodes
+	MulticastQuorum(quorum int, m interface{})
 
 	// Broadcast send to all peers
 	Broadcast(m interface{})
@@ -92,7 +95,7 @@ func (s *socket) Recv() interface{} {
 	}
 }
 
-func (s *socket) Multicast(zone int, m interface{}) {
+func (s *socket) MulticastZone(zone int, m interface{}) {
 	log.Debugf("node %s broadcasting message %+v in zone %d", s.id, m, zone)
 	for id := range s.nodes {
 		if id == s.id {
@@ -100,6 +103,21 @@ func (s *socket) Multicast(zone int, m interface{}) {
 		}
 		if id.Zone() == zone {
 			s.Send(id, m)
+		}
+	}
+}
+
+func (s *socket) MulticastQuorum(quorum int, m interface{}) {
+	log.Debugf("node %s multicasting message %+v for %d nodes", s.id, m, quorum)
+	i := 0
+	for id := range s.nodes {
+		if id == s.id {
+			continue
+		}
+		s.Send(id, m)
+		i++
+		if i == quorum {
+			break
 		}
 	}
 }

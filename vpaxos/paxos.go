@@ -63,7 +63,7 @@ func (p *paxos) handleRequest(m paxi.Request) {
 		quorum:  paxi.NewQuorum(),
 	}
 	p.log[p.slot].quorum.ACK(p.ID())
-	p.Multicast(p.ID().Zone(), P2a{
+	p.MulticastZone(p.ID().Zone(), P2a{
 		Ballot:  p.ballot,
 		Slot:    p.slot,
 		Command: m.Command,
@@ -120,7 +120,7 @@ func (p *paxos) handleP2b(m P2b) {
 		p.log[m.Slot].quorum.ACK(m.ID)
 		if p.log[m.Slot].quorum.ZoneMajority() {
 			p.log[m.Slot].commit = true
-			p.Multicast(p.ID().Zone(), P3{
+			p.MulticastZone(p.ID().Zone(), P3{
 				Ballot:  m.Ballot,
 				Slot:    m.Slot,
 				Command: p.log[m.Slot].command,

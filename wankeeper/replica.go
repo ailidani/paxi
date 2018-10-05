@@ -71,7 +71,7 @@ func (r *Replica) Run() {
 		r.leader = newLeader(r)
 	}
 	// r.ballot.Next(r.ID())
-	// r.Multicast(r.ID().Zone(), NewBallot{r.ballot})
+	// r.MulticastZone(r.ID().Zone(), NewBallot{r.ballot})
 }
 
 func (r *Replica) handleNewLeader(m NewLeader) {

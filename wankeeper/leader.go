@@ -51,7 +51,7 @@ func (l *leader) lead(requests ...*paxi.Request) {
 				quorum: paxi.NewQuorum(),
 			}
 			l.log[key][l.slot[key]].quorum.ACK(l.ID())
-			l.Multicast(l.zone, Proposal{
+			l.MulticastZone(l.zone, Proposal{
 				Ballot:  l.ballot,
 				Slot:    l.slot[key],
 				Command: r.Command,
@@ -81,7 +81,7 @@ func (l *leader) handleVote(m Vote) {
 		l.quorum.ACK(m.ID)
 		if l.quorum.ZoneMajority() {
 			l.active = true
-			l.Multicast(l.ID().Zone(), NewLeader{l.ballot})
+			l.MulticastZone(l.ID().Zone(), NewLeader{l.ballot})
 			l.Send(l.masterID, NewLeader{l.ballot})
 			l.lead(l.requests...)
 		}
@@ -115,7 +115,7 @@ func (l *leader) handleAck(m Ack) {
 			Command: e.cmd,
 		}
 		l.Replica.exec(m.Key)
-		l.Multicast(l.zone, c)
+		l.MulticastZone(l.zone, c)
 		if l.master == nil {
 			l.Send(l.masterID, c)
 		} else {
@@ -145,7 +145,7 @@ func (l *leader) handleToken(m Token) {
 }
 
 func (l *leader) handleCommit(m Commit) {
-	l.Multicast(l.zone, m)
+	l.MulticastZone(l.zone, m)
 
 	// master
 	if l.master != nil {

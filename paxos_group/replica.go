@@ -81,11 +81,11 @@ func (r *Replica) handleCommit(m Commit) {
 func (r *Replica) Broadcast(msg interface{}) {
 	switch m := msg.(type) {
 	case paxos.P1a:
-		r.Node.Multicast(r.ID().Zone(), Prepare{r.gid, m})
+		r.Node.MulticastZone(r.ID().Zone(), Prepare{r.gid, m})
 	case paxos.P2a:
-		r.Node.Multicast(r.ID().Zone(), Accept{r.gid, m})
+		r.Node.MulticastZone(r.ID().Zone(), Accept{r.gid, m})
 	case paxos.P3:
-		r.Node.Multicast(r.ID().Zone(), Commit{r.gid, m})
+		r.Node.MulticastZone(r.ID().Zone(), Commit{r.gid, m})
 	default:
 		r.Node.Broadcast(msg)
 	}

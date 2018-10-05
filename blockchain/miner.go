@@ -14,8 +14,9 @@ type Miner struct {
 
 	blockchain map[uint64]*Block
 	chain      *Block
-	requests   map[uint64]*paxi.Request
-	index      uint64
+	// requests   map[uint64]*paxi.Request
+	pool  []*paxi.Request
+	index uint64
 }
 
 // NewMiner creates new Miner as paxi node
@@ -23,8 +24,12 @@ func NewMiner(id paxi.ID) *Miner {
 	miner := &Miner{
 		Node:       paxi.NewNode(id),
 		blockchain: make(map[uint64]*Block),
-		chain:      Genesis(),
-		requests:   make(map[uint64]*paxi.Request),
+		// chain:      Genesis(),
+		pool: make([]*paxi.Request, 0),
+		// requests:   make(map[uint64]*paxi.Request),
+	}
+	if id == "1.1" {
+		miner.chain = Genesis()
 	}
 	miner.Node.Register(paxi.Request{}, miner.handleRequest)
 	miner.Node.Register(Block{}, miner.handleBlock)
@@ -41,7 +46,7 @@ func (m *Miner) handleRequest(r paxi.Request) {
 	}
 	block := m.blockchain[m.index].Next(buf.Bytes())
 	m.blockchain[block.Index] = block
-	m.requests[block.Index] = &r
+	// m.requests[block.Index] = &r
 	m.index = block.Index
 	r.Reply(paxi.Reply{
 		Command: r.Command,

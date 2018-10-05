@@ -104,11 +104,16 @@ func (p *Paxos) P2a(r *paxi.Request) {
 		timestamp: time.Now(),
 	}
 	p.log[p.slot].quorum.ACK(p.ID())
-	p.Broadcast(P2a{
+	m := P2a{
 		Ballot:  p.ballot,
 		Slot:    p.slot,
 		Command: r.Command,
-	})
+	}
+	if paxi.GetConfig().Thrifty {
+		p.MulticastQuorum(paxi.GetConfig().N()/2+1, m)
+	} else {
+		p.Broadcast(m)
+	}
 }
 
 // HandleP1a handles P1a message
