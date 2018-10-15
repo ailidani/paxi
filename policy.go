@@ -7,10 +7,12 @@ import (
 	"github.com/ailidani/paxi/log"
 )
 
+// Policy defines a trigger for data access patterns, that can be used in data migration protocols
 type Policy interface {
 	Hit(id ID) ID
 }
 
+// NewPolicy returns the policy by policy name from config
 func NewPolicy() Policy {
 	switch config.Policy {
 	case "":

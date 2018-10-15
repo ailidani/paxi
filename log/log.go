@@ -171,10 +171,10 @@ func Errorf(format string, v ...interface{}) {
 
 func Fatal(v ...interface{}) {
 	log.err.Output(2, fmt.Sprint(v...))
-	stdlog.Fatal(v)
+	stdlog.Fatal(v...)
 }
 
 func Fatalf(format string, v ...interface{}) {
 	log.err.Output(2, fmt.Sprintf(format, v...))
-	stdlog.Fatalf(format, v)
+	stdlog.Fatalf(format, v...)
 }

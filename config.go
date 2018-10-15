@@ -52,6 +52,7 @@ func GetConfig() Config {
 	return config
 }
 
+// Simulation enable go channel transportation to simulate distributed environment
 func Simulation() {
 	config.Transport = "chan"
 }
@@ -81,10 +82,12 @@ func (c Config) IDs() []ID {
 	return ids
 }
 
+// N returns total number of nodes
 func (c Config) N() int {
 	return c.n
 }
 
+// Z returns total number of zones
 func (c Config) Z() int {
 	return c.z
 }

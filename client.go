@@ -269,6 +269,7 @@ func (c *Client) Drop(from, to ID, t int) {
 	r.Body.Close()
 }
 
+// Partition cuts the network between nodes for t seconds
 func (c *Client) Partition(t int, nodes ...ID) {
 	s := lib.NewSet()
 	for _, id := range nodes {

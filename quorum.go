@@ -29,6 +29,7 @@ func (q *Quorum) ACK(id ID) {
 	}
 }
 
+// NACK adds id to quorum nack records
 func (q *Quorum) NACK(id ID) {
 	if !q.nacks[id] {
 		q.nacks[id] = true
