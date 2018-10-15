@@ -9,8 +9,8 @@ var id1 = ID("1.1")
 var id2 = ID("1.2")
 
 var Address = map[ID]string{
-	id1: "127.0.0.1:1735",
-	id2: "127.0.0.1:1736",
+	id1: "127.0.0.1:1736",
+	id2: "127.0.0.1:1737",
 }
 
 type MSG struct {

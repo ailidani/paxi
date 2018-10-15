@@ -4,6 +4,8 @@ bin/*
 !bin/*.json
 tla/*
 !tla/wpaxos.tla
-cosmos
 .idea
+model/.*
 aws
+cosmos
+minpaxos

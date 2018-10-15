@@ -389,6 +389,7 @@ func (r *Replica) handleCommit(m Commit) {
 	r.updateCommit(m.Replica)
 }
 
+// can we execute in another thread? put one lock per slot
 func (r *Replica) execute() {
 	for id, log := range r.log {
 		for s := r.executed[id] + 1; s <= r.slot[id]; s++ {
