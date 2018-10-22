@@ -7,5 +7,3 @@ tla/*
 .idea
 model/.*
 aws
-cosmos
-minpaxos
