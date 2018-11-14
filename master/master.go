@@ -33,7 +33,6 @@ func main() {
 	out := make(chan paxi.Config)
 
 	config := paxi.MakeDefaultConfig()
-	config.Algorithm = *algorithm
 	config.F = *f
 	config.Adaptive = *adaptive
 	config.Threshold = *threshold
