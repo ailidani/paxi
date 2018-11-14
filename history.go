@@ -2,9 +2,14 @@ package paxi
 
 import (
 	"bufio"
+	"encoding/csv"
+	"errors"
 	"fmt"
+	"io"
+	"log"
 	"os"
 	"sort"
+	"strconv"
 	"sync"
 )
 
@@ -31,6 +36,17 @@ func (h *History) Add(key int, input, output interface{}, start, end int64) {
 		h.shard[key] = make([]*operation, 0)
 	}
 	o := &operation{input, output, start, end}
+	h.shard[key] = append(h.shard[key], o)
+	h.operations = append(h.operations, o)
+}
+
+// AddOperation adds the operation
+func (h *History) AddOperation(key int, o *operation) {
+	h.Lock()
+	defer h.Unlock()
+	if _, exists := h.shard[key]; !exists {
+		h.shard[key] = make([]*operation, 0)
+	}
 	h.shard[key] = append(h.shard[key], o)
 	h.operations = append(h.operations, o)
 }
@@ -94,4 +110,70 @@ func (h *History) WriteFile(path string) error {
 	// 	}
 	// }
 	return w.Flush()
+}
+
+// ReadFile reads csv log file and create operations in history
+func (h *History) ReadFile(path string) error {
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+
+	r := csv.NewReader(file)
+
+	for {
+		record, err := r.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		if len(record) < 5 {
+			return errors.New("operation history file format error")
+		}
+
+		// get id / key
+		id, err := strconv.Atoi(record[0])
+		if err != nil {
+			return err
+		}
+
+		operation := new(operation)
+
+		// get input
+		if record[1] == "null" || record[1] == "" {
+			operation.input = nil
+		} else {
+			operation.input = record[1]
+		}
+
+		// get output
+		if record[2] == "null" || record[2] == "" {
+			operation.output = nil
+		} else {
+			operation.output = record[2]
+		}
+
+		// get start time
+		start, err := strconv.ParseInt(record[3], 10, 64)
+		if err != nil {
+			log.Fatal(err)
+			return err
+		}
+		operation.start = start
+
+		// get end time
+		end, err := strconv.ParseInt(record[4], 10, 64)
+		if err != nil {
+			log.Fatal(err)
+			return err
+		}
+		operation.end = end
+
+		h.AddOperation(id, operation)
+	}
+
+	return file.Close()
 }

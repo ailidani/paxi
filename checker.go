@@ -80,10 +80,12 @@ func (c *checker) linearizable(history []*operation) []*operation {
 					c.Graph.Add(history[j])
 				}
 			}
+
 			match := c.match(o)
 			if match != nil {
 				c.merge(o, match)
 			}
+
 			cycle := c.Graph.Cycle()
 			if cycle != nil {
 				anomaly = append(anomaly, o)

@@ -17,11 +17,10 @@ import (
 
 // Client main access point of client lib
 type Client struct {
-	ID        ID // client id use the same id as servers in local site
-	N         int
-	addrs     map[ID]string
-	http      map[ID]string
-	algorithm string
+	ID    ID // client id use the same id as servers in local site
+	N     int
+	addrs map[ID]string
+	http  map[ID]string
 
 	cid int // command id
 	*http.Client
@@ -30,12 +29,11 @@ type Client struct {
 // NewClient creates a new Client from config
 func NewClient(id ID) *Client {
 	return &Client{
-		ID:        id,
-		N:         len(config.Addrs),
-		addrs:     config.Addrs,
-		http:      config.HTTPAddrs,
-		algorithm: config.Algorithm,
-		Client:    &http.Client{},
+		ID:     id,
+		N:      len(config.Addrs),
+		addrs:  config.Addrs,
+		http:   config.HTTPAddrs,
+		Client: &http.Client{},
 	}
 }
 

@@ -22,7 +22,6 @@
         "3.3": "http://127.0.0.1:8088"
     },
     "transport": "tcp",
-    "algorithm": "wpaxos",
     "quorum": "fgrid",
     "f": 0,
     "adaptive": true,
