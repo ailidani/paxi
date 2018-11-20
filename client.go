@@ -15,8 +15,21 @@ import (
 	"github.com/ailidani/paxi/log"
 )
 
-// Client main access point of client lib
-type Client struct {
+type Client interface {
+	Get(Key) (Value, error)
+	Put(Key, Value) error
+	AdminClient
+}
+
+type AdminClient interface {
+	Consensus(Key) bool
+	Crash(ID, int)
+	Drop(ID, ID, int)
+	Partition(int, ...ID)
+}
+
+// HTTPClient inplements Client interface with REST API
+type HTTPClient struct {
 	ID    ID // client id use the same id as servers in local site
 	N     int
 	addrs map[ID]string
@@ -26,9 +39,9 @@ type Client struct {
 	*http.Client
 }
 
-// NewClient creates a new Client from config
-func NewClient(id ID) *Client {
-	return &Client{
+// NewHTTPClient creates a new Client from config
+func NewHTTPClient(id ID) *HTTPClient {
+	return &HTTPClient{
 		ID:     id,
 		N:      len(config.Addrs),
 		addrs:  config.Addrs,
@@ -39,7 +52,7 @@ func NewClient(id ID) *Client {
 
 // rest accesses server's REST API with url = http://ip:port/key
 // if value == nil, it's read
-func (c *Client) rest(id ID, key Key, value Value) (Value, error) {
+func (c *HTTPClient) rest(id ID, key Key, value Value) (Value, error) {
 	url := c.http[id] + "/" + strconv.Itoa(int(key))
 
 	method := http.MethodGet
@@ -81,7 +94,7 @@ func (c *Client) rest(id ID, key Key, value Value) (Value, error) {
 }
 
 // RESTGet gets value of given key
-func (c *Client) RESTGet(key Key) (Value, error) {
+func (c *HTTPClient) RESTGet(key Key) (Value, error) {
 	c.cid++
 	id := c.ID
 	if id == "" {
@@ -93,7 +106,7 @@ func (c *Client) RESTGet(key Key) (Value, error) {
 }
 
 // RESTPut puts new value as http.request body and return previous value
-func (c *Client) RESTPut(key Key, value Value) (Value, error) {
+func (c *HTTPClient) RESTPut(key Key, value Value) (Value, error) {
 	c.cid++
 	id := c.ID
 	if id == "" {
@@ -105,16 +118,17 @@ func (c *Client) RESTPut(key Key, value Value) (Value, error) {
 }
 
 // Get gets value of given key (use REST)
-func (c *Client) Get(key Key) (Value, error) {
+func (c *HTTPClient) Get(key Key) (Value, error) {
 	return c.RESTGet(key)
 }
 
 // Put puts new key value pair and return previous value (use REST)
-func (c *Client) Put(key Key, value Value) (Value, error) {
-	return c.RESTPut(key, value)
+func (c *HTTPClient) Put(key Key, value Value) error {
+	_, err := c.RESTPut(key, value)
+	return err
 }
 
-func (c *Client) json(id ID, key Key, value Value) (Value, error) {
+func (c *HTTPClient) json(id ID, key Key, value Value) (Value, error) {
 	url := c.http[id]
 	cmd := Command{
 		Key:       key,
@@ -140,19 +154,19 @@ func (c *Client) json(id ID, key Key, value Value) (Value, error) {
 }
 
 // JSONGet posts get request in json format to server url
-func (c *Client) JSONGet(key Key) (Value, error) {
+func (c *HTTPClient) JSONGet(key Key) (Value, error) {
 	c.cid++
 	return c.json(c.ID, key, nil)
 }
 
 // JSONPut posts put request in json format to server url
-func (c *Client) JSONPut(key Key, value Value) (Value, error) {
+func (c *HTTPClient) JSONPut(key Key, value Value) (Value, error) {
 	c.cid++
 	return c.json(c.ID, key, value)
 }
 
 // QuorumGet concurrently read values from majority nodes
-func (c *Client) QuorumGet(key Key) []Value {
+func (c *HTTPClient) QuorumGet(key Key) []Value {
 	c.cid++
 	out := make(chan Value)
 	i := 0
@@ -182,7 +196,7 @@ func (c *Client) QuorumGet(key Key) []Value {
 }
 
 // QuorumPut concurrently write values to majority of nodes
-func (c *Client) QuorumPut(key Key, value Value) {
+func (c *HTTPClient) QuorumPut(key Key, value Value) {
 	c.cid++
 	var wait sync.WaitGroup
 	i := 0
@@ -201,7 +215,7 @@ func (c *Client) QuorumPut(key Key, value Value) {
 }
 
 // Consensus collects /history/key from every node and compare their values
-func (c *Client) Consensus(k Key) bool {
+func (c *HTTPClient) Consensus(k Key) bool {
 	h := make(map[ID][]Value)
 	for id, url := range c.http {
 		h[id] = make([]Value, 0)
@@ -246,7 +260,7 @@ func (c *Client) Consensus(k Key) bool {
 
 // Crash stops the node for t seconds then recover
 // node crash forever if t < 0
-func (c *Client) Crash(id ID, t int) {
+func (c *HTTPClient) Crash(id ID, t int) {
 	url := c.http[id] + "/crash?t=" + strconv.Itoa(t)
 	r, err := c.Client.Get(url)
 	if err != nil {
@@ -257,7 +271,7 @@ func (c *Client) Crash(id ID, t int) {
 }
 
 // Drop drops every message send for t seconds
-func (c *Client) Drop(from, to ID, t int) {
+func (c *HTTPClient) Drop(from, to ID, t int) {
 	url := c.http[from] + "/drop?id=" + string(to) + "&t=" + strconv.Itoa(t)
 	r, err := c.Client.Get(url)
 	if err != nil {
@@ -268,7 +282,7 @@ func (c *Client) Drop(from, to ID, t int) {
 }
 
 // Partition cuts the network between nodes for t seconds
-func (c *Client) Partition(t int, nodes ...ID) {
+func (c *HTTPClient) Partition(t int, nodes ...ID) {
 	s := lib.NewSet()
 	for _, id := range nodes {
 		s.Add(id)
@@ -281,9 +295,3 @@ func (c *Client) Partition(t int, nodes ...ID) {
 		}
 	}
 }
-
-// Start connects to server before actual requests (for future)
-func (c *Client) Start() {}
-
-// Stop disconnects from server (for future)
-func (c *Client) Stop() {}
