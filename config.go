@@ -23,7 +23,6 @@ type Config struct {
 	Adaptive        bool    `json:"adaptive"`          // adaptive leader change, if true paxos forward request to current leader
 	Policy          string  `json:"policy"`            // leader change policy {consecutive, majority}
 	Threshold       float64 `json:"threshold"`         // threshold for policy in WPaxos {n consecutive or time interval in ms}
-	BackOff         int     `json:"backoff"`           // random backoff interval
 
 	Thrifty        bool    `json:"thrifty"`          // only send messages to a quorum
 	BufferSize     int     `json:"buffer_size"`      // buffer size for maps

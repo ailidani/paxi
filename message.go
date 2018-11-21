@@ -22,11 +22,11 @@ func init() {
 
 // Request is client reqeust with http response channel
 type Request struct {
-	Command   Command
-	Timestamp int64
-	NodeID    ID // forward by node
-
-	c chan Reply // reply channel created by request receiver
+	Command    Command
+	Properties map[string]string
+	Timestamp  int64
+	NodeID     ID         // forward by node
+	c          chan Reply // reply channel created by request receiver
 }
 
 // Reply replies to current client session
@@ -40,10 +40,11 @@ func (r Request) String() string {
 
 // Reply includes all info that might replies to back the client for the coresponding reqeust
 type Reply struct {
-	Command   Command
-	Value     Value
-	Timestamp int64
-	Err       error
+	Command    Command
+	Value      Value
+	Properties map[string]string
+	Timestamp  int64
+	Err        error
 }
 
 func (r Reply) String() string {
