@@ -107,6 +107,30 @@ func (g *Graph) BFS(v interface{}) []interface{} {
 	return vertices
 }
 
+func (g *Graph) BFSReverse(v interface{}) []interface{} {
+	vertices := make([]interface{}, 0)
+	visited := make(map[interface{}]bool)
+	queue := list.New()
+
+	visited[v] = true
+	queue.PushBack(v)
+
+	for queue.Len() > 0 {
+		s := queue.Front()
+		vertices = append(vertices, s.Value)
+		queue.Remove(s)
+
+		for t := range g.to[s.Value] {
+			if !visited[t] {
+				visited[t] = true
+				queue.PushBack(t)
+			}
+		}
+	}
+
+	return vertices
+}
+
 type color int
 
 const (
