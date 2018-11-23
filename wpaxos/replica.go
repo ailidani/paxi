@@ -39,15 +39,6 @@ func (r *Replica) handleRequest(m paxi.Request) {
 	key := m.Command.Key
 	r.init(key)
 
-	if paxi.GetConfig().FastRead && m.Command.IsRead() {
-		v := r.Node.Execute(m.Command)
-		m.Reply(paxi.Reply{
-			Command: m.Command,
-			Value:   v,
-		})
-		return
-	}
-
 	p := r.paxi[key]
 	if paxi.GetConfig().Adaptive {
 		if p.IsLeader() || p.Ballot() == 0 {

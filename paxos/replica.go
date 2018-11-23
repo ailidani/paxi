@@ -1,9 +1,13 @@
 package paxos
 
 import (
+	"flag"
+
 	"github.com/ailidani/paxi"
 	"github.com/ailidani/paxi/log"
 )
+
+var stable = flag.Bool("stable", true, "stable leader, if true paxos forward request to current leader")
 
 // Replica for one Paxos instance
 type Replica struct {
@@ -27,15 +31,7 @@ func NewReplica(id paxi.ID) *Replica {
 
 func (r *Replica) handleRequest(m paxi.Request) {
 	log.Debugf("Replica %s received %v\n", r.ID(), m)
-	if paxi.GetConfig().FastRead && m.Command.IsRead() {
-		v := r.Node.Execute(m.Command)
-		m.Reply(paxi.Reply{
-			Command: m.Command,
-			Value:   v,
-		})
-		return
-	}
-	if paxi.GetConfig().Adaptive {
+	if *stable {
 		if r.Paxos.IsLeader() || r.Paxos.Ballot() == 0 {
 			r.Paxos.HandleRequest(m)
 		} else {
