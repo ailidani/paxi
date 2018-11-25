@@ -38,10 +38,9 @@ Features:
 - [ ] Dynamic quorums
 
 
-
 # How to build
 
-1. Install [Go 1.10](https://golang.org/dl/).
+1. Install [Go 1.11](https://golang.org/dl/).
 2. Use `go get` command or [Download](https://github.com/wpaxos/paxi/archive/master.zip) Paxi source code from GitHub page.
 ```
 go get github.com/ailidani/paxi
@@ -67,12 +66,12 @@ Each executable file expects some parameters which can be seen by `-help` flag, 
 
 2. Start 6 servers with different ids in format of "ZONE_ID.NODE_ID".
 ```
-./server -id 1.1 &
-./server -id 1.2 &
-./server -id 2.1 &
-./server -id 2.2 &
-./server -id 3.1 &
-./server -id 3.2 &
+./server -id 1.1 -algorithm=paxos &
+./server -id 1.2 -algorithm=paxos &
+./server -id 2.1 -algorithm=paxos &
+./server -id 2.2 -algorithm=paxos &
+./server -id 3.1 -algorithm=paxos &
+./server -id 3.2 -algorithm=paxos &
 ```
 
 3. Start benchmarking client that connects to server ID 1.1 and benchmark parameters specified in [config.json](https://github.com/ailidani/paxi/blob/master/bin/config.json).
@@ -101,7 +100,7 @@ type Replica struct {
 Define handle function for each message type. For example, to handle client `Request`
 ```go
 func (r *Replica) handleRequest(m paxi.Request) {
-	if r.Config().Adaptive {
+	if *adaptive {
 		if r.Paxos.IsLeader() || r.Paxos.Ballot() == 0 {
 			r.Paxos.HandleRequest(m)
 		} else {
