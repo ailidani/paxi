@@ -48,13 +48,16 @@ func NewHTTPClient(id ID) *HTTPClient {
 		Http:   config.HTTPAddrs,
 		Client: &http.Client{},
 	}
-	i := 0
-	for node := range c.Addrs {
-		if node.Zone() == id.Zone() {
-			i++
+	if id != "" {
+		i := 0
+		for node := range c.Addrs {
+			if node.Zone() == id.Zone() {
+				i++
+			}
 		}
+		c.LocalN = i
 	}
-	c.LocalN = i
+
 	return c
 }
 

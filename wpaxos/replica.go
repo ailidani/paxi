@@ -1,9 +1,14 @@
 package wpaxos
 
 import (
+	"flag"
+
 	"github.com/ailidani/paxi"
 	"github.com/ailidani/paxi/log"
 )
+
+var adaptive = flag.Bool("adaptive", true, "stable leader, if true paxos forward request to current leader")
+var fz = flag.Int("fz", 0, "f_z fault tolerent zones")
 
 // Replica is WPaxos replica node
 type Replica struct {
@@ -40,7 +45,7 @@ func (r *Replica) handleRequest(m paxi.Request) {
 	r.init(key)
 
 	p := r.paxi[key]
-	if paxi.GetConfig().Adaptive {
+	if *adaptive {
 		if p.IsLeader() || p.Ballot() == 0 {
 			p.HandleRequest(m)
 			to := p.Hit(m.NodeID)

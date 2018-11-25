@@ -15,14 +15,9 @@ type Config struct {
 	Addrs     map[ID]string `json:"address"`      // address for node communication
 	HTTPAddrs map[ID]string `json:"http_address"` // address for client server communication
 
-	Quorum          string  `json:"quorum"`            // type of the quorums
-	F               int     `json:"f"`                 // number of failure zones in general grid quorums
-	Transport       string  `json:"transport"`         // not used
-	ReplyWhenCommit bool    `json:"reply_when_commit"` // reply to client when request is committed, instead of executed
-	FastRead        bool    `json:"fast_read"`         // read from local copy
-	Adaptive        bool    `json:"adaptive"`          // adaptive leader change, if true paxos forward request to current leader
-	Policy          string  `json:"policy"`            // leader change policy {consecutive, majority}
-	Threshold       float64 `json:"threshold"`         // threshold for policy in WPaxos {n consecutive or time interval in ms}
+	Transport string  `json:"transport"` // not used
+	Policy    string  `json:"policy"`    // leader change policy {consecutive, majority}
+	Threshold float64 `json:"threshold"` // threshold for policy in WPaxos {n consecutive or time interval in ms}
 
 	Thrifty        bool    `json:"thrifty"`          // only send messages to a quorum
 	BufferSize     int     `json:"buffer_size"`      // buffer size for maps
@@ -61,15 +56,13 @@ func Simulation() {
 // only used by init() and master
 func MakeDefaultConfig() Config {
 	return Config{
-		Transport:       "tcp",
-		ReplyWhenCommit: false,
-		Adaptive:        true,
-		Policy:          "consecutive",
-		Threshold:       3,
-		BufferSize:      1024,
-		ChanBufferSize:  1024,
-		MultiVersion:    false,
-		Benchmark:       DefaultBConfig(),
+		Transport:      "tcp",
+		Policy:         "consecutive",
+		Threshold:      3,
+		BufferSize:     1024,
+		ChanBufferSize: 1024,
+		MultiVersion:   false,
+		Benchmark:      DefaultBConfig(),
 	}
 }
 

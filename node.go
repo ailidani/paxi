@@ -105,19 +105,6 @@ func (n *node) handle() {
 	for {
 		msg := <-n.MessageChan
 		v := reflect.ValueOf(msg)
-
-		if config.FastRead && v.Type() == reflect.TypeOf(Request{}) {
-			r := msg.(Request)
-			if r.Command.IsRead() {
-				value := n.Execute(r.Command)
-				r.Reply(Reply{
-					Command: r.Command,
-					Value:   value,
-				})
-				continue
-			}
-		}
-
 		name := v.Type().String()
 		f, exists := n.handles[name]
 		if !exists {

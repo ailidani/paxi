@@ -15,14 +15,9 @@ var port = flag.Int("port", 1735, "master port number")
 var httpPort = flag.Int("http", 8080, "http port")
 
 var n = flag.Int("n", 1, "N number of replicas, default value 1.")
-var algorithm = flag.String("algorithm", "paxos", "Consensus algorithm name")
-var f = flag.Int("f", 0, "tolerate f zone failures")
-var adaptive = flag.Bool("adaptive", true, "Adaptive leader change")
 var threshold = flag.Float64("threshold", 3.0, "Threshold for leader change")
-var backOff = flag.Int("backoff", 100, "Random backoff time")
 var thrifty = flag.Bool("thrifty", false, "")
 var transport = flag.String("transport", "tcp", "Transport protocols, including tcp, udp, chan (local)")
-var replywhencommit = flag.Bool("replywhencommit", false, "reply to client when request is committed, not executed")
 
 func main() {
 	flag.Parse()
@@ -33,10 +28,7 @@ func main() {
 	out := make(chan paxi.Config)
 
 	config := paxi.MakeDefaultConfig()
-	config.F = *f
-	config.Adaptive = *adaptive
 	config.Threshold = *threshold
-	config.BackOff = *backOff
 	config.Thrifty = *thrifty
 
 	go func() {

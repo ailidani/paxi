@@ -47,6 +47,7 @@ func (n *node) handleRoot(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	// get all http headers
+	req.Properties = make(map[string]string)
 	for k := range r.Header {
 		if k == HTTPClientID {
 			cmd.ClientID = ID(r.Header.Get(HTTPClientID))

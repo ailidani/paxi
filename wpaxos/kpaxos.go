@@ -12,12 +12,25 @@ type kpaxos struct {
 	paxi.Policy
 }
 
+func Q1(q *paxi.Quorum) bool {
+	return q.FGridQ1(*fz)
+}
+
+func Q2(q *paxi.Quorum) bool {
+	return q.FGridQ2(*fz)
+}
+
 func newKPaxos(key paxi.Key, node paxi.Node) *kpaxos {
 	k := &kpaxos{}
 	k.Node = node
 	k.key = key
 	k.Policy = paxi.NewPolicy()
-	k.Paxos = paxos.NewPaxos(k)
+
+	quorum := func(p *paxos.Paxos) {
+		p.Q1 = Q1
+		p.Q2 = Q2
+	}
+	k.Paxos = paxos.NewPaxos(k, quorum)
 
 	// zone := int(key)%paxi.GetConfig().Z() + 1
 	// id := paxi.NewID(zone, 1)

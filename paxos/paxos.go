@@ -30,17 +30,30 @@ type Paxos struct {
 
 	quorum   *paxi.Quorum    // phase 1 quorum
 	requests []*paxi.Request // phase 1 pending requests
+
+	Q1              func(*paxi.Quorum) bool
+	Q2              func(*paxi.Quorum) bool
+	ReplyWhenCommit bool
 }
 
 // NewPaxos creates new paxos instance
-func NewPaxos(n paxi.Node) *Paxos {
-	return &Paxos{
-		Node:     n,
-		log:      make(map[int]*entry, paxi.GetConfig().BufferSize),
-		slot:     -1,
-		quorum:   paxi.NewQuorum(),
-		requests: make([]*paxi.Request, 0),
+func NewPaxos(n paxi.Node, options ...func(*Paxos)) *Paxos {
+	p := &Paxos{
+		Node:            n,
+		log:             make(map[int]*entry, paxi.GetConfig().BufferSize),
+		slot:            -1,
+		quorum:          paxi.NewQuorum(),
+		requests:        make([]*paxi.Request, 0),
+		Q1:              func(q *paxi.Quorum) bool { return q.Majority() },
+		Q2:              func(q *paxi.Quorum) bool { return q.Majority() },
+		ReplyWhenCommit: false,
 	}
+
+	for _, opt := range options {
+		opt(p)
+	}
+
+	return p
 }
 
 // IsLeader indecates if this node is current leader
@@ -189,7 +202,7 @@ func (p *Paxos) HandleP1b(m P1b) {
 	// ack message
 	if m.Ballot.ID() == p.ID() && m.Ballot == p.ballot {
 		p.quorum.ACK(m.ID)
-		if p.quorum.Q1() {
+		if p.Q1(p.quorum) {
 			p.active = true
 			// propose any uncommitted entries
 			for i := p.execute; i <= p.slot; i++ {
@@ -273,7 +286,7 @@ func (p *Paxos) HandleP2b(m P2b) {
 	// if no q2 can be formed, this slot will be retried when received p2a or p3
 	if m.Ballot.ID() == p.ID() && m.Ballot == p.log[m.Slot].ballot {
 		p.log[m.Slot].quorum.ACK(m.ID)
-		if p.log[m.Slot].quorum.Q2() {
+		if p.Q2(p.log[m.Slot].quorum) {
 			p.log[m.Slot].commit = true
 			p.Broadcast(P3{
 				Ballot:  m.Ballot,
@@ -281,7 +294,7 @@ func (p *Paxos) HandleP2b(m P2b) {
 				Command: p.log[m.Slot].command,
 			})
 
-			if paxi.GetConfig().ReplyWhenCommit {
+			if p.ReplyWhenCommit {
 				r := p.log[m.Slot].request
 				r.Reply(paxi.Reply{
 					Command:   r.Command,
@@ -315,7 +328,7 @@ func (p *Paxos) HandleP3(m P3) {
 	e.command = m.Command
 	e.commit = true
 
-	if paxi.GetConfig().ReplyWhenCommit {
+	if p.ReplyWhenCommit {
 		if e.request != nil {
 			e.request.Reply(paxi.Reply{
 				Command:   e.request.Command,
