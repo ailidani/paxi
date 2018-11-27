@@ -8,3 +8,4 @@ tla/*
 model/.*
 aws
 ppaxos
+cosmos
