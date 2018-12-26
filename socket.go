@@ -83,6 +83,7 @@ func (s *socket) Send(to ID, m interface{}) {
 	if !exists {
 		log.Fatalf("transport of ID %v does not exists", to)
 	}
+	log.Debugf("Sending %v to %v", m, to)
 	t.Send(m)
 }
 

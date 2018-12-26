@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/ailidani/paxi"
+	"github.com/ailidani/paxi/log"
 )
 
 // entry in log
@@ -70,7 +71,7 @@ func (p *Paxos) SetBallot(b paxi.Ballot) {
 
 // HandleRequest handles request and start phase 1 or phase 2
 func (p *Paxos) HandleRequest(r paxi.Request) {
-	// log.Debugf("Replica %s received %v\n", p.ID(), r)
+	log.Debugf("Replica %s received %v\n", p.ID(), r)
 	if !p.active {
 		p.requests = append(p.requests, &r)
 		// current phase 1 pending
@@ -118,7 +119,7 @@ func (p *Paxos) P2a(r *paxi.Request) {
 
 // HandleP1a handles P1a message
 func (p *Paxos) HandleP1a(m P1a) {
-	// log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.Ballot.ID(), m, p.ID())
+	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.Ballot.ID(), m, p.ID())
 
 	// new leader
 	if m.Ballot > p.ballot {
@@ -169,11 +170,11 @@ func (p *Paxos) update(scb map[int]CommandBallot) {
 func (p *Paxos) HandleP1b(m P1b) {
 	// old message
 	if m.Ballot < p.ballot || p.active {
-		// log.Debugf("Replica %s ignores old message [%v]\n", p.ID(), m)
+		log.Debugf("Replica %s ignores old message [%v]\n", p.ID(), m)
 		return
 	}
 
-	// log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.ID, m, p.ID())
+	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.ID, m, p.ID())
 
 	p.update(m.Log)
 
@@ -217,7 +218,7 @@ func (p *Paxos) HandleP1b(m P1b) {
 
 // HandleP2a handles P2a message
 func (p *Paxos) HandleP2a(m P2a) {
-	// log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.Ballot.ID(), m, p.ID())
+	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.Ballot.ID(), m, p.ID())
 
 	if m.Ballot >= p.ballot {
 		p.ballot = m.Ballot
@@ -352,4 +353,13 @@ func (p *Paxos) forward() {
 		p.Forward(p.ballot.ID(), *m)
 	}
 	p.requests = make([]*paxi.Request, 0)
+}
+
+func (p *Paxos) IsInProgress(key paxi.Key) bool {
+	for i := p.execute; i < p.slot; i++ {
+		if p.log[i].command.Key == key {
+			return true
+		}
+	}
+	return false
 }

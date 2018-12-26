@@ -91,7 +91,7 @@ func (n *node) recv() {
 		case Reply:
 			n.RLock()
 			r := n.forwards[m.Command.String()]
-			log.Debugf("node %v received reply %v", n.id, m)
+			log.Debugf("node %v received reply %v for Command %s", n.id, m, m.Command.String())
 			n.RUnlock()
 			r.Reply(m)
 			continue
@@ -106,15 +106,17 @@ func (n *node) handle() {
 		msg := <-n.MessageChan
 		v := reflect.ValueOf(msg)
 
-		if config.FastRead && v.Type() == reflect.TypeOf(Request{}) {
+		if v.Type() == reflect.TypeOf(Request{}) {
 			r := msg.(Request)
-			if r.Command.IsRead() {
-				value := n.Execute(r.Command)
-				r.Reply(Reply{
-					Command: r.Command,
-					Value:   value,
-				})
-				continue
+			if config.FastRead {
+				if r.Command.IsRead() {
+					value := n.Execute(r.Command)
+					r.Reply(Reply{
+						Command: r.Command,
+						Value:   value,
+					})
+					continue
+				}
 			}
 		}
 
@@ -176,7 +178,7 @@ func (n *node) Forward(id ID, m Request) {
 */
 
 func (n *node) Forward(id ID, m Request) {
-	log.Debugf("Node %v forwarding %v to %s", n.ID(), m, id)
+	log.Debugf("Node %v forwarding %v to %s (cmd: %s)", n.ID(), m, id, m.Command.String())
 	m.NodeID = n.id
 	n.Lock()
 	n.forwards[m.Command.String()] = &m

@@ -44,7 +44,7 @@ func run(cmd string, args []string) {
 			return
 		}
 		k, _ := strconv.Atoi(args[0])
-		v, _ := client.Put(paxi.Key(k), []byte(args[1]))
+		v, _ := client.Put(paxi.Key(k), paxi.Value([]byte(args[1])))
 		fmt.Println(string(v))
 
 	case "consensus":

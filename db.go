@@ -5,13 +5,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
+	"github.com/ailidani/paxi/log"
 )
+const NO_TIMESTAMP = -1
+const NO_SLOT_NUMBER_IN_VALUE = -1
 
 // Key of key value database
 type Key int
 
 // Value of key value database
-type Value []byte
+type Value	[]byte
 
 // Command of key value database
 type Command struct {
@@ -31,7 +34,7 @@ func (c Command) Empty() bool {
 
 // IsRead returns true if command is read
 func (c Command) IsRead() bool {
-	return c.Value == nil
+	return &c.Value == nil
 }
 
 // Equal returns true if two commands are equal
@@ -40,7 +43,7 @@ func (c Command) Equal(a Command) bool {
 }
 
 func (c Command) String() string {
-	if c.Value == nil {
+	if &c.Value == nil {
 		return fmt.Sprintf("Get{key=%v id=%s cid=%d}", c.Key, c.ClientID, c.CommandID)
 	}
 	return fmt.Sprintf("Put{key=%v value=%x id=%s cid=%d", c.Key, c.Value, c.ClientID, c.CommandID)
@@ -101,7 +104,7 @@ func (d *database) Execute(c interface{}) interface{} {
 func (d *database) Execute(c Command) Value {
 	d.Lock()
 	defer d.Unlock()
-
+	log.Debugf("Entering Execute method (cmd: %v)", c)
 	// get previous value
 	v := d.data[c.Key]
 
@@ -135,7 +138,9 @@ func (d *database) put(k Key, v Value) {
 func (d *database) Put(k Key, v Value) {
 	d.Lock()
 	defer d.Unlock()
+	log.Debugf("Entering Put method (k: %v, v: %v)", k, v)
 	d.put(k, v)
+
 }
 
 // Version returns current version of given key

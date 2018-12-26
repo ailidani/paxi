@@ -4,6 +4,7 @@ import (
 	"sort"
 
 	"github.com/ailidani/paxi/lib"
+	"github.com/ailidani/paxi/log"
 )
 
 // A simple linearizability checker based on https://pdos.csail.mit.edu/6.824/papers/fb-consistency.pdf
@@ -87,6 +88,9 @@ func (c *checker) linearizable(history []*operation) []*operation {
 			cycle := c.Graph.Cycle()
 			if cycle != nil {
 				anomaly = append(anomaly, o)
+				//bval := make([]byte, 0)
+				//binary.BigEndian.PutUint64(bval, anomal)
+				log.Debugf("Anomaly: %v", anomaly)
 				for _, u := range cycle {
 					for _, v := range cycle {
 						if c.Graph.From(u).Has(v) && v.(*operation).start > u.(*operation).end {

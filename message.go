@@ -3,6 +3,7 @@ package paxi
 import (
 	"encoding/gob"
 	"fmt"
+	"github.com/ailidani/paxi/log"
 )
 
 func init() {
@@ -19,18 +20,30 @@ func init() {
 /***************************
  * Client-Replica Messages *
  ***************************/
+type reqtype int32
+const (
+	REQ_REGULAR reqtype = iota
+	REQ_PAXOS_QUORUM_READ
+)
 
 // Request is client reqeust with http response channel
 type Request struct {
 	Command   Command
 	Timestamp int64
 	NodeID    ID // forward by node
-
+	ReqType   reqtype
+	BSlot 	  int
 	c chan Reply // reply channel created by request receiver
 }
 
 // Reply replies to current client session
 func (r *Request) Reply(reply Reply) {
+	if r == nil {
+		log.Debugf("No request!\n")
+	}
+	if r.c == nil {
+		log.Debugf("No reply channel in request %v\n", r)
+	}
 	r.c <- reply
 }
 
@@ -42,12 +55,13 @@ func (r Request) String() string {
 type Reply struct {
 	Command   Command
 	Value     Value
+	Slot	  int
 	Timestamp int64
 	Err       error
 }
 
 func (r Reply) String() string {
-	return fmt.Sprintf("Reply {cmd=%v value=%v}", r.Command, r.Value)
+	return fmt.Sprintf("Reply {cmd=%v slot=%d value=%v}", r.Command, r.Slot, r.Value)
 }
 
 // Read can be used as a special request that directly read the value of key without go through replication protocol in Replica

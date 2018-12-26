@@ -13,7 +13,16 @@ import (
 
 	"github.com/ailidani/paxi/lib"
 	"github.com/ailidani/paxi/log"
+	"encoding/binary"
 )
+
+const NO_BARRIER_SLOT = -1
+
+type pqrTuple struct{
+	val Value
+	slot int
+	ID ID
+}
 
 // Client main access point of client lib
 type Client struct {
@@ -37,6 +46,56 @@ func NewClient(id ID) *Client {
 		algorithm: config.Algorithm,
 		Client:    &http.Client{},
 	}
+}
+
+func (c *Client) restPaxosQuorumRead(id ID, key Key, barrierSlot int) (Value, int, error) {
+	url := c.http[id] + "/pqr/" + strconv.Itoa(int(key))
+
+	method := http.MethodGet
+	var body io.Reader
+	r, err := http.NewRequest(method, url, body)
+	if err != nil {
+		log.Error(err)
+		return nil, NO_TIMESTAMP, err
+	}
+	r.Header.Set(HTTPClientID, string(c.ID))
+	r.Header.Set(HTTPCommandID, strconv.Itoa(c.cid))
+	r.Header.Set(HTTPSlot, strconv.Itoa(barrierSlot))
+
+	res, err := c.Client.Do(r)
+	if err != nil {
+		log.Error(err)
+		return nil, NO_TIMESTAMP, err
+	}
+
+	defer res.Body.Close()
+	if res.StatusCode == http.StatusOK {
+		strSlot := res.Header.Get(HTTPSlot)
+		slot, err := strconv.Atoi(strSlot)
+		if err != nil {
+			log.Error(err)
+			return nil, NO_TIMESTAMP, err
+		}
+		noVal := res.Header.Get(HTTPNoVal)
+		log.Debugf("NoValue Header: %s", noVal)
+		if noVal == "" {
+			b, err := ioutil.ReadAll(res.Body)
+			if err != nil {
+				log.Error(err)
+				return nil, NO_TIMESTAMP, err
+			}
+			retVal := Value(b)
+			log.Debugf("node=%v type=%s key=%v slot=%d value=%x", id, method, key, slot, retVal)
+			return retVal, int(slot), nil
+		} else {
+			return nil, int(slot), nil
+		}
+
+	}
+
+	dump, _ := httputil.DumpResponse(res, true)
+	log.Debugf("%q", dump)
+	return nil, NO_TIMESTAMP, errors.New(res.Status)
 }
 
 // rest accesses server's REST API with url = http://ip:port/key
@@ -102,13 +161,18 @@ func (c *Client) RESTPut(key Key, value Value) (Value, error) {
 		for id = range c.http {
 			break
 		}
+		log.Debugf("No Client ID. picked id %v\n", id)
 	}
 	return c.rest(id, key, value)
 }
 
 // Get gets value of given key (use REST)
 func (c *Client) Get(key Key) (Value, error) {
-	return c.RESTGet(key)
+	if config.PaxosQuorumRead {
+		return c.PaxosQuorumGet(key)
+	} else {
+		return c.RESTGet(key)
+	}
 }
 
 // Put puts new key value pair and return previous value (use REST)
@@ -133,7 +197,6 @@ func (c *Client) json(id ID, key Key, value Value) (Value, error) {
 	defer res.Body.Close()
 	if res.StatusCode == http.StatusOK {
 		b, _ := ioutil.ReadAll(res.Body)
-		log.Debugf("key=%v value=%x", key, Value(b))
 		return Value(b), nil
 	}
 	dump, _ := httputil.DumpResponse(res, true)
@@ -151,6 +214,103 @@ func (c *Client) JSONGet(key Key) (Value, error) {
 func (c *Client) JSONPut(key Key, value Value) (Value, error) {
 	c.cid++
 	return c.json(c.ID, key, value)
+}
+
+
+// PaxosQuorumGet concurrently read values from majority paxos nodes in 2 phases
+func (c *Client) paxosQuorumGetPhase(key Key, barrierSlot int) ([]pqrTuple, error) {
+	c.cid++
+	out := make(chan pqrTuple, c.N/2 + 1)
+	i := 0
+	for id := range c.http {
+		if i > c.N/2 {
+			break
+		}
+		i++
+		go func(id ID) {
+			log.Debugf("Sending PQR to %v\n", id)
+			v, slot, err := c.restPaxosQuorumRead(id, key, barrierSlot)
+
+			if err != nil {
+				log.Error(err)
+				out <- pqrTuple{nil, -1, ID("0.0")}
+				return
+			}
+			log.Debugf("Received response %d, %d from %v\n", v, slot, id)
+			out <- pqrTuple{v, slot, id}
+		}(id)
+	}
+	results := make([]pqrTuple, 0)
+	for ; i > 0; i-- {
+
+		res := <-out
+		log.Debugf("Collected response %v from %v, awaiting %d more responses\n", res, res.ID, i-1)
+		if res.slot == -1 {
+			return nil, errors.New("An Error has occured doing PQR")
+		}
+		results = append(results, res)
+	}
+	return results, nil
+}
+
+func (c *Client) PaxosQuorumGet(key Key) (Value, error) {
+	p1Results, err := c.paxosQuorumGetPhase(key, NO_BARRIER_SLOT)
+	if err != nil {
+		return nil, err
+	}
+
+	maxSlot := -1
+	valSlot := -1
+	var val Value
+	val = nil
+	valint := 0
+	for _, v := range p1Results {
+		if v.slot > maxSlot {
+			maxSlot = v.slot // v.slot here is last accepted slot at that node
+		}
+		if v.val != nil && v.slot == maxSlot {
+			val = v.val
+			valSlot = v.slot // v.slot here is last executed slot
+		}
+	}
+	if len(val) == 10 {
+		x, _ := binary.Uvarint(val)
+		valint = int(x)
+	} else {
+		valint = -1
+	}
+	log.Debugf("Finished PQR phase 1. barrierSlot: %d, val: %d (%v)\n", maxSlot, valint, val)
+	if maxSlot == valSlot && val != nil {
+		log.Debugf("Returning after PQR phase 1. barrierSlot: %d, val: %d (%v)\n", maxSlot, valint, val)
+		return val, nil
+	}
+
+	log.Debugf("Starting PQR phase 2+. barrierSlot: %d, val: %d (%v)\n", maxSlot, valint, val)
+	val = nil
+	for val == nil {
+		log.Debugf("Doing PQR phase 2+. barrierSlot: %d, val: %d (%v)\n", maxSlot, valint, val)
+		p2Results, err := c.paxosQuorumGetPhase(key, maxSlot)
+		if err != nil {
+			return nil, err
+		}
+		for _, v := range p2Results {
+			if v.slot >= maxSlot{
+				val = v.val
+				if len(val) == 10 {
+					x, _ := binary.Uvarint(val)
+					valint = int(x)
+				} else {
+					valint = -1
+				}
+				log.Debugf("PQR phase 2+ Value Change. barrierSlot: %d, val: %d (%v)\n", maxSlot, valint, val)
+				break
+			}
+		}
+	}
+	log.Debugf("Returning after PQR phase 2. barrierSlot: %d, val: %d (%v)\n", maxSlot, valint, val)
+	return val, nil
+
+
 }
 
 // QuorumGet concurrently read values from majority nodes

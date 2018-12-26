@@ -12,5 +12,5 @@ func Init() {
 	flag.Parse()
 	log.Setup()
 	config.Load()
-	http.DefaultTransport.(*http.Transport).MaxIdleConnsPerHost = 1000
+	http.DefaultTransport.(*http.Transport).MaxIdleConnsPerHost = 5000
 }

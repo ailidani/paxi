@@ -3,6 +3,7 @@ package paxos
 import (
 	"github.com/ailidani/paxi"
 	"github.com/ailidani/paxi/log"
+	"errors"
 )
 
 // Replica for one Paxos instance
@@ -35,6 +36,43 @@ func (r *Replica) handleRequest(m paxi.Request) {
 		})
 		return
 	}
+	if m.ReqType == paxi.REQ_PAXOS_QUORUM_READ {
+		// do PQR
+		log.Debugf("Replica %s starting PQR\n", r.ID())
+		if m.BSlot == paxi.NO_BARRIER_SLOT {
+			// this is the first PQR request
+			if r.Paxos.execute - 1 == r.Paxos.slot {
+				// return value if we see the max accepted slot the same as last executed
+				r.sendPQRExecSlot(m)
+				return
+			} else {
+				if !r.Paxos.IsInProgress(m.Command.Key){
+					// here we are trying to avoid the barrier if Key is not in progress
+					r.sendPQRExecSlot(m)
+					return
+				}
+				// otherwise return barrier slot
+				r.sendPQRBarrierSlot(m)
+				return
+			}
+		} else {
+			barrier_slot := m.BSlot
+			if r.Paxos.execute > int(barrier_slot) {
+				r.sendPQRExecSlot(m)
+				return
+			} else {
+				r.sendPQRBarrierSlot(m)
+				return
+			}
+		}
+		m.Reply(paxi.Reply{
+			Command: m.Command,
+			Value:   nil,
+			Err:     errors.New("PQR command is in wrong format"),
+		})
+		return
+	}
+
 	if paxi.GetConfig().Adaptive {
 		if r.Paxos.IsLeader() || r.Paxos.Ballot() == 0 {
 			r.Paxos.HandleRequest(m)
@@ -44,4 +82,25 @@ func (r *Replica) handleRequest(m paxi.Request) {
 	} else {
 		r.Paxos.HandleRequest(m)
 	}
+}
+
+func (r *Replica) sendPQRBarrierSlot(m paxi.Request) {
+	slot := r.Paxos.slot
+	log.Debugf("Replica %s sending PQR barrier slot %d\n", r.ID(), slot)
+	m.Reply(paxi.Reply{
+		Command: m.Command,
+		Value:   nil,
+		Slot: r.Paxos.slot,
+	})
+}
+
+func (r *Replica) sendPQRExecSlot(m paxi.Request) {
+	slot := r.Paxos.execute - 1
+	log.Debugf("Replica %s sending PQR data at slot %d\n", r.ID(), slot)
+	data := r.Get(m.Command.Key)
+	m.Reply(paxi.Reply{
+		Command: m.Command,
+		Slot: slot,
+		Value:   data,
+	})
 }

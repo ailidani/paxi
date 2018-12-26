@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/binary"
 	"flag"
-
 	"github.com/ailidani/paxi"
 )
 
@@ -39,7 +38,7 @@ func (d *db) Read(k int) (int, error) {
 	default:
 		v, err = d.c.Get(key)
 	}
-	if len(v) == 0 {
+	if  len(v) == 0 {
 		return 0, nil
 	}
 	x, _ := binary.Uvarint(v)
@@ -53,11 +52,11 @@ func (d *db) Write(k, v int) error {
 	var err error
 	switch *api {
 	case "rest":
-		_, err = d.c.RESTPut(key, value)
+		_, err = d.c.RESTPut(key, paxi.Value(value))
 	case "json":
-		_, err = d.c.JSONPut(key, value)
+		_, err = d.c.JSONPut(key, paxi.Value(value))
 	default:
-		_, err = d.c.Put(paxi.Key(k), value)
+		_, err = d.c.Put(paxi.Key(k), paxi.Value(value))
 	}
 	return err
 }
