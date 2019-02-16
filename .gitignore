@@ -5,7 +5,7 @@ bin/*
 tla/*
 !tla/wpaxos.tla
 .idea
-model/.*
+model
 aws
 ppaxos
 cosmos

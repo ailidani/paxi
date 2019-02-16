@@ -15,11 +15,13 @@ import (
 	"github.com/ailidani/paxi/log"
 )
 
+// Client interface provides get and put for key value store
 type Client interface {
 	Get(Key) (Value, error)
 	Put(Key, Value) error
 }
 
+// AdminClient interface provides fault injection opeartion
 type AdminClient interface {
 	Consensus(Key) bool
 	Crash(ID, int)
@@ -30,7 +32,7 @@ type AdminClient interface {
 // HTTPClient inplements Client interface with REST API
 type HTTPClient struct {
 	Addrs  map[ID]string
-	Http   map[ID]string
+	HTTP   map[ID]string
 	ID     ID  // client id use the same id as servers in local site
 	N      int // total number of nodes
 	LocalN int // number of nodes in local zone
@@ -45,7 +47,7 @@ func NewHTTPClient(id ID) *HTTPClient {
 		ID:     id,
 		N:      len(config.Addrs),
 		Addrs:  config.Addrs,
-		Http:   config.HTTPAddrs,
+		HTTP:   config.HTTPAddrs,
 		Client: &http.Client{},
 	}
 	if id != "" {
@@ -63,13 +65,13 @@ func NewHTTPClient(id ID) *HTTPClient {
 
 func (c *HTTPClient) GetURL(id ID, key Key) string {
 	if id == "" {
-		for id = range c.Http {
+		for id = range c.HTTP {
 			if c.ID == "" || id.Zone() == c.ID.Zone() {
 				break
 			}
 		}
 	}
-	return c.Http[id] + "/" + strconv.Itoa(int(key))
+	return c.HTTP[id] + "/" + strconv.Itoa(int(key))
 }
 
 // rest accesses server's REST API with url = http://ip:port/key
@@ -153,7 +155,7 @@ func (c *HTTPClient) Put(key Key, value Value) error {
 }
 
 func (c *HTTPClient) json(id ID, key Key, value Value) (Value, error) {
-	url := c.Http[id]
+	url := c.HTTP[id]
 	cmd := Command{
 		Key:       key,
 		Value:     value,
@@ -194,7 +196,7 @@ func (c *HTTPClient) QuorumGet(key Key) ([]Value, []map[string]string) {
 	valueC := make(chan Value)
 	metaC := make(chan map[string]string)
 	i := 0
-	for id := range c.Http {
+	for id := range c.HTTP {
 		i++
 		if i > c.N/2 {
 			break
@@ -223,7 +225,7 @@ func (c *HTTPClient) LocalQuorumGet(key Key) ([]Value, []map[string]string) {
 	valueC := make(chan Value)
 	metaC := make(chan map[string]string)
 	i := 0
-	for id := range c.Http {
+	for id := range c.HTTP {
 		if c.ID.Zone() != id.Zone() {
 			continue
 		}
@@ -256,7 +258,7 @@ func (c *HTTPClient) LocalQuorumGet(key Key) ([]Value, []map[string]string) {
 func (c *HTTPClient) QuorumPut(key Key, value Value) {
 	var wait sync.WaitGroup
 	i := 0
-	for id := range c.Http {
+	for id := range c.HTTP {
 		i++
 		if i > c.N/2 {
 			break
@@ -273,7 +275,7 @@ func (c *HTTPClient) QuorumPut(key Key, value Value) {
 // Consensus collects /history/key from every node and compare their values
 func (c *HTTPClient) Consensus(k Key) bool {
 	h := make(map[ID][]Value)
-	for id, url := range c.Http {
+	for id, url := range c.HTTP {
 		h[id] = make([]Value, 0)
 		r, err := c.Client.Get(url + "/history?key=" + strconv.Itoa(int(k)))
 		if err != nil {
@@ -302,7 +304,7 @@ func (c *HTTPClient) Consensus(k Key) bool {
 	}
 	for i := 0; i < n; i++ {
 		set := make(map[string]struct{})
-		for id := range c.Http {
+		for id := range c.HTTP {
 			if len(h[id]) > i {
 				set[string(h[id][i])] = struct{}{}
 			}
@@ -317,7 +319,7 @@ func (c *HTTPClient) Consensus(k Key) bool {
 // Crash stops the node for t seconds then recover
 // node crash forever if t < 0
 func (c *HTTPClient) Crash(id ID, t int) {
-	url := c.Http[id] + "/crash?t=" + strconv.Itoa(t)
+	url := c.HTTP[id] + "/crash?t=" + strconv.Itoa(t)
 	r, err := c.Client.Get(url)
 	if err != nil {
 		log.Error(err)
@@ -328,7 +330,7 @@ func (c *HTTPClient) Crash(id ID, t int) {
 
 // Drop drops every message send for t seconds
 func (c *HTTPClient) Drop(from, to ID, t int) {
-	url := c.Http[from] + "/drop?id=" + string(to) + "&t=" + strconv.Itoa(t)
+	url := c.HTTP[from] + "/drop?id=" + string(to) + "&t=" + strconv.Itoa(t)
 	r, err := c.Client.Get(url)
 	if err != nil {
 		log.Error(err)
