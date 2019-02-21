@@ -11,6 +11,7 @@ import (
 	"github.com/ailidani/paxi/epaxos"
 	"github.com/ailidani/paxi/kpaxos"
 	"github.com/ailidani/paxi/log"
+	"github.com/ailidani/paxi/m2paxos"
 	"github.com/ailidani/paxi/paxos"
 	"github.com/ailidani/paxi/paxos_group"
 	"github.com/ailidani/paxi/vpaxos"
@@ -62,6 +63,9 @@ func replica(id paxi.ID) {
 
 	case "blockchain":
 		blockchain.NewMiner(id).Run()
+
+	case "m2paxos":
+		m2paxos.NewReplica(id).Run()
 
 	default:
 		panic("Unknown algorithm")
