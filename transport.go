@@ -4,12 +4,16 @@ import (
 	"bytes"
 	"encoding/gob"
 	"errors"
+	"flag"
 	"net"
 	"net/url"
+	"strings"
 	"sync"
 
 	"github.com/ailidani/paxi/log"
 )
+
+var scheme = flag.String("transport", "tcp", "transport scheme (tcp, udp, chan), default tcp")
 
 // Transport = transport + pipe + client + server
 type Transport interface {
@@ -34,6 +38,9 @@ type Transport interface {
 
 // NewTransport creates new transport object with url
 func NewTransport(addr string) Transport {
+	if !strings.Contains(addr, "://") {
+		addr = *scheme + "://" + addr
+	}
 	uri, err := url.Parse(addr)
 	if err != nil {
 		log.Fatalf("error parsing address %s : %s\n", addr, err)

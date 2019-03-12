@@ -38,7 +38,7 @@ type node struct {
 func NewNode(id ID) Node {
 	return &node{
 		id:          id,
-		Socket:      NewSocket(id, config.Addrs, config.Transport),
+		Socket:      NewSocket(id, config.Addrs),
 		Database:    NewDatabase(),
 		MessageChan: make(chan interface{}, config.ChanBufferSize),
 		handles:     make(map[string]reflect.Value),

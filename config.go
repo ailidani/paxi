@@ -15,7 +15,6 @@ type Config struct {
 	Addrs     map[ID]string `json:"address"`      // address for node communication
 	HTTPAddrs map[ID]string `json:"http_address"` // address for client server communication
 
-	Transport string  `json:"transport"` // not used
 	Policy    string  `json:"policy"`    // leader change policy {consecutive, majority}
 	Threshold float64 `json:"threshold"` // threshold for policy in WPaxos {n consecutive or time interval in ms}
 
@@ -49,14 +48,13 @@ func GetConfig() Config {
 
 // Simulation enable go channel transportation to simulate distributed environment
 func Simulation() {
-	config.Transport = "chan"
+	*scheme = "chan"
 }
 
 // MakeDefaultConfig returns Config object with few default values
 // only used by init() and master
 func MakeDefaultConfig() Config {
 	return Config{
-		Transport:      "tcp",
 		Policy:         "consecutive",
 		Threshold:      3,
 		BufferSize:     1024,
