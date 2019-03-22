@@ -10,6 +10,11 @@ type stackNode struct {
 	prev  *stackNode
 }
 
+// NewStack creates a new Stack
+func NewStack() *Stack {
+	return new(Stack)
+}
+
 // Len returns the number of items in the stack
 func (s *Stack) Len() int {
 	return s.length
@@ -40,4 +45,8 @@ func (s *Stack) Push(value interface{}) {
 	n := &stackNode{value, s.top}
 	s.top = n
 	s.length++
+}
+
+func (s *Stack) Empty() bool {
+	return s.length == 0
 }

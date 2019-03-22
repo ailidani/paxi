@@ -13,10 +13,16 @@ type kpaxos struct {
 }
 
 func Q1(q *paxi.Quorum) bool {
+	if *fz == 0 {
+		return q.GridRow()
+	}
 	return q.FGridQ1(*fz)
 }
 
 func Q2(q *paxi.Quorum) bool {
+	if *fz == 0 {
+		return q.GridColumn()
+	}
 	return q.FGridQ2(*fz)
 }
 

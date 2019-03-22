@@ -84,7 +84,7 @@ func (g *Graph) To(v interface{}) Set {
 
 // BFS returns breadth first search vertices from a given source
 func (g *Graph) BFS(v interface{}) []interface{} {
-	vertices := make([]interface{}, 0)
+	result := make([]interface{}, 0)
 	visited := make(map[interface{}]bool)
 	queue := list.New()
 
@@ -93,7 +93,7 @@ func (g *Graph) BFS(v interface{}) []interface{} {
 
 	for queue.Len() > 0 {
 		s := queue.Front()
-		vertices = append(vertices, s.Value)
+		result = append(result, s.Value)
 		queue.Remove(s)
 
 		for t := range g.from[s.Value] {
@@ -104,7 +104,32 @@ func (g *Graph) BFS(v interface{}) []interface{} {
 		}
 	}
 
-	return vertices
+	return result
+}
+
+// DFS returns depth first search vertices from a given source
+func (g *Graph) DFS(v interface{}) []interface{} {
+	result := make([]interface{}, 0)
+	visited := NewSet()
+	stack := NewStack()
+
+	stack.Push(v)
+
+	for !stack.Empty() {
+		s := stack.Pop()
+		if !visited.Has(s) {
+			visited.Add(s)
+			result = append(result, s)
+		}
+
+		for i := range g.from[s] {
+			if !visited.Has(i) {
+				stack.Push(i)
+			}
+		}
+	}
+
+	return result
 }
 
 func (g *Graph) BFSReverse(v interface{}) []interface{} {
@@ -129,6 +154,19 @@ func (g *Graph) BFSReverse(v interface{}) []interface{} {
 	}
 
 	return vertices
+}
+
+// Transpose return transpose graph
+func (g *Graph) Transpose() *Graph {
+	t := NewGraph()
+	t.vertices = g.vertices.Clone()
+
+	for v := range g.vertices {
+		t.from[v] = g.to[v].Clone()
+		t.to[v] = g.from[v].Clone()
+	}
+
+	return t
 }
 
 type color int

@@ -26,3 +26,17 @@ func (s Set) Slice() []interface{} {
 	}
 	return slice
 }
+
+func (s Set) Clear() {
+	for k := range s {
+		delete(s, k)
+	}
+}
+
+func (s Set) Clone() Set {
+	clone := NewSet()
+	for v := range s {
+		clone.Add(v)
+	}
+	return clone
+}
