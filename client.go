@@ -77,7 +77,6 @@ func (c *Client) restPaxosQuorumRead(id ID, key Key, barrierSlot int) (Value, in
 			return nil, NO_TIMESTAMP, err
 		}
 		noVal := res.Header.Get(HTTPNoVal)
-		log.Debugf("NoValue Header: %s", noVal)
 		if noVal == "" {
 			b, err := ioutil.ReadAll(res.Body)
 			if err != nil {
@@ -225,6 +224,9 @@ func (c *Client) paxosQuorumGetPhase(key Key, barrierSlot int) ([]pqrTuple, erro
 	for id := range c.http {
 		if i > c.N/2 {
 			break
+		}
+		if id == "1.1" {
+			continue // skipping hard-coded leader
 		}
 		i++
 		go func(id ID) {

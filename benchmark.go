@@ -176,6 +176,11 @@ func (b *Benchmark) Run() {
 	close(keys)
 	stat := Statistic(b.latency)
 
+	log.Infof("PQR = %d", config.PaxosQuorumRead)
+	log.Infof("Fast Read = %d", config.FastRead)
+	log.Infof("Concurrency = %d", b.Concurrency)
+	log.Infof("Write Ratio = %f", b.W)
+	log.Infof("Number of Keys = %d", b.K)
 	log.Infof("Benchmark took %v\n", t)
 	log.Infof("Throughput %f\n", float64(len(b.latency))/t.Seconds())
 	log.Info(stat)

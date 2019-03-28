@@ -2,8 +2,9 @@ package paxos
 
 import (
 	"github.com/ailidani/paxi"
-	"github.com/ailidani/paxi/log"
 	"errors"
+
+	"github.com/ailidani/paxi/log"
 )
 
 // Replica for one Paxos instance
@@ -27,7 +28,7 @@ func NewReplica(id paxi.ID) *Replica {
 }
 
 func (r *Replica) handleRequest(m paxi.Request) {
-	log.Debugf("Replica %s received %v\n", r.ID(), m)
+	//log.Debugf("Replica %s received %v\n", r.ID(), m)
 	if paxi.GetConfig().FastRead && m.Command.IsRead() {
 		v := r.Node.Execute(m.Command)
 		m.Reply(paxi.Reply{
@@ -36,21 +37,31 @@ func (r *Replica) handleRequest(m paxi.Request) {
 		})
 		return
 	}
+
 	if m.ReqType == paxi.REQ_PAXOS_QUORUM_READ {
+
 		// do PQR
-		log.Debugf("Replica %s starting PQR\n", r.ID())
+		log.Debugf("Replica %s starting PQR: %v\n", r.ID(), m)
 		if m.BSlot == paxi.NO_BARRIER_SLOT {
+
 			// this is the first PQR request
 			if r.Paxos.execute - 1 == r.Paxos.slot {
+
 				// return value if we see the max accepted slot the same as last executed
+				log.Debugf("PQR Shortcut - no outstanding ops on key %v", m.Command.Key)
 				r.sendPQRExecSlot(m)
 				return
 			} else {
 				if !r.Paxos.IsInProgress(m.Command.Key){
+
 					// here we are trying to avoid the barrier if Key is not in progress
+					log.Debugf("PQR Shortcut - no progress on key %v", m.Command.Key)
 					r.sendPQRExecSlot(m)
 					return
 				}
+
+				log.Debugf("PQR Barrier on key %v and slot %d", m.Command.Key, r.Paxos.slot)
+
 				// otherwise return barrier slot
 				r.sendPQRBarrierSlot(m)
 				return
@@ -85,8 +96,6 @@ func (r *Replica) handleRequest(m paxi.Request) {
 }
 
 func (r *Replica) sendPQRBarrierSlot(m paxi.Request) {
-	slot := r.Paxos.slot
-	log.Debugf("Replica %s sending PQR barrier slot %d\n", r.ID(), slot)
 	m.Reply(paxi.Reply{
 		Command: m.Command,
 		Value:   nil,
@@ -96,8 +105,11 @@ func (r *Replica) sendPQRBarrierSlot(m paxi.Request) {
 
 func (r *Replica) sendPQRExecSlot(m paxi.Request) {
 	slot := r.Paxos.execute - 1
-	log.Debugf("Replica %s sending PQR data at slot %d\n", r.ID(), slot)
 	data := r.Get(m.Command.Key)
+	if data == nil {
+		data = make([]byte, 0)
+	}
+	//log.Debugf("Replica %s sending PQR data %v for key %v at slot %d\n", r.ID(), data, m.Command.Key, slot)
 	m.Reply(paxi.Reply{
 		Command: m.Command,
 		Slot: slot,

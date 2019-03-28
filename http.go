@@ -131,6 +131,8 @@ func (n *node) handleRoot(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			cmd.Value = Value(body)
+		} else {
+			cmd.Value = nil
 		}
 	} else {
 		body, err := ioutil.ReadAll(r.Body)

@@ -34,7 +34,7 @@ func (c Command) Empty() bool {
 
 // IsRead returns true if command is read
 func (c Command) IsRead() bool {
-	return &c.Value == nil
+	return c.Value == nil
 }
 
 // Equal returns true if two commands are equal
@@ -43,7 +43,7 @@ func (c Command) Equal(a Command) bool {
 }
 
 func (c Command) String() string {
-	if &c.Value == nil {
+	if c.Value == nil {
 		return fmt.Sprintf("Get{key=%v id=%s cid=%d}", c.Key, c.ClientID, c.CommandID)
 	}
 	return fmt.Sprintf("Put{key=%v value=%x id=%s cid=%d", c.Key, c.Value, c.ClientID, c.CommandID)
