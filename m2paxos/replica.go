@@ -1,14 +1,9 @@
-package wpaxos
+package m2paxos
 
 import (
-	"flag"
-
 	"github.com/ailidani/paxi"
 	"github.com/ailidani/paxi/log"
 )
-
-var adaptive = flag.Bool("adaptive", true, "stable leader, if true paxos forward request to current leader")
-var fz = flag.Int("fz", 0, "f_z fault tolerent zones")
 
 // Replica is WPaxos replica node
 type Replica struct {
@@ -23,7 +18,6 @@ func NewReplica(id paxi.ID) *Replica {
 	r.paxi = make(map[paxi.Key]*kpaxos)
 
 	r.Register(paxi.Request{}, r.handleRequest)
-	r.Register(paxi.Transaction{}, r.handleTransaction)
 	r.Register(Prepare{}, r.handlePrepare)
 	r.Register(Promise{}, r.handlePromise)
 	r.Register(Accept{}, r.handleAccept)
@@ -45,28 +39,20 @@ func (r *Replica) handleRequest(m paxi.Request) {
 	r.init(key)
 
 	p := r.paxi[key]
-	if *adaptive {
-		if p.IsLeader() || p.Ballot() == 0 {
-			p.HandleRequest(m)
-			to := p.Hit(m.NodeID)
-			if to != "" && to.Zone() != r.ID().Zone() {
-				p.Send(to, LeaderChange{
-					Key:    key,
-					To:     to,
-					From:   r.ID(),
-					Ballot: p.Ballot(),
-				})
-			}
-		} else {
-			go r.Forward(p.Leader(), m)
+	if p.IsLeader() || p.Ballot() == 0 {
+		p.HandleRequest(m)
+		to := p.Hit(m.NodeID)
+		if to != "" && to.Zone() != r.ID().Zone() {
+			p.Send(to, LeaderChange{
+				Key:    key,
+				To:     to,
+				From:   r.ID(),
+				Ballot: p.Ballot(),
+			})
 		}
 	} else {
-		p.HandleRequest(m)
+		go r.Forward(p.Leader(), m)
 	}
-}
-
-func (r *Replica) handleTransaction(m paxi.Transaction) {
-	// TODO
 }
 
 func (r *Replica) handlePrepare(m Prepare) {
@@ -78,7 +64,6 @@ func (r *Replica) handlePrepare(m Prepare) {
 func (r *Replica) handlePromise(m Promise) {
 	log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.ID, m, r.ID())
 	r.paxi[m.Key].HandleP1b(m.P1b)
-	// log.Debugf("Number of keys: %d", r.keys())
 }
 
 func (r *Replica) handleAccept(m Accept) {
@@ -105,14 +90,4 @@ func (r *Replica) handleLeaderChange(m LeaderChange) {
 		// log.Debugf("Replica %s : change leader of key %d\n", r.ID(), m.Key)
 		p.P1a()
 	}
-}
-
-func (r *Replica) keys() int {
-	sum := 0
-	for _, p := range r.paxi {
-		if p.IsLeader() {
-			sum++
-		}
-	}
-	return sum
 }

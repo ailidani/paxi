@@ -12,24 +12,17 @@ var configFile = flag.String("config", "config.json", "Configuration file for pa
 
 // Config contains every system configuration
 type Config struct {
-	Addrs           map[ID]string `json:"address"`           // address for node communication
-	HTTPAddrs       map[ID]string `json:"http_address"`      // address for client server communication
-	Algorithm       string        `json:"algorithm"`         // replication algorithm name
-	Quorum          string        `json:"quorum"`            // type of the quorums
-	F               int           `json:"f"`                 // number of failure zones in general grid quorums
-	Transport       string        `json:"transport"`         // not used
-	ReplyWhenCommit bool          `json:"reply_when_commit"` // reply to client when request is committed, instead of executed
-	FastRead        bool          `json:"fast_read"`         // read from local copy
-	PaxosQuorumRead bool          `json:"paxos_quorum_read"` // read from quorum of replicas in paxos
-	Adaptive        bool          `json:"adaptive"`          // adaptive leader change, if true paxos forward request to current leader
-	Policy          string        `json:"policy"`            // leader change policy {consecutive, majority}
-	Threshold       float64       `json:"threshold"`         // threshold for policy in WPaxos {n consecutive or time interval in ms}
-	BackOff         int           `json:"backoff"`           // random backoff interval
-	Thrifty         bool          `json:"thrifty"`           // only send messages to a quorum
-	BufferSize      int           `json:"buffer_size"`       // buffer size for maps
-	ChanBufferSize  int           `json:"chan_buffer_size"`  // buffer size for channels
-	MultiVersion    bool          `json:"multiversion"`      // create multi-version database
-	Benchmark       Bconfig       `json:"benchmark"`         // benchmark configuration
+	Addrs     map[ID]string `json:"address"`      // address for node communication
+	HTTPAddrs map[ID]string `json:"http_address"` // address for client server communication
+
+	Policy    string  `json:"policy"`    // leader change policy {consecutive, majority}
+	Threshold float64 `json:"threshold"` // threshold for policy in WPaxos {n consecutive or time interval in ms}
+
+	Thrifty        bool    `json:"thrifty"`          // only send messages to a quorum
+	BufferSize     int     `json:"buffer_size"`      // buffer size for maps
+	ChanBufferSize int     `json:"chan_buffer_size"` // buffer size for channels
+	MultiVersion   bool    `json:"multiversion"`     // create multi-version database
+	Benchmark      Bconfig `json:"benchmark"`        // benchmark configuration
 
 	// for future implementation
 	// Batching bool `json:"batching"`
@@ -55,23 +48,19 @@ func GetConfig() Config {
 
 // Simulation enable go channel transportation to simulate distributed environment
 func Simulation() {
-	config.Transport = "chan"
+	*scheme = "chan"
 }
 
 // MakeDefaultConfig returns Config object with few default values
 // only used by init() and master
 func MakeDefaultConfig() Config {
 	return Config{
-		Transport:       "tcp",
-		ReplyWhenCommit: false,
-		Adaptive:        true,
-		Policy:          "consecutive",
-		Threshold:       3,
-		BufferSize:      1024,
-		ChanBufferSize:  1024,
-		MultiVersion:    false,
-		Benchmark:       DefaultBConfig(),
-		PaxosQuorumRead: false,
+		Policy:         "consecutive",
+		Threshold:      3,
+		BufferSize:     1024,
+		ChanBufferSize: 1024,
+		MultiVersion:   false,
+		Benchmark:      DefaultBConfig(),
 	}
 }
 

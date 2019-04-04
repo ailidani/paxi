@@ -1,7 +1,5 @@
 package paxi
 
-import "github.com/ailidani/paxi/log"
-
 // Quorum records each acknowledgement and check for different types of quorum satisfied
 type Quorum struct {
 	size  int
@@ -95,27 +93,28 @@ func (q *Quorum) GridColumn() bool {
 }
 
 // FGridQ1 is flexible grid quorum for phase 1
-func (q *Quorum) FGridQ1() bool {
+func (q *Quorum) FGridQ1(Fz int) bool {
 	zone := 0
 	for z, n := range q.zones {
 		if n > config.npz[z]/2 {
 			zone++
 		}
 	}
-	return zone >= config.z-config.F
+	return zone >= config.z-Fz
 }
 
 // FGridQ2 is flexible grid quorum for phase 2
-func (q *Quorum) FGridQ2() bool {
+func (q *Quorum) FGridQ2(Fz int) bool {
 	zone := 0
 	for z, n := range q.zones {
 		if n > config.npz[z]/2 {
 			zone++
 		}
 	}
-	return zone >= config.F+1
+	return zone >= Fz+1
 }
 
+/*
 // Q1 returns true if config.Quorum type is satisfied
 func (q *Quorum) Q1() bool {
 	switch config.Quorum {
@@ -153,3 +152,4 @@ func (q *Quorum) Q2() bool {
 		return false
 	}
 }
+*/

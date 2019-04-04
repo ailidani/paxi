@@ -27,7 +27,8 @@ func (c *checker) add(o *operation) {
 	c.Graph.Add(o)
 	for v := range c.Graph.Vertices() {
 		if v.(*operation).happenBefore(*o) {
-			c.AddEdge(o, v)
+			//c.AddEdge(o, v)
+			c.AddEdge(v, o)
 		}
 	}
 }
@@ -42,7 +43,7 @@ func (c *checker) clear() {
 
 // match finds the first matching write operation to the given read operation
 func (c *checker) match(read *operation) *operation {
-	// for _, v := range c.Graph.BFS(read) {
+	//for _, v := range c.Graph.BFSReverse(read) {
 	for v := range c.Graph.Vertices() {
 		if read.output == v.(*operation).input {
 			return v.(*operation)
@@ -53,9 +54,9 @@ func (c *checker) match(read *operation) *operation {
 
 // matched write inherits edges read
 func (c *checker) merge(read, write *operation) {
-	for s := range c.From(read) {
+	for s := range c.To(read) {
 		if s.(*operation) != write {
-			c.Graph.AddEdge(write, s.(*operation))
+			c.Graph.AddEdge(s.(*operation), write)
 		}
 	}
 
@@ -78,13 +79,15 @@ func (c *checker) linearizable(history []*operation) []*operation {
 			for j := i + 1; j < len(history) && o.concurrent(*history[j]); j++ {
 				// next operation is write
 				if history[j].output == nil {
-					c.Graph.Add(history[j])
+					c.add(history[j])
 				}
 			}
+
 			match := c.match(o)
 			if match != nil {
 				c.merge(o, match)
 			}
+
 			cycle := c.Graph.Cycle()
 			if cycle != nil {
 				anomaly = append(anomaly, o)
@@ -93,7 +96,7 @@ func (c *checker) linearizable(history []*operation) []*operation {
 				log.Debugf("Anomaly: %v", anomaly)
 				for _, u := range cycle {
 					for _, v := range cycle {
-						if c.Graph.From(u).Has(v) && v.(*operation).start > u.(*operation).end {
+						if c.Graph.From(u).Has(v) && u.(*operation).start > v.(*operation).end {
 							c.Graph.RemoveEdge(u, v)
 						}
 					}

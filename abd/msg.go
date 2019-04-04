@@ -1,4 +1,4 @@
-package atomic
+package abd
 
 import (
 	"encoding/gob"

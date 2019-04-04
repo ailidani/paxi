@@ -9,7 +9,7 @@ if [ -z "${PID}" ]; then
     go build ../server/
     go build ../client/
     go build ../cmd/
-    ./server -sim=true -log_dir=logs -log_level=debug &
+    ./server -sim=true -log_dir=. -log_level=debug -algorithm=paxos &
     echo $! >> ${PID_FILE}
 else
     echo "Servers are already started in this folder."

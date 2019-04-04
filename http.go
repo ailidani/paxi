@@ -75,6 +75,35 @@ func (n *node) issueRequest(cmd Command, w http.ResponseWriter, reqtype reqtype,
 	if err != nil {
 		log.Error(err)
 	}
+
+	/*
+	req.Command = cmd
+	req.Timestamp = time.Now().UnixNano()
+	req.NodeID = n.id // TODO does this work when forward twice
+	req.c = make(chan Reply, 1)
+
+	n.MessageChan <- req
+
+	reply := <-req.c
+
+	if reply.Err != nil {
+		http.Error(w, reply.Err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// set all http headers
+	w.Header().Set(HTTPClientID, string(reply.Command.ClientID))
+	w.Header().Set(HTTPCommandID, strconv.Itoa(reply.Command.CommandID))
+	for k, v := range reply.Properties {
+		w.Header().Set(k, v)
+	}
+
+	_, err = io.WriteString(w, string(reply.Value))
+	if err != nil {
+		log.Error(err)
+	}
+	 */
+
 }
 
 func (n *node) handlePaxosQuorumRead(w http.ResponseWriter, r *http.Request) {
@@ -108,13 +137,28 @@ func (n *node) handlePaxosQuorumRead(w http.ResponseWriter, r *http.Request) {
 }
 
 func (n *node) handleRoot(w http.ResponseWriter, r *http.Request) {
+	var req Request
 	var cmd Command
 	var err error
-	cmd.ClientID = ID(r.Header.Get(HTTPClientID))
-	cmd.CommandID, err = strconv.Atoi(r.Header.Get(HTTPCommandID))
-	if err != nil {
-		log.Error(err)
+
+	// get all http headers
+	req.Properties = make(map[string]string)
+	for k := range r.Header {
+		if k == HTTPClientID {
+			cmd.ClientID = ID(r.Header.Get(HTTPClientID))
+			continue
+		}
+		if k == HTTPCommandID {
+			cmd.CommandID, err = strconv.Atoi(r.Header.Get(HTTPCommandID))
+			if err != nil {
+				log.Error(err)
+			}
+			continue
+		}
+		req.Properties[k] = r.Header.Get(k)
 	}
+
+	// get command key and value
 	if len(r.URL.Path) > 1 {
 		i, err := strconv.Atoi(r.URL.Path[1:])
 		if err != nil {

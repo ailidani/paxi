@@ -23,13 +23,22 @@ func run(transport string, t *testing.T) {
 	var send interface{}
 	var recv interface{}
 
+	address := make(map[ID]string)
+	if transport != "" {
+		address[id1] = transport + "://" + Address[id1]
+		address[id2] = transport + "://" + Address[id2]
+	} else {
+		address[id1] = Address[id1]
+		address[id2] = Address[id2]
+	}
+
 	send = MSG{42, "hello"}
 	go func() {
-		sock1 := NewSocket(id1, Address, transport)
+		sock1 := NewSocket(id1, address)
 		defer sock1.Close()
 		sock1.Broadcast(send)
 	}()
-	sock2 := NewSocket(id2, Address, transport)
+	sock2 := NewSocket(id2, address)
 	defer sock2.Close()
 	recv = sock2.Recv()
 	if send.(MSG) != recv.(MSG) {

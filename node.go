@@ -38,7 +38,7 @@ type node struct {
 func NewNode(id ID) Node {
 	return &node{
 		id:          id,
-		Socket:      NewSocket(id, config.Addrs, config.Transport),
+		Socket:      NewSocket(id, config.Addrs),
 		Database:    NewDatabase(),
 		MessageChan: make(chan interface{}, config.ChanBufferSize),
 		handles:     make(map[string]reflect.Value),
@@ -107,7 +107,7 @@ func (n *node) handle() {
 		msg := <-n.MessageChan
 		v := reflect.ValueOf(msg)
 
-		if v.Type() == reflect.TypeOf(Request{}) {
+		/*if v.Type() == reflect.TypeOf(Request{}) {
 			r := msg.(Request)
 			if config.FastRead {
 				if r.Command.IsRead() {
@@ -119,7 +119,7 @@ func (n *node) handle() {
 					continue
 				}
 			}
-		}
+		}*/
 
 		name := v.Type().String()
 		f, exists := n.handles[name]

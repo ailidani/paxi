@@ -25,7 +25,7 @@ func usage() string {
 	return s
 }
 
-var client *paxi.Client
+var client *paxi.HTTPClient
 
 func run(cmd string, args []string) {
 	switch cmd {
@@ -44,8 +44,8 @@ func run(cmd string, args []string) {
 			return
 		}
 		k, _ := strconv.Atoi(args[0])
-		v, _ := client.Put(paxi.Key(k), paxi.Value([]byte(args[1])))
-		fmt.Println(string(v))
+		client.Put(paxi.Key(k), []byte(args[1]))
+		//fmt.Println(string(v))
 
 	case "consensus":
 		if len(args) < 1 {
@@ -102,8 +102,7 @@ func main() {
 		paxi.ConnectToMaster(*master, true, paxi.ID(*id))
 	}
 
-	client = paxi.NewClient(paxi.ID(*id))
-	client.Start()
+	client = paxi.NewHTTPClient(paxi.ID(*id), false)
 
 	if len(flag.Args()) > 0 {
 		run(flag.Args()[0], flag.Args()[1:])

@@ -8,20 +8,20 @@ import (
 
 // HashRing implements a hash ring like Chord using md5
 type HashRing struct {
-	head *node
+	head *hashRingNode
 }
 
-type node struct {
+type hashRingNode struct {
 	hash  []byte
 	Value interface{}
 
-	next *node
-	prev *node
+	next *hashRingNode
+	prev *hashRingNode
 }
 
 // Insert inserts the value and its byte into ring as a node
 func (h *HashRing) Insert(v interface{}, b []byte) {
-	node := new(node)
+	node := new(hashRingNode)
 	sum := md5.Sum(b)
 	node.hash = sum[:]
 	node.Value = v
@@ -50,7 +50,7 @@ func (h *HashRing) Insert(v interface{}, b []byte) {
 	}
 }
 
-func (h *HashRing) search(hash []byte) *node {
+func (h *HashRing) search(hash []byte) *hashRingNode {
 	for i := h.head; i.next != h.head; i = i.next {
 		if bytes.Compare(hash, i.hash) < 0 {
 			return i

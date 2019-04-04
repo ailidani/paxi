@@ -1,6 +1,7 @@
 package paxi
 
 import (
+	"math"
 	"math/rand"
 	"sync"
 	"time"
@@ -176,8 +177,6 @@ func (b *Benchmark) Run() {
 	close(keys)
 	stat := Statistic(b.latency)
 
-	log.Infof("PQR = %d", config.PaxosQuorumRead)
-	log.Infof("Fast Read = %d", config.FastRead)
 	log.Infof("Concurrency = %d", b.Concurrency)
 	log.Infof("Write Ratio = %f", b.W)
 	log.Infof("Number of Keys = %d", b.K)
@@ -251,25 +250,28 @@ func (b *Benchmark) worker(keys <-chan int, result chan<- time.Duration) {
 	var v int
 	var err error
 	for k := range keys {
+		op := new(operation)
 		if rand.Float64() < b.W {
 			v = rand.Int()
 			s = time.Now()
 			err = b.db.Write(k, v)
 			e = time.Now()
-			b.History.Add(k, v, nil, s.Sub(b.startTime).Nanoseconds(), e.Sub(b.startTime).Nanoseconds())
+			op.input = v
 		} else {
 			s = time.Now()
 			v, err = b.db.Read(k)
 			e = time.Now()
-			b.History.Add(k, nil, v, s.Sub(b.startTime).Nanoseconds(), e.Sub(b.startTime).Nanoseconds())
+			op.output = v
 		}
-		// TODO write error in history
-		if err != nil {
+		op.start = s.Sub(b.startTime).Nanoseconds()
+		if err == nil {
+			op.end = e.Sub(b.startTime).Nanoseconds()
+			result <- e.Sub(s)
+		} else {
+			op.end = math.MaxInt64
 			log.Error(err)
-			continue
 		}
-		t := e.Sub(s)
-		result <- t
+		b.History.AddOperation(k, op)
 	}
 }
 

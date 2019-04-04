@@ -27,10 +27,10 @@ type Socket interface {
 	Close()
 
 	// Fault injection
-	Drop(ID, int)  // drops every message send to ID for t seconds
-	Slow(ID, int)  // delays every message send to ID for t seconds
-	Flaky(ID, int) // drop message by chance for t seconds
-	Crash(int)     // node crash for t seconds
+	Drop(ID, int)           // drops every message send to ID last for t seconds
+	Slow(ID, int, int)      // delays every message send to ID for d ms and last for t seconds
+	Flaky(ID, float32, int) // drop message by chance p for t seconds
+	Crash(int)              // node crash for t seconds
 }
 
 type socket struct {
@@ -39,28 +39,28 @@ type socket struct {
 
 	crash bool
 	drop  map[ID]bool
-	slow  map[ID]bool
-	flaky map[ID]bool
+	slow  map[ID]int
+	flaky map[ID]float32
 }
 
 // NewSocket return Socket interface instance given self ID, node list, transport and codec name
-func NewSocket(id ID, addrs map[ID]string, transport string) Socket {
+func NewSocket(id ID, addrs map[ID]string) Socket {
 	socket := &socket{
 		id:    id,
 		nodes: make(map[ID]Transport),
 		drop:  make(map[ID]bool),
-		slow:  make(map[ID]bool),
-		flaky: make(map[ID]bool),
+		slow:  make(map[ID]int),
+		flaky: make(map[ID]float32),
 	}
 
-	socket.nodes[id] = NewTransport(transport + "://" + addrs[id])
+	socket.nodes[id] = NewTransport(addrs[id])
 	socket.nodes[id].Listen()
 
 	for id, addr := range addrs {
 		if id == socket.id {
 			continue
 		}
-		t := NewTransport(transport + "://" + addr)
+		t := NewTransport(addr)
 		err := Retry(t.Dial, 100, time.Duration(50)*time.Millisecond)
 		if err == nil {
 			socket.nodes[id] = t
@@ -148,21 +148,21 @@ func (s *socket) Drop(id ID, t int) {
 	}()
 }
 
-func (s *socket) Slow(id ID, t int) {
-	s.slow[id] = true
+func (s *socket) Slow(id ID, delay int, t int) {
+	s.slow[id] = 0
 	timer := time.NewTimer(time.Duration(t) * time.Second)
 	go func() {
 		<-timer.C
-		s.slow[id] = false
+		s.slow[id] = delay
 	}()
 }
 
-func (s *socket) Flaky(id ID, t int) {
-	s.flaky[id] = true
+func (s *socket) Flaky(id ID, p float32, t int) {
+	s.flaky[id] = 0
 	timer := time.NewTimer(time.Duration(t) * time.Second)
 	go func() {
 		<-timer.C
-		s.flaky[id] = false
+		s.flaky[id] = p
 	}()
 }
 

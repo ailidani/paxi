@@ -17,6 +17,7 @@ func NewPolicy() Policy {
 	switch config.Policy {
 	case "":
 		fallthrough
+
 	case "null":
 		p := new(null)
 		return p

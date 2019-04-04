@@ -24,32 +24,70 @@ type pqrTuple struct{
 	ID ID
 }
 
-// Client main access point of client lib
-type Client struct {
-	ID        ID // client id use the same id as servers in local site
-	N         int
-	addrs     map[ID]string
-	http      map[ID]string
-	algorithm string
+// Client interface provides get and put for key value store
+type Client interface {
+	Get(Key) (Value, error)
+	Put(Key, Value) error
+}
+
+// AdminClient interface provides fault injection opeartion
+type AdminClient interface {
+	Consensus(Key) bool
+	Crash(ID, int)
+	Drop(ID, ID, int)
+	Partition(int, ...ID)
+}
+
+// HTTPClient inplements Client interface with REST API
+type HTTPClient struct {
+	Addrs  map[ID]string
+	HTTP   map[ID]string
+	ID     ID  // client id use the same id as servers in local site
+	N      int // total number of nodes
+	LocalN int // number of nodes in local zone
+
+	PQR    bool
 
 	cid int // command id
 	*http.Client
 }
 
-// NewClient creates a new Client from config
-func NewClient(id ID) *Client {
-	return &Client{
-		ID:        id,
-		N:         len(config.Addrs),
-		addrs:     config.Addrs,
-		http:      config.HTTPAddrs,
-		algorithm: config.Algorithm,
-		Client:    &http.Client{},
+// NewHTTPClient creates a new Client from config
+func NewHTTPClient(id ID, paxosQuorumRead bool) *HTTPClient {
+	c := &HTTPClient{
+		ID:     id,
+		N:      len(config.Addrs),
+		Addrs:  config.Addrs,
+		HTTP:   config.HTTPAddrs,
+		Client: &http.Client{},
+		PQR:    paxosQuorumRead,
 	}
+	if id != "" {
+		i := 0
+		for node := range c.Addrs {
+			if node.Zone() == id.Zone() {
+				i++
+			}
+		}
+		c.LocalN = i
+	}
+
+	return c
 }
 
-func (c *Client) restPaxosQuorumRead(id ID, key Key, barrierSlot int) (Value, int, error) {
-	url := c.http[id] + "/pqr/" + strconv.Itoa(int(key))
+func (c *HTTPClient) GetURL(id ID, key Key) string {
+	if id == "" {
+		for id = range c.HTTP {
+			if c.ID == "" || id.Zone() == c.ID.Zone() {
+				break
+			}
+		}
+	}
+	return c.HTTP[id] + "/" + strconv.Itoa(int(key))
+}
+
+func (c *HTTPClient) restPaxosQuorumRead(id ID, key Key, barrierSlot int) (Value, int, error) {
+	url := c.HTTP[id] + "/pqr/" + strconv.Itoa(int(key))
 
 	method := http.MethodGet
 	var body io.Reader
@@ -98,9 +136,10 @@ func (c *Client) restPaxosQuorumRead(id ID, key Key, barrierSlot int) (Value, in
 }
 
 // rest accesses server's REST API with url = http://ip:port/key
-// if value == nil, it's read
-func (c *Client) rest(id ID, key Key, value Value) (Value, error) {
-	url := c.http[id] + "/" + strconv.Itoa(int(key))
+// if value == nil, it's a read
+func (c *HTTPClient) rest(id ID, key Key, value Value) (Value, map[string]string, error) {
+	// get url
+	url := c.GetURL(id, key)
 
 	method := http.MethodGet
 	var body io.Reader
@@ -108,79 +147,80 @@ func (c *Client) rest(id ID, key Key, value Value) (Value, error) {
 		method = http.MethodPut
 		body = bytes.NewBuffer(value)
 	}
-	r, err := http.NewRequest(method, url, body)
+	req, err := http.NewRequest(method, url, body)
 	if err != nil {
 		log.Error(err)
-		return nil, err
+		return nil, nil, err
 	}
-	r.Header.Set(HTTPClientID, string(c.ID))
-	r.Header.Set(HTTPCommandID, strconv.Itoa(c.cid))
+	req.Header.Set(HTTPClientID, string(c.ID))
+	req.Header.Set(HTTPCommandID, strconv.Itoa(c.cid))
 	// r.Header.Set(HTTPTimestamp, strconv.FormatInt(time.Now().UnixNano(), 10))
-	res, err := c.Client.Do(r)
+
+	rep, err := c.Client.Do(req)
 	if err != nil {
 		log.Error(err)
-		return nil, err
+		return nil, nil, err
 	}
-	defer res.Body.Close()
-	if res.StatusCode == http.StatusOK {
-		b, err := ioutil.ReadAll(res.Body)
+	defer rep.Body.Close()
+
+	// get headers
+	metadata := make(map[string]string)
+	for k := range rep.Header {
+		metadata[k] = rep.Header.Get(k)
+	}
+
+	if rep.StatusCode == http.StatusOK {
+		b, err := ioutil.ReadAll(rep.Body)
 		if err != nil {
 			log.Error(err)
-			return nil, err
+			return nil, metadata, err
 		}
 		if value == nil {
 			log.Debugf("node=%v type=%s key=%v value=%x", id, method, key, Value(b))
 		} else {
 			log.Debugf("node=%v type=%s key=%v value=%x", id, method, key, value)
 		}
-		return Value(b), nil
+		return Value(b), metadata, nil
 	}
-	dump, _ := httputil.DumpResponse(res, true)
+
+	// http call failed
+	dump, _ := httputil.DumpResponse(rep, true)
 	log.Debugf("%q", dump)
-	return nil, errors.New(res.Status)
+	return nil, metadata, errors.New(rep.Status)
 }
 
-// RESTGet gets value of given key
-func (c *Client) RESTGet(key Key) (Value, error) {
-	c.cid++
-	id := c.ID
-	if id == "" {
-		for id = range c.http {
-			break
-		}
-	}
+// RESTGet issues a http call to node and return value and headers
+func (c *HTTPClient) RESTGet(id ID, key Key) (Value, map[string]string, error) {
 	return c.rest(id, key, nil)
 }
 
 // RESTPut puts new value as http.request body and return previous value
-func (c *Client) RESTPut(key Key, value Value) (Value, error) {
-	c.cid++
-	id := c.ID
-	if id == "" {
-		for id = range c.http {
-			break
-		}
-		log.Debugf("No Client ID. picked id %v\n", id)
-	}
+func (c *HTTPClient) RESTPut(id ID, key Key, value Value) (Value, map[string]string, error) {
 	return c.rest(id, key, value)
 }
 
 // Get gets value of given key (use REST)
-func (c *Client) Get(key Key) (Value, error) {
-	if config.PaxosQuorumRead {
+// Default implementation of Client interface
+func (c *HTTPClient) Get(key Key) (Value, error) {
+	if c.PQR {
 		return c.PaxosQuorumGet(key)
 	} else {
-		return c.RESTGet(key)
+		c.cid++
+		v, _, err := c.RESTGet(c.ID, key)
+		return v, err
 	}
 }
 
 // Put puts new key value pair and return previous value (use REST)
-func (c *Client) Put(key Key, value Value) (Value, error) {
-	return c.RESTPut(key, value)
+// Default implementation of Client interface
+func (c *HTTPClient) Put(key Key, value Value) error {
+	c.cid++
+	_, _, err := c.RESTPut(c.ID, key, value)
+	return err
 }
 
-func (c *Client) json(id ID, key Key, value Value) (Value, error) {
-	url := c.http[id]
+func (c *HTTPClient) json(id ID, key Key, value Value) (Value, error) {
+	url := c.HTTP[id]
 	cmd := Command{
 		Key:       key,
 		Value:     value,
@@ -204,24 +244,24 @@ func (c *Client) json(id ID, key Key, value Value) (Value, error) {
 }
 
 // JSONGet posts get request in json format to server url
-func (c *Client) JSONGet(key Key) (Value, error) {
+func (c *HTTPClient) JSONGet(key Key) (Value, error) {
 	c.cid++
 	return c.json(c.ID, key, nil)
 }
 
 // JSONPut posts put request in json format to server url
-func (c *Client) JSONPut(key Key, value Value) (Value, error) {
+func (c *HTTPClient) JSONPut(key Key, value Value) (Value, error) {
 	c.cid++
 	return c.json(c.ID, key, value)
 }
 
 
 // PaxosQuorumGet concurrently read values from majority paxos nodes in 2 phases
-func (c *Client) paxosQuorumGetPhase(key Key, barrierSlot int) ([]pqrTuple, error) {
+func (c *HTTPClient) paxosQuorumGetPhase(key Key, barrierSlot int) ([]pqrTuple, error) {
 	c.cid++
 	out := make(chan pqrTuple, c.N/2 + 1)
 	i := 0
-	for id := range c.http {
+	for id := range c.HTTP {
 		if i > c.N/2 {
 			break
 		}
@@ -255,7 +295,7 @@ func (c *Client) paxosQuorumGetPhase(key Key, barrierSlot int) ([]pqrTuple, erro
 	return results, nil
 }
 
-func (c *Client) PaxosQuorumGet(key Key) (Value, error) {
+func (c *HTTPClient) PaxosQuorumGet(key Key) (Value, error) {
 	p1Results, err := c.paxosQuorumGetPhase(key, NO_BARRIER_SLOT)
 	if err != nil {
 		return nil, err
@@ -316,41 +356,73 @@ func (c *Client) PaxosQuorumGet(key Key) (Value, error) {
 }
 
 // QuorumGet concurrently read values from majority nodes
-func (c *Client) QuorumGet(key Key) []Value {
-	c.cid++
-	out := make(chan Value)
+func (c *HTTPClient) QuorumGet(key Key) ([]Value, []map[string]string) {
+	valueC := make(chan Value)
+	metaC := make(chan map[string]string)
 	i := 0
-	for id := range c.http {
+	for id := range c.HTTP {
 		i++
 		if i > c.N/2 {
 			break
 		}
 		go func(id ID) {
-			v, err := c.rest(id, key, nil)
+			v, meta, err := c.rest(id, key, nil)
 			if err != nil {
 				log.Error(err)
 				return
 			}
-			out <- v
+			valueC <- v
+			metaC <- meta
 		}(id)
 	}
-	set := lib.NewCSet()
+
+	values := make([]Value, 0)
+	metas := make([]map[string]string, 0)
 	for ; i >= 0; i-- {
-		set.Put(<-out)
+		values = append(values, <-valueC)
+		metas = append(metas, <-metaC)
 	}
-	res := make([]Value, 0)
-	for _, v := range set.Array() {
-		res = append(res, v.(Value))
+	return values, metas
+}
+
+func (c *HTTPClient) LocalQuorumGet(key Key) ([]Value, []map[string]string) {
+	valueC := make(chan Value)
+	metaC := make(chan map[string]string)
+	i := 0
+	for id := range c.HTTP {
+		if c.ID.Zone() != id.Zone() {
+			continue
+		}
+		i++
+		if i > c.LocalN/2 {
+			break
+		}
+		go func(id ID) {
+			v, meta, err := c.rest(id, key, nil)
+			if err != nil {
+				log.Error(err)
+				return
+			}
+			valueC <- v
+			metaC <- meta
+		}(id)
 	}
-	return res
+
+	values := make([]Value, 0)
+	metas := make([]map[string]string, 0)
+	for ; i >= 0; i-- {
+		values = append(values, <-valueC)
+		metas = append(metas, <-metaC)
+	}
+	return values, metas
 }
 
 // QuorumPut concurrently write values to majority of nodes
-func (c *Client) QuorumPut(key Key, value Value) {
-	c.cid++
+// TODO get headers
+func (c *HTTPClient) QuorumPut(key Key, value Value) {
 	var wait sync.WaitGroup
 	i := 0
-	for id := range c.http {
+	for id := range c.HTTP {
 		i++
 		if i > c.N/2 {
 			break
@@ -365,9 +437,9 @@ func (c *Client) QuorumPut(key Key, value Value) {
 }
 
 // Consensus collects /history/key from every node and compare their values
-func (c *Client) Consensus(k Key) bool {
+func (c *HTTPClient) Consensus(k Key) bool {
 	h := make(map[ID][]Value)
-	for id, url := range c.http {
+	for id, url := range c.HTTP {
 		h[id] = make([]Value, 0)
 		r, err := c.Client.Get(url + "/history?key=" + strconv.Itoa(int(k)))
 		if err != nil {
@@ -396,7 +468,7 @@ func (c *Client) Consensus(k Key) bool {
 	}
 	for i := 0; i < n; i++ {
 		set := make(map[string]struct{})
-		for id := range c.http {
+		for id := range c.HTTP {
 			if len(h[id]) > i {
 				set[string(h[id][i])] = struct{}{}
 			}
@@ -410,8 +482,8 @@ func (c *Client) Consensus(k Key) bool {
 
 // Crash stops the node for t seconds then recover
 // node crash forever if t < 0
-func (c *Client) Crash(id ID, t int) {
-	url := c.http[id] + "/crash?t=" + strconv.Itoa(t)
+func (c *HTTPClient) Crash(id ID, t int) {
+	url := c.HTTP[id] + "/crash?t=" + strconv.Itoa(t)
 	r, err := c.Client.Get(url)
 	if err != nil {
 		log.Error(err)
@@ -421,8 +493,8 @@ func (c *Client) Crash(id ID, t int) {
 }
 
 // Drop drops every message send for t seconds
-func (c *Client) Drop(from, to ID, t int) {
-	url := c.http[from] + "/drop?id=" + string(to) + "&t=" + strconv.Itoa(t)
+func (c *HTTPClient) Drop(from, to ID, t int) {
+	url := c.HTTP[from] + "/drop?id=" + string(to) + "&t=" + strconv.Itoa(t)
 	r, err := c.Client.Get(url)
 	if err != nil {
 		log.Error(err)
@@ -432,12 +504,12 @@ func (c *Client) Drop(from, to ID, t int) {
 }
 
 // Partition cuts the network between nodes for t seconds
-func (c *Client) Partition(t int, nodes ...ID) {
+func (c *HTTPClient) Partition(t int, nodes ...ID) {
 	s := lib.NewSet()
 	for _, id := range nodes {
 		s.Add(id)
 	}
-	for from := range c.addrs {
+	for from := range c.Addrs {
 		if !s.Has(from) {
 			for _, to := range nodes {
 				c.Drop(from, to, t)
@@ -445,9 +517,3 @@ func (c *Client) Partition(t int, nodes ...ID) {
 		}
 	}
 }
-
-// Start connects to server before actual requests (for future)
-func (c *Client) Start() {}
-
-// Stop disconnects from server (for future)
-func (c *Client) Stop() {}

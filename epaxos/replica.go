@@ -1,9 +1,13 @@
 package epaxos
 
 import (
+	"flag"
+
 	"github.com/ailidani/paxi"
 	"github.com/ailidani/paxi/log"
 )
+
+var replyWhenCommit = flag.Bool("ReplyWhenCommit", false, "Reply to client when request is committed, instead of executed")
 
 type Replica struct {
 	paxi.Node
@@ -267,7 +271,7 @@ func (r *Replica) handlePreAcceptReply(m PreAcceptReply) {
 				Seq:     i.seq,
 				Dep:     i.copyDep(),
 			})
-			if paxi.GetConfig().ReplyWhenCommit {
+			if *replyWhenCommit {
 				i.request.Reply(paxi.Reply{
 					Command: i.cmd,
 				})
@@ -343,7 +347,7 @@ func (r *Replica) handleAcceptReply(m AcceptReply) {
 	if i.quorum.Majority() {
 		i.status = COMMITTED
 		r.updateCommit(r.ID())
-		if paxi.GetConfig().ReplyWhenCommit {
+		if *replyWhenCommit {
 			i.request.Reply(paxi.Reply{
 				Command: i.cmd,
 			})
@@ -389,7 +393,6 @@ func (r *Replica) handleCommit(m Commit) {
 	r.updateCommit(m.Replica)
 }
 
-// can we execute in another thread? put one lock per slot
 func (r *Replica) execute() {
 	for id, log := range r.log {
 		for s := r.executed[id] + 1; s <= r.slot[id]; s++ {
