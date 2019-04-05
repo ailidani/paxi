@@ -21,6 +21,7 @@ func NewReplica(id paxi.ID) *Replica {
 	r.Node = paxi.NewNode(id)
 	r.Paxos = NewPaxos(r)
 	r.Register(paxi.Request{}, r.handleRequest)
+	r.Register(paxi.PQRRequest{}, r.handlePQRRequest)
 	r.Register(P1a{}, r.HandleP1a)
 	r.Register(P1b{}, r.HandleP1b)
 	r.Register(P2a{}, r.HandleP2a)
@@ -31,52 +32,6 @@ func NewReplica(id paxi.ID) *Replica {
 
 func (r *Replica) handleRequest(m paxi.Request) {
 	log.Debugf("Replica %s received %v\n", r.ID(), m)
-
-	if m.ReqType == paxi.REQ_PAXOS_QUORUM_READ {
-
-		// do PQR
-		log.Debugf("Replica %s starting PQR: %v\n", r.ID(), m)
-		if m.BSlot == paxi.NO_BARRIER_SLOT {
-
-			// this is the first PQR request
-			if r.Paxos.execute - 1 == r.Paxos.slot {
-
-				// return value if we see the max accepted slot the same as last executed
-				log.Debugf("PQR Shortcut - no outstanding ops on key %v", m.Command.Key)
-				r.sendPQRExecSlot(m)
-				return
-			} else {
-				if !r.Paxos.IsInProgress(m.Command.Key){
-
-					// here we are trying to avoid the barrier if Key is not in progress
-					log.Debugf("PQR Shortcut - no progress on key %v", m.Command.Key)
-					r.sendPQRExecSlot(m)
-					return
-				}
-
-				log.Debugf("PQR Barrier on key %v and slot %d", m.Command.Key, r.Paxos.slot)
-
-				// otherwise return barrier slot
-				r.sendPQRBarrierSlot(m)
-				return
-			}
-		} else {
-			barrier_slot := m.BSlot
-			if r.Paxos.execute > int(barrier_slot) {
-				r.sendPQRExecSlot(m)
-				return
-			} else {
-				r.sendPQRBarrierSlot(m)
-				return
-			}
-		}
-		m.Reply(paxi.Reply{
-			Command: m.Command,
-			Value:   nil,
-			Err:     errors.New("PQR command is in wrong format"),
-		})
-		return
-	}
 
 	if *stable {
 		if r.Paxos.IsLeader() || r.Paxos.Ballot() == 0 {
@@ -89,7 +44,55 @@ func (r *Replica) handleRequest(m paxi.Request) {
 	}
 }
 
-func (r *Replica) sendPQRBarrierSlot(m paxi.Request) {
+// PQR handling
+
+func (r *Replica) handlePQRRequest(m paxi.PQRRequest) {
+	log.Debugf("Replica %s received %v\n", r.ID(), m)
+
+	log.Debugf("Replica %s starting PQR: %v\n", r.ID(), m)
+	if m.BSlot == paxi.NO_BARRIER_SLOT {
+
+		// this is the first PQR request
+		if r.Paxos.execute - 1 == r.Paxos.slot {
+
+			// return value if we see the max accepted slot the same as last executed
+			log.Debugf("PQR Shortcut - no outstanding ops on key %v", m.Command.Key)
+			r.sendPQRExecSlot(m)
+			return
+		} else {
+			if !r.Paxos.IsInProgress(m.Command.Key){
+
+				// here we are trying to avoid the barrier if Key is not in progress
+				log.Debugf("PQR Shortcut - no progress on key %v", m.Command.Key)
+				r.sendPQRExecSlot(m)
+				return
+			}
+
+			log.Debugf("PQR Barrier on key %v and slot %d", m.Command.Key, r.Paxos.slot)
+
+			// otherwise return barrier slot
+			r.sendPQRBarrierSlot(m)
+			return
+		}
+	} else {
+		barrier_slot := m.BSlot
+		if r.Paxos.execute > int(barrier_slot) {
+			r.sendPQRExecSlot(m)
+			return
+		} else {
+			r.sendPQRBarrierSlot(m)
+			return
+		}
+	}
+	m.Reply(paxi.Reply{
+		Command: m.Command,
+		Value:   nil,
+		Err:     errors.New("PQR command is in wrong format"),
+	})
+	return
+}
+
+func (r *Replica) sendPQRBarrierSlot(m paxi.PQRRequest) {
 	m.Reply(paxi.Reply{
 		Command: m.Command,
 		Value:   nil,
@@ -97,7 +100,7 @@ func (r *Replica) sendPQRBarrierSlot(m paxi.Request) {
 	})
 }
 
-func (r *Replica) sendPQRExecSlot(m paxi.Request) {
+func (r *Replica) sendPQRExecSlot(m paxi.PQRRequest) {
 	slot := r.Paxos.execute - 1
 	data := r.Get(m.Command.Key)
 	if data == nil {

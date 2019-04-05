@@ -45,18 +45,30 @@ func (n *node) http() {
 }
 
 func (n *node) issueRequest(cmd Command, w http.ResponseWriter, reqtype reqtype, bslot int) {
-	req := Request{
-		Command:   cmd,
-		Timestamp: time.Now().UnixNano(),
-		NodeID:    n.id,
-		ReqType:   reqtype,
-		BSlot:     bslot,
-		c:         make(chan Reply, 1),
+	var reply Reply
+	switch reqtype {
+	case REQ_REGULAR:
+		req := Request{
+			Command:   cmd,
+			Timestamp: time.Now().UnixNano(),
+			NodeID:    n.id,
+			c:         make(chan Reply, 1),
+		}
+
+		n.MessageChan <- req
+		reply = <-req.c
+
+	case REQ_PAXOS_QUORUM_READ:
+		req := PQRRequest{
+			Command:   cmd,
+			Timestamp: time.Now().UnixNano(),
+			BSlot:     bslot,
+			c:         make(chan Reply, 1),
+		}
+
+		n.MessageChan <- req
+		reply = <-req.c
 	}
-
-	n.MessageChan <- req
-
-	reply := <-req.c
 
 	if reply.Err != nil {
 		http.Error(w, reply.Err.Error(), http.StatusInternalServerError)

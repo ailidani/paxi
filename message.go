@@ -3,11 +3,11 @@ package paxi
 import (
 	"encoding/gob"
 	"fmt"
-	"github.com/ailidani/paxi/log"
 )
 
 func init() {
 	gob.Register(Request{})
+	gob.Register(PQRRequest{})
 	gob.Register(Reply{})
 	gob.Register(Read{})
 	gob.Register(ReadReply{})
@@ -26,25 +26,17 @@ const (
 	REQ_PAXOS_QUORUM_READ
 )
 
-// Request is client reqeust with http response channel
+// Request is client request with http response channel
 type Request struct {
 	Command    Command
 	Properties map[string]string
 	Timestamp  int64
 	NodeID     ID         // forward by node
-	ReqType   reqtype
-	BSlot 	  int
 	c          chan Reply // reply channel created by request receiver
 }
 
 // Reply replies to current client session
 func (r *Request) Reply(reply Reply) {
-	if r == nil {
-		log.Debugf("No request!\n")
-	}
-	if r.c == nil {
-		log.Debugf("No reply channel in request %v\n", r)
-	}
 	r.c <- reply
 }
 
@@ -52,11 +44,29 @@ func (r Request) String() string {
 	return fmt.Sprintf("Request {cmd=%v nid=%v}", r.Command, r.NodeID)
 }
 
+// PQRRequest is for reads only
+type PQRRequest struct {
+	Command    Command
+	Properties map[string]string
+	Timestamp  int64
+	BSlot 	   int
+	c          chan Reply // reply channel created by request receiver
+}
+
+// Reply replies to current client session
+func (r *PQRRequest) Reply(reply Reply) {
+	r.c <- reply
+}
+
+func (r PQRRequest) String() string {
+	return fmt.Sprintf("PQRRequest {cmd=%v}", r.Command)
+}
+
 // Reply includes all info that might replies to back the client for the coresponding reqeust
 type Reply struct {
 	Command    Command
 	Value      Value
-	Slot	  int
+	Slot	   int
 	Properties map[string]string
 	Timestamp  int64
 	Err        error
