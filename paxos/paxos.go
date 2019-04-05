@@ -1,6 +1,7 @@
 package paxos
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/ailidani/paxi"
@@ -349,10 +350,14 @@ func (p *Paxos) exec() {
 		// log.Debugf("Replica %s execute [s=%d, cmd=%v]", p.ID(), p.execute, e.command)
 		value := p.Execute(e.command)
 		if e.request != nil {
-			e.request.Reply(paxi.Reply{
-				Command: e.command,
-				Value:   value,
-			})
+			reply := paxi.Reply{
+				Command:    e.command,
+				Value:      value,
+				Properties: make(map[string]string),
+			}
+			reply.Properties["slot"] = strconv.Itoa(p.execute)
+			reply.Properties["ballot"] = e.ballot.String()
+			e.request.Reply(reply)
 			e.request = nil
 		}
 		// delete(p.log, p.execute)

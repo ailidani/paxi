@@ -3,6 +3,8 @@ package epaxos
 import (
 	"flag"
 
+	"github.com/ailidani/paxi/lib"
+
 	"github.com/ailidani/paxi"
 	"github.com/ailidani/paxi/log"
 )
@@ -18,56 +20,13 @@ type Replica struct {
 	conflicts    map[paxi.ID]map[paxi.Key]int
 	maxSeqPerKey map[paxi.Key]int
 
+	graph *lib.Graph
+
 	fast int
 	slow int
 }
 
-type status int8
-
-const (
-	NONE status = iota
-	PREACCEPTED
-	ACCEPTED
-	COMMITTED
-	EXECUTED
-)
-
-type instance struct {
-	cmd    paxi.Command
-	ballot paxi.Ballot
-	status status
-	seq    int
-	dep    map[paxi.ID]int
-
-	// leader bookkeeping
-	request *paxi.Request
-	quorum  *paxi.Quorum
-	changed bool // seq and dep changed
-}
-
-// merge the seq and dep for instance
-func (i *instance) merge(seq int, dep map[paxi.ID]int) {
-	if seq > i.seq {
-		i.seq = seq
-		i.changed = true
-	}
-	for id, d := range dep {
-		if d > i.dep[id] {
-			i.dep[id] = d
-			i.changed = true
-		}
-	}
-}
-
-// copyDep clones dependency list of instance
-func (i *instance) copyDep() (dep map[paxi.ID]int) {
-	dep = make(map[paxi.ID]int)
-	for id, d := range i.dep {
-		dep[id] = d
-	}
-	return dep
-}
-
+// NewReplica initialize replica and register all message types
 func NewReplica(id paxi.ID) *Replica {
 	r := &Replica{
 		Node:         paxi.NewNode(id),
@@ -77,6 +36,7 @@ func NewReplica(id paxi.ID) *Replica {
 		executed:     make(map[paxi.ID]int),
 		conflicts:    make(map[paxi.ID]map[paxi.Key]int),
 		maxSeqPerKey: make(map[paxi.Key]int),
+		graph:        lib.NewGraph(),
 	}
 	for id := range paxi.GetConfig().Addrs {
 		r.log[id] = make(map[int]*instance, paxi.GetConfig().BufferSize)
@@ -255,7 +215,7 @@ func (r *Replica) handlePreAcceptReply(m PreAcceptReply) {
 		}
 	}
 
-	if i.quorum.Majority() {
+	if i.quorum.FastQuorum() {
 		// fast path or slow path
 		if !i.changed && committed {
 			// fast path
@@ -421,4 +381,8 @@ func (r *Replica) execute() {
 			}
 		}
 	}
+}
+
+func (r *Replica) execute2() {
+
 }

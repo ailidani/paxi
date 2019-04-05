@@ -2,12 +2,16 @@ package paxos
 
 import (
 	"flag"
+	"strconv"
+	"time"
 
 	"github.com/ailidani/paxi"
 	"github.com/ailidani/paxi/log"
 )
 
 var stable = flag.Bool("stable", true, "stable leader, if true paxos forward request to current leader")
+var ReadQuorum = flag.Bool("read_quorum", false, "read from quorum of replicas")
+var ReadLeader = flag.Bool("read_leader", false, "read from leader of current ballot")
 
 // Replica for one Paxos instance
 type Replica struct {
@@ -31,6 +35,24 @@ func NewReplica(id paxi.ID) *Replica {
 
 func (r *Replica) handleRequest(m paxi.Request) {
 	log.Debugf("Replica %s received %v\n", r.ID(), m)
+
+	if m.Command.IsRead() {
+		if *ReadQuorum || (*ReadLeader && r.Paxos.IsLeader()) {
+			v := r.Execute(m.Command)
+			reply := paxi.Reply{
+				Command:    m.Command,
+				Value:      v,
+				Properties: make(map[string]string),
+				Timestamp:  time.Now().Unix(),
+			}
+			reply.Properties["slot"] = strconv.Itoa(r.Paxos.slot)
+			reply.Properties["ballot"] = r.Paxos.ballot.String()
+			reply.Properties["execute"] = strconv.Itoa(r.Paxos.execute)
+			m.Reply(reply)
+			return
+		}
+	}
+
 	if *stable {
 		if r.Paxos.IsLeader() || r.Paxos.Ballot() == 0 {
 			r.Paxos.HandleRequest(m)
