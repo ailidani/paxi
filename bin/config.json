@@ -26,6 +26,8 @@
     "thrifty": false,
     "chan_buffer_size": 1024,
     "buffer_size": 1024,
+    "batching": true,
+    "batch_size_ms": 3,
     "multiversion": false,
     "benchmark": {
         "T": 60,

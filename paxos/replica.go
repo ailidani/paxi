@@ -63,3 +63,4 @@ func (r *Replica) handleRequest(m paxi.Request) {
 		r.Paxos.HandleRequest(m)
 	}
 }
+

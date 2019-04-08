@@ -3,11 +3,13 @@ package paxi
 import (
 	"encoding/gob"
 	"fmt"
+	"github.com/ailidani/paxi/log"
 )
 
 func init() {
 	gob.Register(Request{})
 	gob.Register(Reply{})
+	gob.Register(PaxiBatchMsg{})
 	gob.Register(Read{})
 	gob.Register(ReadReply{})
 	gob.Register(Transaction{})
@@ -49,6 +51,20 @@ type Reply struct {
 
 func (r Reply) String() string {
 	return fmt.Sprintf("Reply {cmd=%v value=%v}", r.Command, r.Value)
+}
+
+type PaxiBatchMsg struct {
+	Messages  []interface{}
+	Timestamp int64
+}
+
+func (m PaxiBatchMsg) String() string {
+	return fmt.Sprintf("PaxiBatchMsg {|msg|=%d time=%v}", len(m.Messages), m.Timestamp)
+}
+
+func (m* PaxiBatchMsg) AddToBatch(msg interface{}) {
+	m.Messages = append(m.Messages, msg)
+	log.Debugf("Added to Batch %v", m)
 }
 
 // Read can be used as a special request that directly read the value of key without go through replication protocol in Replica
