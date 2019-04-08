@@ -24,6 +24,9 @@ type Config struct {
 	MultiVersion   bool    `json:"multiversion"`     // create multi-version database
 	Benchmark      Bconfig `json:"benchmark"`        // benchmark configuration
 
+	Batching       bool	   `json:"batching"` 		// whether to use low-level batching at transport layer
+	BatchSizeMs    int     `json:"batch_size_ms"` 	// size of a batch in ms
+
 	// for future implementation
 	// Batching bool `json:"batching"`
 	// Consistency string `json:"consistency"`
@@ -60,6 +63,8 @@ func MakeDefaultConfig() Config {
 		BufferSize:     1024,
 		ChanBufferSize: 1024,
 		MultiVersion:   false,
+		Batching:       true,
+		BatchSizeMs:    3,
 		Benchmark:      DefaultBConfig(),
 	}
 }

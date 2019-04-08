@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/ailidani/paxi/log"
+	"sync"
 )
 
 // Socket integrates all networking interface and fault injections
@@ -34,17 +35,22 @@ type Socket interface {
 }
 
 type socket struct {
-	id    ID
-	nodes map[ID]Transport
+	id    		ID
+	nodes 		map[ID]Transport
 
-	crash bool
-	drop  map[ID]bool
-	slow  map[ID]int
-	flaky map[ID]float32
+	crash 		bool
+	drop  		map[ID]bool
+	slow  		map[ID]int
+	flaky 		map[ID]float32
+
+	useBatches	bool
+	batch       map[ID]*PaxiBatchMsg
+	ticker      time.Ticker
+	sync.RWMutex
 }
 
 // NewSocket return Socket interface instance given self ID, node list, transport and codec name
-func NewSocket(id ID, addrs map[ID]string) Socket {
+func NewSocket(id ID, config Config) Socket {
 	socket := &socket{
 		id:    id,
 		nodes: make(map[ID]Transport),
@@ -53,10 +59,15 @@ func NewSocket(id ID, addrs map[ID]string) Socket {
 		flaky: make(map[ID]float32),
 	}
 
-	socket.nodes[id] = NewTransport(addrs[id])
+	socket.nodes[id] = NewTransport(config.Addrs[id])
 	socket.nodes[id].Listen()
 
-	for id, addr := range addrs {
+	socket.useBatches = config.Batching
+	if config.Batching {
+		socket.batch = make(map[ID]*PaxiBatchMsg)
+	}
+
+	for id, addr := range config.Addrs {
 		if id == socket.id {
 			continue
 		}
@@ -67,8 +78,60 @@ func NewSocket(id ID, addrs map[ID]string) Socket {
 		} else {
 			panic(err)
 		}
+
+		if socket.useBatches {
+			log.Debugf("Creating initial batch for node %v", id)
+			newBatch := PaxiBatchMsg {
+				Messages: make([]interface{}, 0, 10),  // expect similar number of messages next time around
+			}
+
+			socket.batch[id] = &newBatch
+		}
 	}
+
+	if config.Batching {
+		ticker := time.NewTicker(time.Duration(config.BatchSizeMs) * time.Millisecond)
+		go func() {
+			for t := range ticker.C {
+				socket.SendBatches(t)
+			}
+		}()
+	}
+
 	return socket
+}
+
+func (s* socket) SendBatches(batchSendTime time.Time) {
+	for to, batch := range s.batch {
+		msgsInBatch := len(batch.Messages)
+		if msgsInBatch > 0 {
+			s.Lock()
+
+			// remove from map
+			delete(s.batch, to)
+
+			// add brand new batch for accumulation
+			newBatch := PaxiBatchMsg {
+				Messages: make([]interface{}, 0, msgsInBatch),  // expect similar number of messages next time around
+			}
+
+			s.batch[to] = &newBatch
+			s.Unlock()
+
+			// send out
+			batch.Timestamp = batchSendTime.UnixNano()
+			s.sendInternal(to, batch)
+
+		}
+	}
+}
+
+func (s* socket) sendInternal(to ID, m interface{}) {
+	t, exists := s.nodes[to]
+	if !exists {
+		log.Fatalf("transport of ID %v does not exists", to)
+	}
+	t.Send(m)
 }
 
 func (s *socket) Send(to ID, m interface{}) {
@@ -79,11 +142,16 @@ func (s *socket) Send(to ID, m interface{}) {
 	if s.drop[to] {
 		return
 	}
-	t, exists := s.nodes[to]
-	if !exists {
-		log.Fatalf("transport of ID %v does not exists", to)
+
+	if s.useBatches {
+		s.RLock()
+		b := s.batch[to]
+		b.AddToBatch(m)
+		s.RUnlock()
+		log.Debugf("Adding %v to batch %v", m, to)
+	} else {
+		s.sendInternal(to, m)
 	}
-	t.Send(m)
 }
 
 func (s *socket) Recv() interface{} {

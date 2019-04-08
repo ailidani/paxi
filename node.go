@@ -38,7 +38,7 @@ type node struct {
 func NewNode(id ID) Node {
 	return &node{
 		id:          id,
-		Socket:      NewSocket(id, config.Addrs),
+		Socket:      NewSocket(id, config),
 		Database:    NewDatabase(),
 		MessageChan: make(chan interface{}, config.ChanBufferSize),
 		handles:     make(map[string]reflect.Value),
@@ -79,25 +79,39 @@ func (n *node) Run() {
 func (n *node) recv() {
 	for {
 		m := n.Recv()
-		switch m := m.(type) {
-		case Request:
-			m.c = make(chan Reply, 1)
-			go func(r Request) {
-				n.Send(r.NodeID, <-r.c)
-			}(m)
-			n.MessageChan <- m
-			continue
+		n.passToChannel(m)
+	}
+}
 
-		case Reply:
-			n.RLock()
-			r := n.forwards[m.Command.String()]
-			log.Debugf("node %v received reply %v", n.id, m)
-			n.RUnlock()
-			r.Reply(m)
-			continue
+func (n* node) passToChannel(m interface{}) {
+	switch m := m.(type) {
+	case Request:
+		n.recvRequest(m)
+	case Reply:
+		n.recvReply(m)
+	case PaxiBatchMsg:
+		for _, msg := range m.Messages {
+			n.passToChannel(msg)
 		}
+	default:
 		n.MessageChan <- m
 	}
+}
+
+func (n* node) recvRequest(m Request) {
+	m.c = make(chan Reply, 1)
+	go func(r Request) {
+		n.Send(r.NodeID, <-r.c)
+	}(m)
+	n.MessageChan <- m
+}
+
+func (n* node) recvReply(m Reply) {
+	n.RLock()
+	r := n.forwards[m.Command.String()]
+	log.Debugf("node %v received reply %v", n.id, m)
+	n.RUnlock()
+	r.Reply(m)
 }
 
 // handle receives messages from message channel and calls handle function using refection
