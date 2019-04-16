@@ -37,7 +37,7 @@ type HTTPClient struct {
 	N      int // total number of nodes
 	LocalN int // number of nodes in local zone
 
-	cid int // command id
+	CID int // command id
 	*http.Client
 }
 
@@ -61,6 +61,22 @@ func NewHTTPClient(id ID) *HTTPClient {
 	}
 
 	return c
+}
+
+// Get gets value of given key (use REST)
+// Default implementation of Client interface
+func (c *HTTPClient) Get(key Key) (Value, error) {
+	c.CID++
+	v, _, err := c.RESTGet(c.ID, key)
+	return v, err
+}
+
+// Put puts new key value pair and return previous value (use REST)
+// Default implementation of Client interface
+func (c *HTTPClient) Put(key Key, value Value) error {
+	c.CID++
+	_, _, err := c.RESTPut(c.ID, key, value)
+	return err
 }
 
 func (c *HTTPClient) GetURL(id ID, key Key) string {
@@ -92,7 +108,7 @@ func (c *HTTPClient) rest(id ID, key Key, value Value) (Value, map[string]string
 		return nil, nil, err
 	}
 	req.Header.Set(HTTPClientID, string(c.ID))
-	req.Header.Set(HTTPCommandID, strconv.Itoa(c.cid))
+	req.Header.Set(HTTPCommandID, strconv.Itoa(c.CID))
 	// r.Header.Set(HTTPTimestamp, strconv.FormatInt(time.Now().UnixNano(), 10))
 
 	rep, err := c.Client.Do(req)
@@ -138,29 +154,13 @@ func (c *HTTPClient) RESTPut(id ID, key Key, value Value) (Value, map[string]str
 	return c.rest(id, key, value)
 }
 
-// Get gets value of given key (use REST)
-// Default implementation of Client interface
-func (c *HTTPClient) Get(key Key) (Value, error) {
-	c.cid++
-	v, _, err := c.RESTGet(c.ID, key)
-	return v, err
-}
-
-// Put puts new key value pair and return previous value (use REST)
-// Default implementation of Client interface
-func (c *HTTPClient) Put(key Key, value Value) error {
-	c.cid++
-	_, _, err := c.RESTPut(c.ID, key, value)
-	return err
-}
-
 func (c *HTTPClient) json(id ID, key Key, value Value) (Value, error) {
 	url := c.HTTP[id]
 	cmd := Command{
 		Key:       key,
 		Value:     value,
 		ClientID:  c.ID,
-		CommandID: c.cid,
+		CommandID: c.CID,
 	}
 	data, err := json.Marshal(cmd)
 	res, err := c.Client.Post(url, "json", bytes.NewBuffer(data))
@@ -181,26 +181,25 @@ func (c *HTTPClient) json(id ID, key Key, value Value) (Value, error) {
 
 // JSONGet posts get request in json format to server url
 func (c *HTTPClient) JSONGet(key Key) (Value, error) {
-	c.cid++
 	return c.json(c.ID, key, nil)
 }
 
 // JSONPut posts put request in json format to server url
 func (c *HTTPClient) JSONPut(key Key, value Value) (Value, error) {
-	c.cid++
 	return c.json(c.ID, key, value)
 }
 
 // QuorumGet concurrently read values from majority nodes
 func (c *HTTPClient) QuorumGet(key Key) ([]Value, []map[string]string) {
+	return c.MultiGet(c.N/2+1, key)
+}
+
+// MultiGet concurrently read values from n nodes
+func (c *HTTPClient) MultiGet(n int, key Key) ([]Value, []map[string]string) {
 	valueC := make(chan Value)
 	metaC := make(chan map[string]string)
 	i := 0
 	for id := range c.HTTP {
-		i++
-		if i > c.N/2 {
-			break
-		}
 		go func(id ID) {
 			v, meta, err := c.rest(id, key, nil)
 			if err != nil {
@@ -210,11 +209,15 @@ func (c *HTTPClient) QuorumGet(key Key) ([]Value, []map[string]string) {
 			valueC <- v
 			metaC <- meta
 		}(id)
+		i++
+		if i >= n {
+			break
+		}
 	}
 
 	values := make([]Value, 0)
 	metas := make([]map[string]string, 0)
-	for ; i >= 0; i-- {
+	for ; i > 0; i-- {
 		values = append(values, <-valueC)
 		metas = append(metas, <-metaC)
 	}

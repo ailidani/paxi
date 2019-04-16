@@ -9,9 +9,11 @@ import (
 	"strings"
 
 	"github.com/ailidani/paxi"
+	"github.com/ailidani/paxi/paxos"
 )
 
 var id = flag.String("id", "", "node id this client connects to")
+var algorithm = flag.String("algorithm", "", "Client API type [paxos]")
 var master = flag.String("master", "", "Master address.")
 
 func usage() string {
@@ -25,7 +27,8 @@ func usage() string {
 	return s
 }
 
-var client *paxi.HTTPClient
+var client paxi.Client
+var admin paxi.AdminClient
 
 func run(cmd string, args []string) {
 	switch cmd {
@@ -53,7 +56,7 @@ func run(cmd string, args []string) {
 			return
 		}
 		k, _ := strconv.Atoi(args[0])
-		v := client.Consensus(paxi.Key(k))
+		v := admin.Consensus(paxi.Key(k))
 		fmt.Println(v)
 
 	case "crash":
@@ -67,7 +70,7 @@ func run(cmd string, args []string) {
 			fmt.Println("second argument should be integer")
 			return
 		}
-		client.Crash(id, time)
+		admin.Crash(id, time)
 
 	case "partition":
 		if len(args) < 2 {
@@ -83,7 +86,7 @@ func run(cmd string, args []string) {
 		for _, s := range args[1:] {
 			ids = append(ids, paxi.ID(s))
 		}
-		client.Partition(time, ids...)
+		admin.Partition(time, ids...)
 
 	case "exit":
 		os.Exit(0)
@@ -102,7 +105,14 @@ func main() {
 		paxi.ConnectToMaster(*master, true, paxi.ID(*id))
 	}
 
-	client = paxi.NewHTTPClient(paxi.ID(*id))
+	admin = paxi.NewHTTPClient(paxi.ID(*id))
+
+	switch *algorithm {
+	case "paxos":
+		client = paxos.NewClient(paxi.ID(*id))
+	default:
+		client = paxi.NewHTTPClient(paxi.ID(*id))
+	}
 
 	if len(flag.Args()) > 0 {
 		run(flag.Args()[0], flag.Args()[1:])

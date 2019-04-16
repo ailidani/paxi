@@ -355,8 +355,9 @@ func (p *Paxos) exec() {
 				Value:      value,
 				Properties: make(map[string]string),
 			}
-			reply.Properties["slot"] = strconv.Itoa(p.execute)
-			reply.Properties["ballot"] = e.ballot.String()
+			reply.Properties[HTTPHeaderSlot] = strconv.Itoa(p.execute)
+			reply.Properties[HTTPHeaderBallot] = e.ballot.String()
+			reply.Properties[HTTPHeaderExecute] = strconv.Itoa(p.execute)
 			e.request.Reply(reply)
 			e.request = nil
 		}

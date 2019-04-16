@@ -5,10 +5,11 @@ import (
 	"flag"
 
 	"github.com/ailidani/paxi"
+	"github.com/ailidani/paxi/paxos"
 )
 
 var id = flag.String("id", "", "node id this client connects to")
-var api = flag.String("api", "", "Client API type [rest, json, quorum]")
+var algorithm = flag.String("algorithm", "", "Client API type [paxos]")
 var load = flag.Bool("load", false, "Load K keys into DB")
 var master = flag.String("master", "", "Master address.")
 
@@ -51,7 +52,12 @@ func main() {
 	}
 
 	d := new(db)
-	d.Client = paxi.NewHTTPClient(paxi.ID(*id))
+	switch *algorithm {
+	case "paxos":
+		d.Client = paxos.NewClient(paxi.ID(*id))
+	default:
+		d.Client = paxi.NewHTTPClient(paxi.ID(*id))
+	}
 
 	b := paxi.NewBenchmark(d)
 	if *load {
