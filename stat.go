@@ -37,7 +37,7 @@ func (s Stat) WriteFile(path string) error {
 }
 
 func (s Stat) String() string {
-	return fmt.Sprintf("size %d\nmean %f\nmin %f\nmax %f\nmedian %f\np95 %f\np99 %f\np999 %f\n", s.Size, s.Mean, s.Min, s.Max, s.Median, s.P95, s.P99, s.P999)
+	return fmt.Sprintf("size = %d\nmean = %f\nmin = %f\nmax = %f\nmedian = %f\np95 = %f\np99 = %f\np999 = %f\n", s.Size, s.Mean, s.Min, s.Max, s.Median, s.P95, s.P99, s.P999)
 }
 
 // Statistic function creates Stat object from raw latency data

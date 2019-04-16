@@ -14,10 +14,10 @@ import (
 
 // http request header names
 const (
-	HTTPClientID  = "id"
-	HTTPCommandID = "cid"
-	HTTPTimestamp = "timestamp"
-	HTTPNodeID    = "id"
+	HTTPClientID  = "Id"
+	HTTPCommandID = "Cid"
+	HTTPTimestamp = "Timestamp"
+	HTTPNodeID    = "Id"
 )
 
 // serve serves the http REST API request from clients

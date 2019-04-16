@@ -4,8 +4,6 @@ bin/*
 !bin/*.json
 tla/*
 !tla/wpaxos.tla
-.idea
-model
 aws
 ppaxos
 cosmos

@@ -48,7 +48,7 @@ type Reply struct {
 }
 
 func (r Reply) String() string {
-	return fmt.Sprintf("Reply {cmd=%v value=%v}", r.Command, r.Value)
+	return fmt.Sprintf("Reply {cmd=%v value=%v prop=%v}", r.Command, r.Value, r.Properties)
 }
 
 // Read can be used as a special request that directly read the value of key without go through replication protocol in Replica

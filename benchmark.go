@@ -176,9 +176,11 @@ func (b *Benchmark) Run() {
 	b.db.Stop()
 	close(keys)
 	stat := Statistic(b.latency)
-
-	log.Infof("Benchmark took %v\n", t)
-	log.Infof("Throughput %f\n", float64(len(b.latency))/t.Seconds())
+	log.Infof("Concurrency = %d", b.Concurrency)
+	log.Infof("Write Ratio = %f", b.W)
+	log.Infof("Number of Keys = %d", b.K)
+	log.Infof("Benchmark Time = %v\n", t)
+	log.Infof("Throughput = %f\n", float64(len(b.latency))/t.Seconds())
 	log.Info(stat)
 
 	stat.WriteFile("latency")
