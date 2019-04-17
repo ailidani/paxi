@@ -9,7 +9,7 @@ import (
 	"github.com/ailidani/paxi/log"
 )
 
-var stable = flag.Bool("stable", true, "stable leader, if true paxos forward request to current leader")
+var ephemeralLeader = flag.Bool("ephemeral_leader", false, "stable leader, if true paxos forward request to current leader")
 var readQuorum = flag.Bool("read_quorum", false, "read from quorum of replicas")
 var readLeader = flag.Bool("read_leader", false, "read from leader of current ballot")
 
@@ -43,45 +43,46 @@ func (r *Replica) handleRequest(m paxi.Request) {
 	log.Debugf("Replica %s received %v\n", r.ID(), m)
 
 	if m.Command.IsRead() && (*readQuorum || (*readLeader && r.Paxos.IsLeader())) {
-		// TODO
-		// (1) last slot is read?
-		// (2) entry in log over writen
-		// (3) value is not equal to command
-		var v paxi.Value
-		entry, exist := r.Paxos.log[r.Paxos.slot]
-		if exist {
-			v = entry.command.Value
-		}
+		v, s := r.read(m)
 		reply := paxi.Reply{
 			Command:    m.Command,
 			Value:      v,
 			Properties: make(map[string]string),
 			Timestamp:  time.Now().Unix(),
 		}
-		reply.Properties[HTTPHeaderSlot] = strconv.Itoa(r.Paxos.slot)
+		reply.Properties[HTTPHeaderSlot] = strconv.Itoa(s)
 		reply.Properties[HTTPHeaderBallot] = r.Paxos.ballot.String()
 		reply.Properties[HTTPHeaderExecute] = strconv.Itoa(r.Paxos.execute - 1)
 		m.Reply(reply)
 		return
 	}
 
-	if *stable {
-		if r.Paxos.IsLeader() || r.Paxos.Ballot() == 0 {
-			r.Paxos.HandleRequest(m)
-		} else {
-			go r.Forward(r.Paxos.Leader(), m)
-		}
-	} else {
+	if *ephemeralLeader {
 		r.Paxos.HandleRequest(m)
+		return
+	}
+
+	if r.Paxos.IsLeader() || r.Paxos.Ballot() == 0 {
+		r.Paxos.HandleRequest(m)
+	} else {
+		go r.Forward(r.Paxos.Leader(), m)
 	}
 }
 
-func (r *Replica) inProgress(key paxi.Key) bool {
+func (r *Replica) read(m paxi.Request) (paxi.Value, int) {
+	// TODO
+	// (1) last slot is read?
+	// (2) entry in log over writen
+	// (3) value is not overwriten command
+
+	// is in progress
 	for i := r.Paxos.execute; i <= r.Paxos.slot; i++ {
 		entry, exist := r.Paxos.log[i]
-		if exist && entry.command.Key == key {
-			return true
+		if exist && entry.command.Key == m.Command.Key {
+			return entry.command.Value, r.Paxos.slot
 		}
 	}
-	return false
+
+	// not in progress key
+	return r.Node.Execute(m.Command), 0
 }
