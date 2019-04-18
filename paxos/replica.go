@@ -57,12 +57,7 @@ func (r *Replica) handleRequest(m paxi.Request) {
 		return
 	}
 
-	if *ephemeralLeader {
-		r.Paxos.HandleRequest(m)
-		return
-	}
-
-	if r.Paxos.IsLeader() || r.Paxos.Ballot() == 0 {
+	if *ephemeralLeader || r.Paxos.IsLeader() || r.Paxos.Ballot() == 0 {
 		r.Paxos.HandleRequest(m)
 	} else {
 		go r.Forward(r.Paxos.Leader(), m)
