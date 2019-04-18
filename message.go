@@ -48,7 +48,7 @@ type Reply struct {
 }
 
 func (r Reply) String() string {
-	return fmt.Sprintf("Reply {cmd=%v value=%v prop=%v}", r.Command, r.Value, r.Properties)
+	return fmt.Sprintf("Reply {cmd=%v value=%x prop=%v}", r.Command, r.Value, r.Properties)
 }
 
 // Read can be used as a special request that directly read the value of key without go through replication protocol in Replica
@@ -68,7 +68,7 @@ type ReadReply struct {
 }
 
 func (r ReadReply) String() string {
-	return fmt.Sprintf("ReadReply {cid=%d, val=%v}", r.CommandID, r.Value)
+	return fmt.Sprintf("ReadReply {cid=%d, val=%x}", r.CommandID, r.Value)
 }
 
 // Transaction contains arbitrary number of commands in one request
