@@ -14,9 +14,10 @@ var readQuorum = flag.Bool("read_quorum", false, "read from quorum of replicas")
 var readLeader = flag.Bool("read_leader", false, "read from leader of current ballot")
 
 const (
-	HTTPHeaderSlot    = "Slot"
-	HTTPHeaderBallot  = "Ballot"
-	HTTPHeaderExecute = "Execute"
+	HTTPHeaderSlot       = "Slot"
+	HTTPHeaderBallot     = "Ballot"
+	HTTPHeaderExecute    = "Execute"
+	HTTPHeaderInProgress = "Inprogress"
 )
 
 // Replica for one Paxos instance
@@ -43,16 +44,17 @@ func (r *Replica) handleRequest(m paxi.Request) {
 	log.Debugf("Replica %s received %v\n", r.ID(), m)
 
 	if m.Command.IsRead() && (*readQuorum || (*readLeader && r.Paxos.IsLeader())) {
-		v, s := r.read(m)
+		v, inProgress := r.readInProgress(m)
 		reply := paxi.Reply{
 			Command:    m.Command,
 			Value:      v,
 			Properties: make(map[string]string),
 			Timestamp:  time.Now().Unix(),
 		}
-		reply.Properties[HTTPHeaderSlot] = strconv.Itoa(s)
+		reply.Properties[HTTPHeaderSlot] = strconv.Itoa(r.Paxos.slot)
 		reply.Properties[HTTPHeaderBallot] = r.Paxos.ballot.String()
 		reply.Properties[HTTPHeaderExecute] = strconv.Itoa(r.Paxos.execute - 1)
+		reply.Properties[HTTPHeaderInProgress] = strconv.FormatBool(inProgress)
 		m.Reply(reply)
 		return
 	}
@@ -64,20 +66,20 @@ func (r *Replica) handleRequest(m paxi.Request) {
 	}
 }
 
-func (r *Replica) read(m paxi.Request) (paxi.Value, int) {
+func (r *Replica) readInProgress(m paxi.Request) (paxi.Value, bool) {
 	// TODO
 	// (1) last slot is read?
 	// (2) entry in log over writen
 	// (3) value is not overwriten command
 
 	// is in progress
-	for i := r.Paxos.execute; i <= r.Paxos.slot; i++ {
+	for i := r.Paxos.slot; i >= r.Paxos.execute; i-- {
 		entry, exist := r.Paxos.log[i]
 		if exist && entry.command.Key == m.Command.Key {
-			return entry.command.Value, r.Paxos.slot
+			return entry.command.Value, true
 		}
 	}
 
 	// not in progress key
-	return r.Node.Execute(m.Command), 0
+	return r.Node.Execute(m.Command), false
 }

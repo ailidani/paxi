@@ -64,6 +64,7 @@ func (c *Client) readQuorum(key paxi.Key) (paxi.Value, error) {
 	majority := c.N/2 + 1
 	barrier := -1
 	numReachedBarrier := 0
+	numInProgress := 0
 	var value paxi.Value
 
 	// quorum read
@@ -73,6 +74,14 @@ func (c *Client) readQuorum(key paxi.Key) (paxi.Value, error) {
 		if err != nil {
 			log.Error(err)
 			continue
+		}
+		inProgress, err := strconv.ParseBool(metadatas[i][HTTPHeaderInProgress])
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+		if inProgress {
+			numInProgress++
 		}
 		if slot > barrier {
 			barrier = slot
@@ -85,7 +94,7 @@ func (c *Client) readQuorum(key paxi.Key) (paxi.Value, error) {
 
 loop:
 	// barrier on largest slot number
-	for numReachedBarrier < majority {
+	for numInProgress > 0 && numReachedBarrier < majority {
 		_, metadatas := c.HTTPClient.MultiGet(majority-numReachedBarrier, key)
 		for _, meta := range metadatas {
 			execute, err := strconv.Atoi(meta[HTTPHeaderExecute])
