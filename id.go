@@ -32,6 +32,7 @@ func (i ID) Zone() int {
 	zone, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
 		log.Errorf("Failed to convert Zone %s to int\n", s)
+		return 0
 	}
 	return int(zone)
 }
@@ -48,6 +49,7 @@ func (i ID) Node() int {
 	node, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
 		log.Errorf("Failed to convert Node %s to int\n", s)
+		return 0
 	}
 	return int(node)
 }

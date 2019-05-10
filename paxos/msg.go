@@ -31,7 +31,7 @@ type CommandBallot struct {
 }
 
 func (cb CommandBallot) String() string {
-	return fmt.Sprintf("c=%v b=%v", cb.Command, cb.Ballot)
+	return fmt.Sprintf("cmd=%v b=%v", cb.Command, cb.Ballot)
 }
 
 // P1b promise message
@@ -53,7 +53,7 @@ type P2a struct {
 }
 
 func (m P2a) String() string {
-	return fmt.Sprintf("P2a {b=%v s=%d c=%v}", m.Ballot, m.Slot, m.Command)
+	return fmt.Sprintf("P2a {b=%v s=%d cmd=%v}", m.Ballot, m.Slot, m.Command)
 }
 
 // P2b accepted message

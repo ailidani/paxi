@@ -36,12 +36,15 @@ func (c *Client) Get(key paxi.Key) (paxi.Value, error) {
 }
 
 func (c *Client) Put(key paxi.Key, value paxi.Value) error {
-	c.CID++
+	c.HTTPClient.CID++
 	_, meta, err := c.RESTPut(c.ID, key, value)
-	b := paxi.NewBallotFromString(meta[HTTPHeaderBallot])
-	if b > c.ballot {
-		c.ballot = b
+	if err == nil {
+		b := paxi.NewBallotFromString(meta[HTTPHeaderBallot])
+		if b > c.ballot {
+			c.ballot = b
+		}
 	}
+
 	return err
 }
 
@@ -92,28 +95,32 @@ func (c *Client) readQuorum(key paxi.Key) (paxi.Value, error) {
 		}
 	}
 
-loop:
 	// barrier on largest slot number
 	for numInProgress > 0 && numReachedBarrier < majority {
-		_, metadatas := c.HTTPClient.MultiGet(majority-numReachedBarrier, key)
-		for _, meta := range metadatas {
-			execute, err := strconv.Atoi(meta[HTTPHeaderExecute])
-			if err != nil {
-				log.Error(err)
-				continue
-			}
-			if execute >= barrier {
-				break loop
-			}
+		log.Debugf("barrier read from %d nodes", majority-numReachedBarrier)
+		// read from random node
+		_, metadata, err := c.HTTPClient.RESTGet("", key)
+		if err != nil {
+			return nil, err
+		}
+		// get executed slot
+		execute, err := strconv.Atoi(metadata[HTTPHeaderExecute])
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+		if execute >= barrier {
+			break
+		}
 
-			slot, err := strconv.Atoi(meta[HTTPHeaderSlot])
-			if err != nil {
-				log.Error(err)
-				continue
-			}
-			if slot >= barrier {
-				numReachedBarrier++
-			}
+		// get highest accepted slot
+		slot, err := strconv.Atoi(metadata[HTTPHeaderSlot])
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+		if slot >= barrier {
+			numReachedBarrier++
 		}
 	}
 

@@ -361,6 +361,7 @@ func (p *Paxos) exec() {
 			e.request.Reply(reply)
 			e.request = nil
 		}
+		// TODO clean up the log periodically
 		// delete(p.log, p.execute)
 		p.execute++
 	}

@@ -17,28 +17,22 @@ func NewBallot(n int, id ID) Ballot {
 }
 
 func NewBallotFromString(b string) Ballot {
-	if strings.Count(b, ".") < 2 {
-		log.Warningf("ballot %s does not contain two \".\"\n", b)
-		return 0
+	var s, id string
+	if strings.Contains(b, ".") {
+		split := strings.SplitN(b, ".", 2)
+		s = split[0]
+		id = split[1]
+	} else {
+		s = b
 	}
 
-	s := strings.Split(b, ".")
-	n, err := strconv.ParseUint(s[0], 10, 64)
+	n, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
-		log.Errorf("Failed to convert counter %s to uint64\n", s[0])
+		log.Errorf("Failed to convert counter %s to uint64\n", s)
 	}
 
-	zone, err := strconv.ParseUint(s[1], 10, 64)
-	if err != nil {
-		log.Errorf("Failed to convert Zone %s to int\n", s[1])
-	}
-
-	node, err := strconv.ParseUint(s[2], 10, 64)
-	if err != nil {
-		log.Errorf("Failed to convert Node %s to int\n", s[2])
-	}
-
-	return NewBallot(int(n), NewID(int(zone), int(node)))
+	log.Infof("n=%d id=%s", n, id)
+	return NewBallot(int(n), ID(id))
 }
 
 // N returns first 32 bit of ballot
