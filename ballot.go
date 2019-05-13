@@ -31,7 +31,6 @@ func NewBallotFromString(b string) Ballot {
 		log.Errorf("Failed to convert counter %s to uint64\n", s)
 	}
 
-	log.Infof("n=%d id=%s", n, id)
 	return NewBallot(int(n), ID(id))
 }
 

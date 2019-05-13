@@ -269,7 +269,8 @@ func (p *Paxos) HandleP2a(m P2a) {
 // HandleP2b handles P2b message
 func (p *Paxos) HandleP2b(m P2b) {
 	// old message
-	if m.Ballot < p.log[m.Slot].ballot || p.log[m.Slot].commit {
+	entry, exist := p.log[m.Slot]
+	if !exist || m.Ballot < entry.ballot || entry.commit {
 		return
 	}
 
@@ -362,7 +363,7 @@ func (p *Paxos) exec() {
 			e.request = nil
 		}
 		// TODO clean up the log periodically
-		// delete(p.log, p.execute)
+		delete(p.log, p.execute)
 		p.execute++
 	}
 }
