@@ -27,10 +27,10 @@ type Socket interface {
 	Close()
 
 	// Fault injection
-	Drop(ID, int)           // drops every message send to ID last for t seconds
-	Slow(ID, int, int)      // delays every message send to ID for d ms and last for t seconds
-	Flaky(ID, float32, int) // drop message by chance p for t seconds
-	Crash(int)              // node crash for t seconds
+	Drop(id ID, t int)             // drops every message send to ID last for t seconds
+	Slow(id ID, d int, t int)      // delays every message send to ID for d ms and last for t seconds
+	Flaky(id ID, p float32, t int) // drop message by chance p for t seconds
+	Crash(t int)                   // node crash for t seconds
 }
 
 type socket struct {

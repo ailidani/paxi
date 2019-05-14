@@ -26,11 +26,14 @@ func NewClient(id paxi.ID) *Client {
 // (3) read from quorum of replicas with barrier
 func (c *Client) Get(key paxi.Key) (paxi.Value, error) {
 	c.HTTPClient.CID++
-	if *readLeader {
+	switch *read {
+	case "leader":
 		return c.readLeader(key)
-	} else if *readQuorum {
+	case "quorum":
 		return c.readQuorum(key)
-	} else {
+	case "any":
+		return c.readAny(key)
+	default:
 		return c.HTTPClient.Get(key)
 	}
 }
@@ -95,9 +98,12 @@ func (c *Client) readQuorum(key paxi.Key) (paxi.Value, error) {
 		}
 	}
 
+	if numInProgress > 0 && numReachedBarrier < majority {
+		log.Infof("barrier read from %d nodes", majority-numReachedBarrier)
+	}
+
 	// barrier on largest slot number
-	for numInProgress > 0 && numReachedBarrier < majority {
-		log.Debugf("barrier read from %d nodes", majority-numReachedBarrier)
+	for false && numInProgress > 0 && numReachedBarrier < majority {
 		// read from random node
 		_, metadata, err := c.HTTPClient.RESTGet("", key)
 		if err != nil {
@@ -125,4 +131,9 @@ func (c *Client) readQuorum(key paxi.Key) (paxi.Value, error) {
 	}
 
 	return value, nil
+}
+
+func (c *Client) readAny(key paxi.Key) (paxi.Value, error) {
+	v, _, err := c.HTTPClient.RESTGet(c.ID, key)
+	return v, err
 }

@@ -10,8 +10,7 @@ import (
 )
 
 var ephemeralLeader = flag.Bool("ephemeral_leader", false, "stable leader, if true paxos forward request to current leader")
-var readQuorum = flag.Bool("read_quorum", false, "read from quorum of replicas")
-var readLeader = flag.Bool("read_leader", false, "read from leader of current ballot")
+var read = flag.String("read", "", "read from \"leader\", \"quorum\" or \"any\" replica")
 
 const (
 	HTTPHeaderSlot       = "Slot"
@@ -43,7 +42,7 @@ func NewReplica(id paxi.ID) *Replica {
 func (r *Replica) handleRequest(m paxi.Request) {
 	log.Debugf("Replica %s received %v\n", r.ID(), m)
 
-	if m.Command.IsRead() && (*readQuorum || (*readLeader && r.Paxos.IsLeader())) {
+	if m.Command.IsRead() && *read != "" {
 		v, inProgress := r.readInProgress(m)
 		reply := paxi.Reply{
 			Command:    m.Command,
