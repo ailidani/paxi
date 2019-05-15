@@ -98,12 +98,8 @@ func (c *Client) readQuorum(key paxi.Key) (paxi.Value, error) {
 		}
 	}
 
-	if numInProgress > 0 && numReachedBarrier < majority {
-		log.Infof("barrier read from %d nodes", majority-numReachedBarrier)
-	}
-
-	// barrier on largest slot number
-	for false && numInProgress > 0 && numReachedBarrier < majority {
+	// wait for slot to be executed by any node
+	for numInProgress > 0 && numReachedBarrier < majority {
 		// read from random node
 		_, metadata, err := c.HTTPClient.RESTGet("", key)
 		if err != nil {
