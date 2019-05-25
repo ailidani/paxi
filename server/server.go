@@ -14,6 +14,7 @@ import (
 	"github.com/ailidani/paxi/m2paxos"
 	"github.com/ailidani/paxi/paxos"
 	"github.com/ailidani/paxi/paxos_group"
+	"github.com/ailidani/paxi/sdpaxos"
 	"github.com/ailidani/paxi/vpaxos"
 	"github.com/ailidani/paxi/wankeeper"
 	"github.com/ailidani/paxi/wpaxos"
@@ -37,26 +38,29 @@ func replica(id paxi.ID) {
 	case "paxos":
 		paxos.NewReplica(id).Run()
 
-	case "vpaxos":
-		vpaxos.NewReplica(id).Run()
+	case "epaxos":
+		epaxos.NewReplica(id).Run()
+
+	case "sdpaxos":
+		sdpaxos.NewReplica(id).Run()
 
 	case "wpaxos":
 		wpaxos.NewReplica(id).Run()
 
+	case "abd":
+		abd.NewReplica(id).Run()
+
+	case "vpaxos":
+		vpaxos.NewReplica(id).Run()
+
 	case "wankeeper":
 		wankeeper.NewReplica(id).Run()
-
-	case "epaxos":
-		epaxos.NewReplica(id).Run()
 
 	case "kpaxos":
 		kpaxos.NewReplica(id).Run()
 
 	case "paxos_groups":
 		paxos_group.NewReplica(id).Run()
-
-	case "abd":
-		abd.NewReplica(id).Run()
 
 	case "dynamo":
 		dynamo.NewReplica(id).Run()
