@@ -76,7 +76,6 @@ func (r *Replica) handleRequest(m paxi.Request) {
 	})
 
 	if r.sequencer == r.ID() {
-		r.gslot++
 		r.Broadcast(OAccept{
 			Ballot: r.ballot,
 			ID:     r.ID(),
@@ -84,6 +83,7 @@ func (r *Replica) handleRequest(m paxi.Request) {
 			GSlot:  r.gslot,
 			From:   r.ID(),
 		})
+		r.gslot++
 	}
 
 	r.slot++
