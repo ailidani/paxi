@@ -129,13 +129,12 @@ func (r *Replica) handleCAck(m CAck) {
 	entry.cquorum.ACK(m.From)
 	if entry.cquorum.Majority() {
 		entry.ccommit = true
-		ccommit := CCommit{
+		r.Broadcast(CCommit{
 			Ballot:  r.ballot,
 			From:    r.ID(),
 			Slot:    m.Slot,
 			Command: entry.command,
-		}
-		r.Broadcast(ccommit)
+		})
 		if entry.ocommit {
 			r.glog[entry.gslot] = entry
 			go r.exec()
@@ -166,14 +165,22 @@ func (r *Replica) handleCCommit(m CCommit) {
 
 func (r *Replica) handleOAccept(m OAccept) {
 	if m.From == r.sequencer {
-		entry, exist := r.log[m.ID][m.Slot]
-		if !exist || entry.ocommit {
+		e, exist := r.log[m.ID][m.Slot]
+		if !exist {
+			r.log[m.ID][m.Slot] = &entry{
+				ccommit: false,
+				ocommit: false,
+				gslot:   m.GSlot,
+			}
+			e = r.log[m.ID][m.Slot]
+		} else if e.ocommit {
 			return
 		}
-		entry.gslot = m.GSlot
+
+		e.gslot = m.GSlot
 		//r.glog[m.GSlot] = entry
 		if m.ID == r.ID() {
-			entry.oquorum.ACK(r.ID())
+			e.oquorum.ACK(r.ID())
 		} else {
 			r.Send(m.ID, OAck{
 				Ballot: r.ballot,
@@ -188,14 +195,14 @@ func (r *Replica) handleOAccept(m OAccept) {
 
 func (r *Replica) handleOAck(m OAck) {
 	if m.ID == r.ID() {
-		entry, exist := r.log[m.ID][m.Slot]
-		if !exist || entry.ocommit {
+		e, exist := r.log[m.ID][m.Slot]
+		if !exist || e.ocommit {
 			return
 		}
-		entry.oquorum.ACK(m.From)
-		if entry.oquorum.Majority() {
-			entry.ocommit = true
-			r.glog[m.GSlot] = entry
+		e.oquorum.ACK(m.From)
+		if e.oquorum.Majority() {
+			e.ocommit = true
+			r.glog[m.GSlot] = e
 			r.Broadcast(OCommit{
 				Ballot: r.ballot,
 				Slot:   m.Slot,
@@ -203,7 +210,7 @@ func (r *Replica) handleOAck(m OAck) {
 				From:   r.ID(),
 			})
 
-			if entry.ccommit {
+			if e.ccommit {
 				go r.exec()
 			}
 		}
@@ -218,7 +225,6 @@ func (r *Replica) handleOCommit(m OCommit) {
 			ocommit: true,
 			gslot:   m.GSlot,
 		}
-		return
 	}
 	e.ocommit = true
 	e.gslot = m.GSlot
@@ -247,7 +253,7 @@ func (r *Replica) exec() {
 			e.request = nil
 		}
 		// TODO clean up the log periodically
-		delete(r.glog, r.execute)
+		//delete(r.glog, r.execute)
 		r.execute++
 	}
 }
