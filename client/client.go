@@ -5,6 +5,7 @@ import (
 	"flag"
 
 	"github.com/ailidani/paxi"
+	"github.com/ailidani/paxi/chain"
 	"github.com/ailidani/paxi/paxos"
 )
 
@@ -55,6 +56,8 @@ func main() {
 	switch *algorithm {
 	case "paxos":
 		d.Client = paxos.NewClient(paxi.ID(*id))
+	case "chain":
+		d.Client = chain.NewClient()
 	default:
 		d.Client = paxi.NewHTTPClient(paxi.ID(*id))
 	}

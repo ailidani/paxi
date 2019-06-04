@@ -23,8 +23,10 @@ Algorithms:
 - [x] [Flexible Paxos](https://dl.acm.org/citation.cfm?id=3139656)
 - [x] [WPaxos](https://arxiv.org/abs/1703.08905)
 - [x] [EPaxos](https://dl.acm.org/citation.cfm?id=2517350)
-- [x] KPaxos (Static partitioned Paxos)
+- [x] [SDPaxos](https://www.microsoft.com/en-us/research/uploads/prod/2018/09/172-zhao.pdf)
 - [x] Atomic Storage ([Majority Replication](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.174.7245&rep=rep1&type=pdf))
+- [x] [Chain Replication](https://www.cs.cornell.edu/home/rvr/papers/OSDI04.pdf)
+- [x] KPaxos (Static partitioned Paxos)
 - [x] [Dynamo Key-value Store](https://dl.acm.org/citation.cfm?id=1294281)
 - [x] [WanKeeper](http://ieeexplore.ieee.org/abstract/document/7980095/)
 - [x] [Vertical Paxos](https://www.microsoft.com/en-us/research/wp-content/uploads/2009/08/Vertical-Paxos-and-Primary-Backup-Replication-.pdf)
@@ -34,13 +36,11 @@ Features:
 - [x] Benchmarking
 - [x] Linerizability checker
 - [x] Fault injection
-- [ ] Transactions
-- [ ] Dynamic quorums
 
 
 # How to build
 
-1. Install [Go 1.11](https://golang.org/dl/).
+1. Install [Go](https://golang.org/dl/).
 2. Use `go get` command or [Download](https://github.com/wpaxos/paxi/archive/master.zip) Paxi source code from GitHub page.
 ```
 go get github.com/ailidani/paxi
@@ -64,14 +64,17 @@ Each executable file expects some parameters which can be seen by `-help` flag, 
 
 1. Generate the [configuration file](https://github.com/ailidani/paxi/blob/master/bin/config.json) according to the example, then start server with `-config FILE_PATH` option, default to "config.json" when omit.
 
-2. Start 6 servers with different ids in format of "ZONE_ID.NODE_ID".
+2. Start 9 servers with different ids in format of "ZONE_ID.NODE_ID".
 ```
 ./server -id 1.1 -algorithm=paxos &
 ./server -id 1.2 -algorithm=paxos &
+./server -id 1.3 -algorithm=paxos &
 ./server -id 2.1 -algorithm=paxos &
 ./server -id 2.2 -algorithm=paxos &
+./server -id 2.3 -algorithm=paxos &
 ./server -id 3.1 -algorithm=paxos &
 ./server -id 3.2 -algorithm=paxos &
+./server -id 3.3 -algorithm=paxos &
 ```
 
 3. Start benchmarking client that connects to server ID 1.1 and benchmark parameters specified in [config.json](https://github.com/ailidani/paxi/blob/master/bin/config.json).
