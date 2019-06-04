@@ -7,13 +7,14 @@ import (
 	"sync"
 )
 
-// Key of key value database
+// Key type of the key-value database
+// TODO key should be general too
 type Key int
 
-// Value of key value database
+// Value type of key-value database
 type Value []byte
 
-// Command of key value database
+// Command of key-value database
 type Command struct {
 	Key       Key
 	Value     Value
@@ -21,7 +22,6 @@ type Command struct {
 	CommandID int
 }
 
-// Empty check if empty command
 func (c Command) Empty() bool {
 	if c.Key == 0 && c.Value == nil && c.ClientID == "" && c.CommandID == 0 {
 		return true
@@ -29,12 +29,14 @@ func (c Command) Empty() bool {
 	return false
 }
 
-// IsRead returns true if command is read
 func (c Command) IsRead() bool {
 	return c.Value == nil
 }
 
-// Equal returns true if two commands are equal
+func (c Command) IsWrite() bool {
+	return c.Value != nil
+}
+
 func (c Command) Equal(a Command) bool {
 	return c.Key == a.Key && bytes.Equal(c.Value, a.Value) && c.ClientID == a.ClientID && c.CommandID == a.CommandID
 }

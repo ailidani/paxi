@@ -53,3 +53,17 @@ func (i ID) Node() int {
 	}
 	return int(node)
 }
+
+type IDs []ID
+
+func (a IDs) Len() int      { return len(a) }
+func (a IDs) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+func (a IDs) Less(i, j int) bool {
+	if a[i].Zone() < a[j].Zone() {
+		return true
+	} else if a[i].Zone() > a[j].Zone() {
+		return false
+	} else {
+		return a[i].Node() < a[j].Node()
+	}
+}
