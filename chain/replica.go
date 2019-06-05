@@ -29,7 +29,7 @@ func NewReplica(id paxi.ID) *Replica {
 	r.Node = paxi.NewNode(id)
 	r.ballot = paxi.NewBallot(1, r.ID())
 
-	ids := make([]paxi.ID, len(paxi.GetConfig().Addrs))
+	ids := make([]paxi.ID, 0)
 	for id := range paxi.GetConfig().Addrs {
 		ids = append(ids, id)
 	}
@@ -56,7 +56,7 @@ func NewReplica(id paxi.ID) *Replica {
 
 	r.Register(paxi.Request{}, r.handleRequest)
 	r.Register(Accept{}, r.handleAccept)
-	r.Register(Accept{}, r.handleAck)
+	r.Register(Ack{}, r.handleAck)
 
 	return r
 }

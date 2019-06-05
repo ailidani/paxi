@@ -16,7 +16,7 @@ func NewClient() *Client {
 	c := new(Client)
 	c.HTTPClient = paxi.NewHTTPClient("")
 
-	ids := make([]paxi.ID, len(paxi.GetConfig().Addrs))
+	ids := make([]paxi.ID, 0)
 	for id := range paxi.GetConfig().Addrs {
 		ids = append(ids, id)
 	}
