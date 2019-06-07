@@ -8,12 +8,14 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ailidani/paxi/chain"
+
 	"github.com/ailidani/paxi"
 	"github.com/ailidani/paxi/paxos"
 )
 
 var id = flag.String("id", "", "node id this client connects to")
-var algorithm = flag.String("algorithm", "", "Client API type [paxos]")
+var algorithm = flag.String("algorithm", "", "Client API type [paxos, chain]")
 var master = flag.String("master", "", "Master address.")
 
 func usage() string {
@@ -110,6 +112,10 @@ func main() {
 	switch *algorithm {
 	case "paxos":
 		client = paxos.NewClient(paxi.ID(*id))
+
+	case "chain":
+		client = chain.NewClient()
+
 	default:
 		client = paxi.NewHTTPClient(paxi.ID(*id))
 	}
