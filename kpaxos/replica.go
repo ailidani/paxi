@@ -14,7 +14,6 @@ type Replica struct {
 	key paxi.Key // current working key
 }
 
-// NewReplica generates new KPaxos replica
 func NewReplica(id paxi.ID) *Replica {
 	r := new(Replica)
 	r.Node = paxi.NewNode(id)
