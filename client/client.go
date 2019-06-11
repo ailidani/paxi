@@ -10,7 +10,7 @@ import (
 )
 
 var id = flag.String("id", "", "node id this client connects to")
-var algorithm = flag.String("algorithm", "", "Client API type [paxos]")
+var algorithm = flag.String("algorithm", "", "Client API type [paxos, chain]")
 var load = flag.Bool("load", false, "Load K keys into DB")
 var master = flag.String("master", "", "Master address.")
 

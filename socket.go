@@ -1,6 +1,7 @@
 package paxi
 
 import (
+	"math/rand"
 	"time"
 
 	"github.com/ailidani/paxi/log"
@@ -29,62 +30,81 @@ type Socket interface {
 	// Fault injection
 	Drop(id ID, t int)             // drops every message send to ID last for t seconds
 	Slow(id ID, d int, t int)      // delays every message send to ID for d ms and last for t seconds
-	Flaky(id ID, p float32, t int) // drop message by chance p for t seconds
+	Flaky(id ID, p float64, t int) // drop message by chance p for t seconds
 	Crash(t int)                   // node crash for t seconds
 }
 
 type socket struct {
-	id    ID
-	nodes map[ID]Transport
+	id        ID
+	addresses map[ID]string
+	nodes     map[ID]Transport
 
 	crash bool
 	drop  map[ID]bool
 	slow  map[ID]int
-	flaky map[ID]float32
+	flaky map[ID]float64
 }
 
 // NewSocket return Socket interface instance given self ID, node list, transport and codec name
 func NewSocket(id ID, addrs map[ID]string) Socket {
 	socket := &socket{
-		id:    id,
-		nodes: make(map[ID]Transport),
-		drop:  make(map[ID]bool),
-		slow:  make(map[ID]int),
-		flaky: make(map[ID]float32),
+		id:        id,
+		addresses: addrs,
+		nodes:     make(map[ID]Transport),
+		crash:     false,
+		drop:      make(map[ID]bool),
+		slow:      make(map[ID]int),
+		flaky:     make(map[ID]float64),
 	}
 
 	socket.nodes[id] = NewTransport(addrs[id])
 	socket.nodes[id].Listen()
 
-	for id, addr := range addrs {
-		if id == socket.id {
-			continue
-		}
-		t := NewTransport(addr)
-		err := Retry(t.Dial, 100, time.Duration(50)*time.Millisecond)
-		if err == nil {
-			socket.nodes[id] = t
-		} else {
-			panic(err)
-		}
-	}
 	return socket
 }
 
 func (s *socket) Send(to ID, m interface{}) {
 	log.Debugf("node %s send message %+v to %v", s.id, m, to)
+
 	if s.crash {
 		return
 	}
-	// TODO also check for slow and flaky
+
 	if s.drop[to] {
 		return
 	}
+
+	if p, ok := s.flaky[to]; ok && p > 0 {
+		if rand.Float64() < p {
+			return
+		}
+	}
+
 	t, exists := s.nodes[to]
 	if !exists {
-		log.Errorf("transport of ID %v does not exists", to)
+		address, ok := s.addresses[to]
+		if !ok {
+			log.Errorf("socket does not have address of node %s", to)
+			return
+		}
+		t = NewTransport(address)
+		err := Retry(t.Dial, 100, time.Duration(50)*time.Millisecond)
+		if err == nil {
+			s.nodes[to] = t
+		} else {
+			panic(err)
+		}
+	}
+
+	if delay, ok := s.slow[to]; ok && delay > 0 {
+		timer := time.NewTimer(time.Duration(delay) * time.Millisecond)
+		go func() {
+			<-timer.C
+			t.Send(m)
+		}()
 		return
 	}
+
 	t.Send(m)
 }
 
@@ -99,7 +119,7 @@ func (s *socket) Recv() interface{} {
 
 func (s *socket) MulticastZone(zone int, m interface{}) {
 	//log.Debugf("node %s broadcasting message %+v in zone %d", s.id, m, zone)
-	for id := range s.nodes {
+	for id := range s.addresses {
 		if id == s.id {
 			continue
 		}
@@ -112,7 +132,7 @@ func (s *socket) MulticastZone(zone int, m interface{}) {
 func (s *socket) MulticastQuorum(quorum int, m interface{}) {
 	//log.Debugf("node %s multicasting message %+v for %d nodes", s.id, m, quorum)
 	i := 0
-	for id := range s.nodes {
+	for id := range s.addresses {
 		if id == s.id {
 			continue
 		}
@@ -126,7 +146,7 @@ func (s *socket) MulticastQuorum(quorum int, m interface{}) {
 
 func (s *socket) Broadcast(m interface{}) {
 	//log.Debugf("node %s broadcasting message %+v", s.id, m)
-	for id := range s.nodes {
+	for id := range s.addresses {
 		if id == s.id {
 			continue
 		}
@@ -150,20 +170,20 @@ func (s *socket) Drop(id ID, t int) {
 }
 
 func (s *socket) Slow(id ID, delay int, t int) {
-	s.slow[id] = 0
+	s.slow[id] = delay
 	timer := time.NewTimer(time.Duration(t) * time.Second)
 	go func() {
 		<-timer.C
-		s.slow[id] = delay
+		s.slow[id] = 0
 	}()
 }
 
-func (s *socket) Flaky(id ID, p float32, t int) {
-	s.flaky[id] = 0
+func (s *socket) Flaky(id ID, p float64, t int) {
+	s.flaky[id] = p
 	timer := time.NewTimer(time.Duration(t) * time.Second)
 	go func() {
 		<-timer.C
-		s.flaky[id] = p
+		s.flaky[id] = 0
 	}()
 }
 
