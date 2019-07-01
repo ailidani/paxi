@@ -52,6 +52,10 @@ func (q *Quorum) Reset() {
 	q.nacks = make(map[ID]bool)
 }
 
+func (q *Quorum) All() bool {
+	return q.size == config.n
+}
+
 // Majority quorum satisfied
 func (q *Quorum) Majority() bool {
 	return q.size > config.n/2
