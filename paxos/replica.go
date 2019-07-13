@@ -9,7 +9,7 @@ import (
 	"github.com/ailidani/paxi/log"
 )
 
-var ephemeralLeader = flag.Bool("ephemeral_leader", false, "stable leader, if true paxos forward request to current leader")
+var ephemeralLeader = flag.Bool("ephemeral_leader", false, "unstable leader, if true paxos replica try to become leader instead of forward requests to current leader")
 var read = flag.String("read", "", "read from \"leader\", \"quorum\" or \"any\" replica")
 
 const (
