@@ -2,6 +2,7 @@ package paxi
 
 import (
 	"math/rand"
+	"sync"
 	"time"
 
 	"github.com/ailidani/paxi/log"
@@ -43,6 +44,8 @@ type socket struct {
 	drop  map[ID]bool
 	slow  map[ID]int
 	flaky map[ID]float64
+
+	lock sync.RWMutex // locking map nodes
 }
 
 // NewSocket return Socket interface instance given self ID, node list, transport and codec name
@@ -80,20 +83,25 @@ func (s *socket) Send(to ID, m interface{}) {
 		}
 	}
 
+	s.lock.RLock()
 	t, exists := s.nodes[to]
+	s.lock.RUnlock()
 	if !exists {
+		s.lock.RLock()
 		address, ok := s.addresses[to]
+		s.lock.Unlock()
 		if !ok {
 			log.Errorf("socket does not have address of node %s", to)
 			return
 		}
 		t = NewTransport(address)
 		err := Retry(t.Dial, 100, time.Duration(50)*time.Millisecond)
-		if err == nil {
-			s.nodes[to] = t
-		} else {
+		if err != nil {
 			panic(err)
 		}
+		s.lock.Lock()
+		s.nodes[to] = t
+		s.lock.Unlock()
 	}
 
 	if delay, ok := s.slow[to]; ok && delay > 0 {
@@ -109,8 +117,11 @@ func (s *socket) Send(to ID, m interface{}) {
 }
 
 func (s *socket) Recv() interface{} {
+	s.lock.RLock()
+	t := s.nodes[s.id]
+	s.lock.RUnlock()
 	for {
-		m := s.nodes[s.id].Recv()
+		m := t.Recv()
 		if !s.crash {
 			return m
 		}
