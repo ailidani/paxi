@@ -89,7 +89,7 @@ func (s *socket) Send(to ID, m interface{}) {
 	if !exists {
 		s.lock.RLock()
 		address, ok := s.addresses[to]
-		s.lock.Unlock()
+		s.lock.RUnlock()
 		if !ok {
 			log.Errorf("socket does not have address of node %s", to)
 			return
