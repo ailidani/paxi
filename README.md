@@ -14,7 +14,32 @@
 
 **WPaxos** is a multileader Paxos protocol that provides low-latency and high-throughput consensus across wide-area network (WAN) deployments. Unlike statically partitioned multiple Paxos deployments, WPaxos perpetually adapts to the changing access locality through object stealing. Multiple concurrent leaders coinciding in different zones steal ownership of objects from each other using phase-1 of Paxos, and then use phase-2 to commit update-requests on these objects locally until they are stolen by other leaders. To achieve fast phase-2 commits, WPaxos adopts the flexible quorums idea in a novel manner, and appoints phase-2 acceptors to be close to their respective leaders.
 
-WPaxos (WAN Paxos) paper (first version) can be found in https://arxiv.org/abs/1703.08905.
+Paxi paper (SIGMOD) can be found in https://dl.acm.org/doi/abs/10.1145/3299869.3319893
+BibTex:
+```bibtex
+@inproceedings{ailijiang2019dissecting,
+  title={Dissecting the Performance of Strongly-Consistent Replication Protocols},
+  author={Ailijiang, Ailidani and Charapko, Aleksey and Demirbas, Murat},
+  booktitle={Proceedings of the 2019 International Conference on Management of Data},
+  pages={1696--1710},
+  year={2019}
+}
+```
+
+WPaxos (WAN Paxos) paper (TPDS journal version) can be found in https://ieeexplore.ieee.org/abstract/document/8765834.
+BibTex:
+```bibtex
+@article{ailijiang2019wpaxos,
+  title={WPaxos: Wide area network flexible consensus},
+  author={Ailijiang, Ailidani and Charapko, Aleksey and Demirbas, Murat and Kosar, Tevfik},
+  journal={IEEE Transactions on Parallel and Distributed Systems},
+  volume={31},
+  number={1},
+  pages={211--223},
+  year={2019},
+  publisher={IEEE}
+}
+```
 
 ## What is included?
 
