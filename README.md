@@ -9,12 +9,7 @@
 
 *Warning*: Paxi project is still under heavy development, with more features and protocols to include. Paxi API may change too.
 
-
-## What is WPaxos?
-
-**WPaxos** is a multileader Paxos protocol that provides low-latency and high-throughput consensus across wide-area network (WAN) deployments. Unlike statically partitioned multiple Paxos deployments, WPaxos perpetually adapts to the changing access locality through object stealing. Multiple concurrent leaders coinciding in different zones steal ownership of objects from each other using phase-1 of Paxos, and then use phase-2 to commit update-requests on these objects locally until they are stolen by other leaders. To achieve fast phase-2 commits, WPaxos adopts the flexible quorums idea in a novel manner, and appoints phase-2 acceptors to be close to their respective leaders.
-
-Paxi paper (SIGMOD) can be found in https://dl.acm.org/doi/abs/10.1145/3299869.3319893
+Paxi paper (SIGMOD) can be found in https://dl.acm.org/doi/abs/10.1145/3299869.3319893.
 BibTex:
 ```bibtex
 @inproceedings{ailijiang2019dissecting,
@@ -25,6 +20,10 @@ BibTex:
   year={2019}
 }
 ```
+
+## What is WPaxos?
+
+**WPaxos** is a multileader Paxos protocol that provides low-latency and high-throughput consensus across wide-area network (WAN) deployments. Unlike statically partitioned multiple Paxos deployments, WPaxos perpetually adapts to the changing access locality through object stealing. Multiple concurrent leaders coinciding in different zones steal ownership of objects from each other using phase-1 of Paxos, and then use phase-2 to commit update-requests on these objects locally until they are stolen by other leaders. To achieve fast phase-2 commits, WPaxos adopts the flexible quorums idea in a novel manner, and appoints phase-2 acceptors to be close to their respective leaders.
 
 WPaxos (WAN Paxos) paper (TPDS journal version) can be found in https://ieeexplore.ieee.org/abstract/document/8765834.
 BibTex:
