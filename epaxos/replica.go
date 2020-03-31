@@ -384,5 +384,32 @@ func (r *Replica) execute() {
 }
 
 func (r *Replica) execute2() {
-
+	for id, log := range r.log {
+		for s := r.executed[id] + 1; s <= r.slot[id]; s++ {
+			i := log[s]
+			if i == nil {
+				continue
+			}
+			if i.status == EXECUTED {
+				if s == r.executed[id]+1 {
+					r.executed[id] = s
+				}
+				continue
+			}
+			if i.status != COMMITTED {
+				continue
+			}
+			v := r.Execute(i.cmd)
+			if i.request != nil {
+				i.request.Reply(paxi.Reply{
+					Command: i.cmd,
+					Value:   v,
+				})
+				i.request = nil
+			}
+			if s == r.executed[id]+1 {
+				r.executed[id] = s
+			}
+		}
+	}
 }
