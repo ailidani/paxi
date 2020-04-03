@@ -181,15 +181,13 @@ func (p *Paxos) update(scb map[int]CommandBallot) {
 
 // HandleP1b handles P1b message
 func (p *Paxos) HandleP1b(m P1b) {
+	p.update(m.Log)
+
 	// old message
 	if m.Ballot < p.ballot || p.active {
 		// log.Debugf("Replica %s ignores old message [%v]\n", p.ID(), m)
 		return
 	}
-
-	// log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.ID, m, p.ID())
-
-	p.update(m.Log)
 
 	// reject message
 	if m.Ballot > p.ballot {
