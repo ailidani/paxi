@@ -17,10 +17,10 @@ import (
 	"github.com/ailidani/paxi/paxos"
 	"github.com/ailidani/paxi/paxos_group"
 	"github.com/ailidani/paxi/sdpaxos"
+    "github.com/ailidani/paxi/slush"
 	"github.com/ailidani/paxi/vpaxos"
 	"github.com/ailidani/paxi/wankeeper"
 	"github.com/ailidani/paxi/wpaxos"
-	"paxi/slush"
 )
 
 var algorithm = flag.String("algorithm", "paxos", "Distributed algorithm")

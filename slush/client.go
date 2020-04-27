@@ -1,6 +1,6 @@
 package slush
 
-import "paxi"
+import "github.com/ailidani/paxi"
 
 type Client struct {
 	*paxi.HTTPClient
@@ -17,7 +17,7 @@ func (c *Client) Put() {
 	c.HTTPClient.CID++
 	key:= paxi.Key(1234)
 	value:= paxi.Value("RED")
-	c.RESTPut(c.ID, key, value )
+	c.RESTPut(c.ID, key, value)
 }
 
 func (c *Client) Get() (paxi.Value, error) {

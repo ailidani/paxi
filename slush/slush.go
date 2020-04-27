@@ -1,8 +1,8 @@
 package slush
 
 import (
-	"paxi"
-	"paxi/log"
+	"github.com/ailidani/paxi"
+	"github.com/ailidani/paxi/log"
 )
 
 // Slush instance
