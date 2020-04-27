@@ -20,6 +20,7 @@ import (
 	"github.com/ailidani/paxi/vpaxos"
 	"github.com/ailidani/paxi/wankeeper"
 	"github.com/ailidani/paxi/wpaxos"
+	"paxi/slush"
 )
 
 var algorithm = flag.String("algorithm", "paxos", "Distributed algorithm")
@@ -78,6 +79,9 @@ func replica(id paxi.ID) {
 
 	case "hpaxos":
 		hpaxos.NewReplica(id).Run()
+
+	case "slush":
+		slush.NewReplica(id).Run()
 
 	default:
 		panic("Unknown algorithm")

@@ -1,8 +1,8 @@
 package slush
 
 import(
-	"Slush/paxi"
-	"Slush/paxi/log"
+	"paxi"
+	"paxi/log"
 )
 // Replica for Slush
 type Replica struct {
@@ -21,8 +21,11 @@ func NewReplica(id paxi.ID) *Replica {
 }
 
 func (r *Replica) handleRequest(m paxi.Request) {
+	log.Infof("Enter HandleRequest")
 	log.Debugf("Replica %s received %v\n", r.ID(), m)
 
 	//r.Slush.SetQuerying(true)
 	r.Slush.HandleRequest(m)
+
+	log.Infof("Exit HandleRequest")
 }

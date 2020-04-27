@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/ailidani/paxi"
+	_ "github.com/ailidani/paxi/log"
 )
 
 func init() {

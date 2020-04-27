@@ -1,7 +1,8 @@
 package slush
 
 import (
-	"Slush/paxi"
+	"paxi"
+	"paxi/log"
 )
 
 // Slush instance
@@ -62,17 +63,22 @@ func (s *Slush) setAccepted() {
 
 // HandleRequest handles request and starts the gossip
 func (s* Slush) HandleRequest(r paxi.Request) {
+	log.Infof("Enter HandleRequest slush.go")
 	s.SetQuerying(true)
 	s.Msg1()
+	log.Infof("Exit HandleRequest slush.go")
 }
 
 // Starts gossip by multicasting to the sampled nodes
 func (s * Slush) Msg1() {
+	log.Infof("Enter Msg1")
 	s.MulticastQuorum(s.noOfSamples, Msg1{ID:s.ID(),Col:s.GetColor()})
+	log.Infof("Exit Msg1")
 }
 
 //
 func (s * Slush) HandleMsg1(m Msg1) {
+	log.Infof("Enter HandleMsg1")
 	if s.isQuerying() == true {
 		// Majority just checks the number of responses
 		// but we are interested in the responses of queryColor
@@ -85,5 +91,7 @@ func (s * Slush) HandleMsg1(m Msg1) {
 		}
 		s.Send(m.ID, Msg1{ID:s.ID(), Col:s.GetColor()})
 	}
+
+	log.Infof("Exit HandleMsg1")
 }
 

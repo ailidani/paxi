@@ -67,6 +67,7 @@ func (c *Client) readLeader(key paxi.Key) (paxi.Value, error) {
 }
 
 func (c *Client) readQuorum(key paxi.Key) (paxi.Value, error) {
+	log.Infof("Enter readQuorum")
 	majority := c.N/2 + 1
 	barrier := -1
 	numReachedBarrier := 0
@@ -125,7 +126,7 @@ func (c *Client) readQuorum(key paxi.Key) (paxi.Value, error) {
 			numReachedBarrier++
 		}
 	}
-
+	log.Infof(("Exit readQuorum"))
 	return value, nil
 }
 

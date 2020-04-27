@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/ailidani/paxi"
+	"github.com/ailidani/paxi/log"
 )
 
 // entry in log
@@ -85,6 +86,7 @@ func (p *Paxos) SetBallot(b paxi.Ballot) {
 // HandleRequest handles request and start phase 1 or phase 2
 func (p *Paxos) HandleRequest(r paxi.Request) {
 	// log.Debugf("Replica %s received %v\n", p.ID(), r)
+	log.Infof("Enter HandleRequest paxos.go")
 	if !p.active {
 		p.requests = append(p.requests, &r)
 		// current phase 1 pending
@@ -94,10 +96,12 @@ func (p *Paxos) HandleRequest(r paxi.Request) {
 	} else {
 		p.P2a(&r)
 	}
+	log.Infof("Exit HandleRequest paxos.go")
 }
 
 // P1a starts phase 1 prepare
 func (p *Paxos) P1a() {
+	log.Infof("Entering P1a")
 	if p.active {
 		return
 	}
@@ -105,10 +109,12 @@ func (p *Paxos) P1a() {
 	p.quorum.Reset()
 	p.quorum.ACK(p.ID())
 	p.Broadcast(P1a{Ballot: p.ballot})
+	log.Infof("Exiting P1a")
 }
 
 // P2a starts phase 2 accept
 func (p *Paxos) P2a(r *paxi.Request) {
+	log.Infof("Entering P2a")
 	p.slot++
 	p.log[p.slot] = &entry{
 		ballot:    p.ballot,
@@ -128,12 +134,13 @@ func (p *Paxos) P2a(r *paxi.Request) {
 	} else {
 		p.Broadcast(m)
 	}
+	log.Infof("Exiting P2a")
 }
 
 // HandleP1a handles P1a message
 func (p *Paxos) HandleP1a(m P1a) {
 	// log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.Ballot.ID(), m, p.ID())
-
+	log.Infof("Enter HandleP1a")
 	// new leader
 	if m.Ballot > p.ballot {
 		p.ballot = m.Ballot
@@ -159,6 +166,8 @@ func (p *Paxos) HandleP1a(m P1a) {
 		ID:     p.ID(),
 		Log:    l,
 	})
+
+	log.Infof("Exit HandleP1a")
 }
 
 func (p *Paxos) update(scb map[int]CommandBallot) {
@@ -181,6 +190,7 @@ func (p *Paxos) update(scb map[int]CommandBallot) {
 
 // HandleP1b handles P1b message
 func (p *Paxos) HandleP1b(m P1b) {
+	log.Infof("Enter HandleP1b")
 	p.update(m.Log)
 
 	// old message
@@ -225,12 +235,14 @@ func (p *Paxos) HandleP1b(m P1b) {
 			p.requests = make([]*paxi.Request, 0)
 		}
 	}
+
+	log.Infof("Exit HandleP1b")
 }
 
 // HandleP2a handles P2a message
 func (p *Paxos) HandleP2a(m P2a) {
 	// log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.Ballot.ID(), m, p.ID())
-
+	log.Infof("Enter HandleP2a")
 	if m.Ballot >= p.ballot {
 		p.ballot = m.Ballot
 		p.active = false
@@ -262,11 +274,13 @@ func (p *Paxos) HandleP2a(m P2a) {
 		Slot:   m.Slot,
 		ID:     p.ID(),
 	})
+	log.Infof("Exit HandleP2a")
 }
 
 // HandleP2b handles P2b message
 func (p *Paxos) HandleP2b(m P2b) {
 	// old message
+	log.Infof("Enter HandleP2b")
 	entry, exist := p.log[m.Slot]
 	if !exist || m.Ballot < entry.ballot || entry.commit {
 		return
@@ -305,12 +319,13 @@ func (p *Paxos) HandleP2b(m P2b) {
 			}
 		}
 	}
+	log.Infof("Exit HandleP2b")
 }
 
 // HandleP3 handles phase 3 commit message
 func (p *Paxos) HandleP3(m P3) {
 	// log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.Ballot.ID(), m, p.ID())
-
+	log.Infof("Enter HandleP3")
 	p.slot = paxi.Max(p.slot, m.Slot)
 
 	e, exist := p.log[m.Slot]
@@ -338,6 +353,8 @@ func (p *Paxos) HandleP3(m P3) {
 	} else {
 		p.exec()
 	}
+
+	log.Infof("Exit HandleP3")
 }
 
 func (p *Paxos) exec() {

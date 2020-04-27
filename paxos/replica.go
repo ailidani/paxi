@@ -40,6 +40,7 @@ func NewReplica(id paxi.ID) *Replica {
 }
 
 func (r *Replica) handleRequest(m paxi.Request) {
+	log.Infof("Enter handleRequest")
 	log.Debugf("Replica %s received %v\n", r.ID(), m)
 
 	if m.Command.IsRead() && *read != "" {
@@ -63,9 +64,11 @@ func (r *Replica) handleRequest(m paxi.Request) {
 	} else {
 		go r.Forward(r.Paxos.Leader(), m)
 	}
+	log.Infof("Exit handleRequest")
 }
 
 func (r *Replica) readInProgress(m paxi.Request) (paxi.Value, bool) {
+	log.Infof("Enter readInProgress")
 	// TODO
 	// (1) last slot is read?
 	// (2) entry in log over writen
@@ -80,5 +83,6 @@ func (r *Replica) readInProgress(m paxi.Request) (paxi.Value, bool) {
 	}
 
 	// not in progress key
+	log.Infof("Exit readInProgress")
 	return r.Node.Execute(m.Command), false
 }

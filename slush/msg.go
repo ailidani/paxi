@@ -4,7 +4,7 @@ import (
 	"encoding/gob"
 	"fmt"
 
-	"Slush/paxi"
+	"paxi"
 )
 
 func init() {
