@@ -133,6 +133,7 @@ func (b *Benchmark) Load() {
 
 // Run starts the main logic of benchmarking
 func (b *Benchmark) Run() {
+	log.Infof("Entering Run")
 	var stop chan bool
 	if b.Move {
 		move := func() { b.Mu = float64(int(b.Mu+1) % b.K) }
@@ -147,6 +148,7 @@ func (b *Benchmark) Run() {
 	go b.collect(latencies)
 
 	for i := 0; i < b.Concurrency; i++ {
+		log.Infof("Running worker thread")
 		go b.worker(keys, latencies)
 	}
 
@@ -174,6 +176,7 @@ func (b *Benchmark) Run() {
 	t := time.Now().Sub(b.startTime)
 
 	b.db.Stop()
+	log.Infof("Done with DB stop")
 	close(keys)
 	stat := Statistic(b.latency)
 	log.Infof("Concurrency = %d", b.Concurrency)
@@ -244,11 +247,13 @@ func (b *Benchmark) next() int {
 }
 
 func (b *Benchmark) worker(keys <-chan int, result chan<- time.Duration) {
+	log.Infof("Entering worker thread function")
 	var s time.Time
 	var e time.Time
 	var v int
 	var err error
 	for k := range keys {
+		log.Infof("Running for each key")
 		op := new(operation)
 		if rand.Float64() < b.W {
 			v = rand.Int()

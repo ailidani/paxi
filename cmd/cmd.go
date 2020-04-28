@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"github.com/ailidani/paxi/log"
+	"github.com/ailidani/paxi/slush"
 	"os"
 	"strconv"
 	"strings"
@@ -116,13 +118,18 @@ func main() {
 	case "chain":
 		client = chain.NewClient()
 
+	case "slush":
+		client = slush.NewClient(paxi.ID(*id))
+
 	default:
 		client = paxi.NewHTTPClient(paxi.ID(*id))
 	}
 
 	if len(flag.Args()) > 0 {
+		log.Infof("Flag args")
 		run(flag.Args()[0], flag.Args()[1:])
 	} else {
+		log.Infof("Non-flag args")
 		reader := bufio.NewReader(os.Stdin)
 		for {
 			fmt.Print("paxi $ ")

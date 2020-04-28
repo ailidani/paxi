@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/binary"
 	"flag"
+	"github.com/ailidani/paxi/log"
 	"github.com/ailidani/paxi/slush"
 
 	"github.com/ailidani/paxi"
@@ -61,6 +62,7 @@ func main() {
 	case "chain":
 		d.Client = chain.NewClient()
 	case "slush":
+		log.Infof("Creating the slush client instance from the switch case")
 		d.Client = slush.NewClient(paxi.ID(*id))
 	default:
 		d.Client = paxi.NewHTTPClient(paxi.ID(*id))
@@ -68,8 +70,10 @@ func main() {
 
 	b := paxi.NewBenchmark(d)
 	if *load {
+		log.Infof("Running load part of client")
 		b.Load()
 	} else {
+		log.Infof("Running run pert of the client")
 		b.Run()
 	}
 }
