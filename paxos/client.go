@@ -52,6 +52,7 @@ func (c *Client) Put(key paxi.Key, value paxi.Value) error {
 }
 
 func (c *Client) readLeader(key paxi.Key) (paxi.Value, error) {
+	log.Infof("Enter readLeader")
 	if c.ballot == 0 {
 		v, meta, err := c.HTTPClient.RESTGet(c.ID, key)
 		c.ballot = paxi.NewBallotFromString(meta[HTTPHeaderBallot])
@@ -63,6 +64,7 @@ func (c *Client) readLeader(key paxi.Key) (paxi.Value, error) {
 	if b > c.ballot {
 		c.ballot = b
 	}
+	log.Infof("Exit readLeader")
 	return v, err
 }
 
@@ -131,6 +133,8 @@ func (c *Client) readQuorum(key paxi.Key) (paxi.Value, error) {
 }
 
 func (c *Client) readAny(key paxi.Key) (paxi.Value, error) {
+	log.Infof("Enter readAny")
 	v, _, err := c.HTTPClient.RESTGet(c.ID, key)
+	log.Infof("Exit readAny")
 	return v, err
 }

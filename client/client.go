@@ -3,10 +3,12 @@ package main
 import (
 	"encoding/binary"
 	"flag"
+	"github.com/ailidani/paxi/slush"
 
 	"github.com/ailidani/paxi"
 	"github.com/ailidani/paxi/chain"
 	"github.com/ailidani/paxi/paxos"
+
 )
 
 var id = flag.String("id", "", "node id this client connects to")
@@ -58,6 +60,8 @@ func main() {
 		d.Client = paxos.NewClient(paxi.ID(*id))
 	case "chain":
 		d.Client = chain.NewClient()
+	case "slush":
+		d.Client = slush.NewClient(paxi.ID(*id))
 	default:
 		d.Client = paxi.NewHTTPClient(paxi.ID(*id))
 	}
