@@ -7,6 +7,7 @@ import (
 
 type Client struct {
 	*paxi.HTTPClient
+	ballot paxi.Ballot
 	//Col int
 }
 
@@ -22,6 +23,10 @@ func (c *Client) Put(key paxi.Key, value paxi.Value) error {
 	//key= paxi.Key(1234)
 	//value = paxi.Value("5");
 	_, _, err := c.RESTPut(c.ID, key, value)
+	if err == nil {
+		//b := paxi.NewBallotFromString(meta[HTTPHeaderBallot])
+
+	}
 	log.Infof("Client exiting put request")
 	return err
 }

@@ -18,6 +18,8 @@ func NewReplica(id paxi.ID) *Replica {
 	r.Slush = NewSlush(r)
 	r.Register(paxi.Request{}, r.handleRequest)
 	r.Register(Msg1{}, r.HandleMsg1)
+	r.Register(Msg2{}, r.HandleMsg2)
+	r.Register(Msg3{}, r.HandleMsg3)
 	return r
 }
 

@@ -6,6 +6,7 @@ type Quorum struct {
 	acks  map[ID]bool
 	zones map[int]int
 	nacks map[ID]bool
+	idColMap map[ID]int
 }
 
 // NewQuorum returns a new Quorum
@@ -14,8 +15,44 @@ func NewQuorum() *Quorum {
 		size:  0,
 		acks:  make(map[ID]bool),
 		zones: make(map[int]int),
+		idColMap: make(map[ID]int),
 	}
 	return q
+}
+
+func (q *Quorum) SampleACK(id ID, col int) {
+	if !q.acks[id] {
+		q.acks[id] = true
+		q.size++
+		q.zones[id.Zone()]++
+		q.idColMap[id] = col
+	}
+
+}
+func (q *Quorum) SampleMajority(sampleID int) bool {
+	if q.zones[sampleID] > 2 {
+		return true
+	}
+	return false
+}
+
+func (q *Quorum) SampleMajorityColor(sampleID int) int {
+	redCol := 0
+	blueCol := 0
+	for id, col := range q.idColMap {
+		if id.Zone() == sampleID {
+			if col == 0 {
+				redCol++
+			} else if  col == 1 {
+				blueCol++
+			}
+		}
+	}
+	if redCol > blueCol{
+		return 0
+	} else {
+		return 1
+	}
 }
 
 // ACK adds id to quorum ack records
@@ -50,6 +87,7 @@ func (q *Quorum) Reset() {
 	q.acks = make(map[ID]bool)
 	q.zones = make(map[int]int)
 	q.nacks = make(map[ID]bool)
+	q.idColMap = make(map[ID]int)
 }
 
 func (q *Quorum) All() bool {

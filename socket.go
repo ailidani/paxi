@@ -20,6 +20,9 @@ type Socket interface {
 	// MulticastQuorum sends msg to random number of nodes
 	MulticastQuorum(quorum int, m interface{})
 
+	// MulticastToSample sends msg to a sample of nodes
+    MulticastToSample(sampleID int,  m interface{})
+
 	// Broadcast send to all peers
 	Broadcast(m interface{})
 
@@ -151,6 +154,17 @@ func (s *socket) MulticastQuorum(quorum int, m interface{}) {
 		i++
 		if i == quorum {
 			break
+		}
+	}
+}
+
+func (s *socket) MulticastToSample(sampleID int,  m interface{}) {
+	for id := range s.addresses {
+		if id == s.id {
+			continue;
+		}
+		if id.Zone() == sampleID {
+			s.Send(id, m)
 		}
 	}
 }
