@@ -216,7 +216,7 @@ func (s * Snowflake) HandleMsg1(m Msg1) {
 							s.samples[i] = 0
 						}
 						s.convictionCnt = 0
-						s.SetMajority()
+						s.SetMajority(false)
 						/* Send reset message to other nodes, so that they are ready for the next consensus
 						instance */
 						s.Msg3()
