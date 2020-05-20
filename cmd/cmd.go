@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"github.com/ailidani/paxi/log"
 	"github.com/ailidani/paxi/slush"
+	"github.com/ailidani/paxi/snowflake"
+	"github.com/ailidani/paxi/snowball"
 	"os"
 	"strconv"
 	"strings"
@@ -120,6 +122,12 @@ func main() {
 
 	case "slush":
 		client = slush.NewClient(paxi.ID(*id))
+
+	case "snowflake":
+		client = snowflake.NewClient(paxi.ID(*id))
+
+	case "snowball":
+		client = snowball.NewClient(paxi.ID(*id))
 
 	default:
 		client = paxi.NewHTTPClient(paxi.ID(*id))

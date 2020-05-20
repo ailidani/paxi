@@ -37,22 +37,21 @@ func (q *Quorum) SampleMajority(sampleID int) bool {
 }
 
 func (q *Quorum) SampleMajorityColor(sampleID int) int {
-	redCol := 0
-	blueCol := 0
+	redCnt := 0
+	blueCnt := 0
 	for id, col := range q.idColMap {
 		if id.Zone() == sampleID {
 			if col == 0 {
-				redCol++
+				redCnt++
 			} else if  col == 1 {
-				blueCol++
+				blueCnt++
 			}
 		}
 	}
-	if redCol > blueCol{
+	if redCnt >= blueCnt {
 		return 0
-	} else {
-		return 1
 	}
+	return 1
 }
 
 // ACK adds id to quorum ack records

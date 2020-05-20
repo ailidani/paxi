@@ -5,6 +5,8 @@ import (
 	"flag"
 	"github.com/ailidani/paxi/log"
 	"github.com/ailidani/paxi/slush"
+	"github.com/ailidani/paxi/snowball"
+	"github.com/ailidani/paxi/snowflake"
 
 	"github.com/ailidani/paxi"
 	"github.com/ailidani/paxi/chain"
@@ -64,6 +66,12 @@ func main() {
 	case "slush":
 		log.Infof("Creating the slush client instance from the switch case")
 		d.Client = slush.NewClient(paxi.ID(*id))
+	case "snowflake":
+		log.Infof("Creating the snowflake client instance from the switch case")
+		d.Client = snowflake.NewClient(paxi.ID(*id))
+	case "snowball":
+		log.Infof("Creating the snowball client instance from the switch case")
+		d.Client = snowball.NewClient(paxi.ID(*id))
 	default:
 		d.Client = paxi.NewHTTPClient(paxi.ID(*id))
 	}
@@ -73,7 +81,7 @@ func main() {
 		log.Infof("Running load part of client")
 		b.Load()
 	} else {
-		log.Infof("Running run pert of the client")
+		log.Infof("Running run part of the client")
 		b.Run()
 	}
 }

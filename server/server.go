@@ -18,6 +18,8 @@ import (
 	"github.com/ailidani/paxi/paxos_group"
 	"github.com/ailidani/paxi/sdpaxos"
     "github.com/ailidani/paxi/slush"
+	"github.com/ailidani/paxi/snowflake"
+	"github.com/ailidani/paxi/snowball"
 	"github.com/ailidani/paxi/vpaxos"
 	"github.com/ailidani/paxi/wankeeper"
 	"github.com/ailidani/paxi/wpaxos"
@@ -82,6 +84,12 @@ func replica(id paxi.ID) {
 
 	case "slush":
 		slush.NewReplica(id).Run()
+
+	case "snowflake":
+		snowflake.NewReplica(id).Run()
+
+	case "snowball":
+		snowball.NewReplica(id).Run()
 
 	default:
 		panic("Unknown algorithm")
