@@ -16,7 +16,7 @@ type entry struct {
 	timestamp time.Time
 }
 
-// Slush instance
+// Snowflake instance
 type Snowflake struct{
 	paxi.Node
 
@@ -36,7 +36,7 @@ type Snowflake struct{
 	Beta int // Threshold of conviction count to accept a value
 }
 
-// NewSlush creates new slush instance
+// NewSnowflake creates new snowflake instance
 func NewSnowflake(n paxi.Node, options ...func(*Snowflake)) *Snowflake {
 	s := &Snowflake{
 		Node:	n,
@@ -128,8 +128,6 @@ func (s* Snowflake) HandleRequest(r paxi.Request) {
 	log.Infof("Exit HandleRequest Snowflake.go")
 }
 
-// Majority just checks the number of responses		// Majority just checks the number of responses
-
 /*
 Starts gossip by multicasting to the random sample of nodes
  */
@@ -142,9 +140,6 @@ func (s * Snowflake) Msg1() {
 		timestamp: time.Now(),
 	}
 
-	/* Add randomness here, send the query to the random sample of nodes
-	 * Use s.Send(); to send to each node in the random sample
-	 */
 	for i := 0; i < s.noOfSamples; i++ {
 		log.Infof("For round: %v", i)
 		s.MulticastToSample((i % 3) + 1, Msg1{ID: s.ID(), Col: s.Col})

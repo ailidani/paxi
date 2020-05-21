@@ -16,7 +16,7 @@ type entry struct {
 	timestamp time.Time
 }
 
-// Slush instance
+// Snowball instance
 type Snowball struct{
 	paxi.Node
 
@@ -38,7 +38,7 @@ type Snowball struct{
 	confidence [2]int // Index 0 stands for the red color '0' and index 1 stands for the blue color '1'
 }
 
-// NewSlush creates new slush instance
+// NewSnowball creates new snowball instance
 func NewSnowball(n paxi.Node, options ...func(*Snowball)) *Snowball {
 	s := &Snowball{
 		Node:	n,
@@ -146,10 +146,8 @@ func (s* Snowball) HandleRequest(r paxi.Request) {
 	log.Infof("Exit HandleRequest Snowball.go")
 }
 
-// Majority just checks the number of responses		// Majority just checks the number of responses
-
 /*
-Starts gossip by multicasting to the random sample of nodes
+Starts gossip by multicasting to a sample of nodes
  */
 func (s * Snowball) Msg1() {
 	log.Infof("Enter Msg1")
@@ -160,9 +158,6 @@ func (s * Snowball) Msg1() {
 		timestamp: time.Now(),
 	}
 
-	/* Add randomness here, send the query to the random sample of nodes
-	 * Use s.Send(); to send to each node in the random sample
-	 */
 	for i := 0; i < s.noOfSamples; i++ {
 		log.Infof("For round: %v", i)
 		s.MulticastToSample((i % 3) + 1, Msg1{ID: s.ID(), Col: s.Col})

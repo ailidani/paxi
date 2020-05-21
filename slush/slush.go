@@ -114,10 +114,8 @@ func (s* Slush) HandleRequest(r paxi.Request) {
 	log.Infof("Exit HandleRequest slush.go")
 }
 
-// Majority just checks the number of responses		// Majority just checks the number of responses
-
 /*
-Starts gossip by multicasting to the random sample of nodes
+Starts gossip by multicasting to a sample of nodes
  */
 func (s * Slush) Msg1() {
 	log.Infof("Enter Msg1")
@@ -127,10 +125,7 @@ func (s * Slush) Msg1() {
 		quorum: paxi.NewQuorum(),
 		timestamp: time.Now(),
 	}
-	//s.MulticastQuorum(s.noOfSamples, Msg1{ID:s.ID(),Col:s.GetColor()})
-	/* Add randomness here, send the query to the random sample of nodes
-	 * Use s.Send(); to send to each node in the random sample
-	 */
+
 	for i := 0; i < s.rounds; i++ {
 		log.Infof("For round: %v", i)
 		s.MulticastToSample((i % 3) + 1, Msg1{ID: s.ID(), Col: s.Col})
@@ -193,8 +188,6 @@ func (s * Slush) HandleMsg1(m Msg1) {
 
 		log.Infof("Accepted:%v majorityInSamples: %v", s.isAccepted(), s.majorityInSamples)
 
-		//s.log[s.slot].quorum.ACK(m.ID)
-		//if s.quorum.Majority() == true && s.isAccepted() == false {
 		if s.isAccepted() == false  && s.majorityInSamples >= s.rounds {
 			s.setAccepted()
 			/* Reset the Quorum information since the consensus instance is complete */
@@ -212,8 +205,6 @@ func (s * Slush) HandleMsg1(m Msg1) {
 				Command: s.request.Command,
 				Timestamp: s.request.Timestamp})
 			s.majorityInSamples = 0
-
-
 		}
 	} else {
 		log.Infof("Non-querying node in handleMsg1")
