@@ -30,7 +30,7 @@ type Snowflake struct{
 	noOfSamples int // K value
 	request *paxi.Request
 	majorityInSamples int
-	samples [5]int
+	samples [10]int
 	convictionCnt int
 	maj bool
 	Beta int // Threshold of conviction count to accept a value
@@ -47,7 +47,7 @@ func NewSnowflake(n paxi.Node, options ...func(*Snowflake)) *Snowflake {
 		accept:false,
 		quorum:paxi.NewQuorum(),
 		quorum_: paxi.NewQuorum(),
-		noOfSamples: 3,
+		noOfSamples: 3, // Configure here
 		majorityInSamples: 0,
 		convictionCnt: 0,
 		maj: false,
@@ -64,8 +64,10 @@ func NewSnowflake(n paxi.Node, options ...func(*Snowflake)) *Snowflake {
 	if n.ID().Node() %	2 == 0 {
 		s.Col = 1
 	}
-
-	for i := 0; i < 5; i++ {
+/*
+Color intialization
+ */
+	for i := 0; i < 10; i++ {
 		s.samples[i] = 0
 	}
 	return s
@@ -182,19 +184,19 @@ func (s * Snowflake) HandleMsg1(m Msg1) {
 				if yes, then we just record the response
 			 */
 			log.Infof("Checking majority for sample ID: %v", i)
-			if true == s.quorum.SampleMajority((i%3)+1) {
+			if true == s.quorum.SampleMajority(i+1) {
 				log.Infof("Got majority from sample ID: %v , majority color: %v", i,
-					s.quorum.SampleMajorityColor((i%3)+1))
-				if s.samples[i%3+1] == 0 { /* Majority is attained for this sample */
-					s.samples[i%3+1] = 1
+					s.quorum.SampleMajorityColor(i+1))
+				if s.samples[i+1] == 0 { /* Majority is attained for this sample */
+					s.samples[i+1] = 1
 					s.convictionCnt++
 					log.Infof("Conviction counter %v", s.convictionCnt)
 					s.SetMajority(true)
 				}
-				if s.Col != s.quorum.SampleMajorityColor((i%3)+1) {
-					s.SetColor(s.quorum.SampleMajorityColor((i % 3) + 1))
+				if s.Col != s.quorum.SampleMajorityColor(i+1) {
+					s.SetColor(s.quorum.SampleMajorityColor(i + 1))
 					log.Infof("Color is flipped to the majority color: %v",
-						s.quorum.SampleMajorityColor((i%3)+1))
+						s.quorum.SampleMajorityColor(i+1))
 					s.convictionCnt = 1
 					log.Infof("Conviction counter %v", s.convictionCnt)
 				} else { /* Majority color is equal to the querying color */
@@ -207,7 +209,7 @@ func (s * Snowflake) HandleMsg1(m Msg1) {
 						/* Reset the Quorum information since the consensus instance is complete */
 						s.quorum.Reset()
 						s.quorum_.Reset()
-						for i := 0; i < 5; i++ {
+						for i := 0; i < 10; i++ {
 							s.samples[i] = 0
 						}
 						s.convictionCnt = 0
@@ -264,9 +266,9 @@ func (s* Snowflake) HandleMsg2(m Msg2) {
 	} else {
 		s.quorum_.SampleACK(m.ID, m.Col)
 		for i := 0; i < s.noOfSamples; i++ {
-			if s.Col != s.quorum_.SampleMajorityColor((i%3)+1) {
-				s.SetColor(s.quorum_.SampleMajorityColor((i % 3) + 1))
-				log.Infof("Color is flipped to the majority color: %v", s.quorum_.SampleMajorityColor((i%3)+1))
+			if s.Col != s.quorum_.SampleMajorityColor(i+1) {
+				s.SetColor(s.quorum_.SampleMajorityColor(i + 1))
+				log.Infof("Color is flipped to the majority color: %v", s.quorum_.SampleMajorityColor(i+1))
 			} else { /* Majority color is equal to the querying color */
 				/* No need to flip my color */
 				log.Infof("Color is not flipped")
