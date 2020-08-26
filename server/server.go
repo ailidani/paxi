@@ -20,6 +20,7 @@ import (
     "github.com/ailidani/paxi/slush"
 	"github.com/ailidani/paxi/snowflake"
 	"github.com/ailidani/paxi/snowball"
+	"github.com/ailidani/paxi/benor"
 	"github.com/ailidani/paxi/vpaxos"
 	"github.com/ailidani/paxi/wankeeper"
 	"github.com/ailidani/paxi/wpaxos"
@@ -90,6 +91,9 @@ func replica(id paxi.ID) {
 
 	case "snowball":
 		snowball.NewReplica(id).Run()
+
+	case "benor":
+		benor.NewReplica(id).Run()
 
 	default:
 		panic("Unknown algorithm")

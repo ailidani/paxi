@@ -7,6 +7,7 @@ type Quorum struct {
 	zones map[int]int
 	nacks map[ID]bool
 	idColMap map[ID]int
+	valueMap map[ID]int
 }
 
 // NewQuorum returns a new Quorum
@@ -29,11 +30,37 @@ func (q *Quorum) SampleACK(id ID, col int) {
 	}
 
 }
+
+func(q *Quorum) BenORAck(id ID, value int) {
+	if !q.acks[id] {
+		q.acks[id] = true
+		q.size++
+		q.zones[id.Zone()]++
+		q.valueMap[id] = value
+	}
+}
+
 func (q *Quorum) SampleMajority(sampleID int) bool {
 	if q.zones[sampleID] > 2 {
 		return true
 	}
 	return false
+}
+
+func(q *Quorum) BenORMajority() int {
+	zeroCnt := 0
+	oneCnt := 0
+	for _, value := range q.idColMap{
+		if value == 1{
+			oneCnt++
+		} else if value == 0{
+			zeroCnt++
+		}
+	}
+	if zeroCnt >= oneCnt{
+		return 0
+	}
+	return 1
 }
 
 func (q *Quorum) SampleMajorityColor(sampleID int) int {

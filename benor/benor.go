@@ -1,1 +1,239 @@
 package benor
+
+import(
+	"github.com/ailidani/paxi"
+	"github.com/ailidani/paxi/log"
+
+	"time"
+)
+
+// Log entry struct
+type entry struct {
+	ballot paxi.Ballot
+	command paxi.Command
+	commit bool
+	request *paxi.Request
+	quorum *paxi.Quorum
+	timestamp time.Time
+}
+
+// Benor instance
+type Benor struct{
+	paxi.Node
+
+	log           map[int]*entry // log ordered by slot
+	slot          int // slot number for the requests
+	p1v           int
+	p2v           int
+	decision      bool
+	acceptedValue int
+	Q1        *paxi.Quorum     	// phase 1 value quorum
+	Q2        *paxi.Quorum		// phase 2 value quorum
+	rounds        int
+	request       *paxi.Request
+	msg1Broadcast bool
+	msg2Broadcast bool
+
+	sentMsg1 [5]bool
+}
+
+func NewBenor(n paxi.Node, options ...func(*Benor)) *Benor{
+	b := &Benor{
+		Node:     n,
+		log:      make(map[int]*entry, paxi.GetConfig().BufferSize),
+		slot:     -1,
+		p1v:      0,
+		p2v:      -1,
+		decision: false,
+		Q1:   paxi.NewQuorum(),
+		Q2: paxi.NewQuorum(),
+		rounds:   4,
+		msg1Broadcast: false,
+		msg2Broadcast: false,
+
+		//request:  nil,
+	}
+
+	for _, opt := range options{
+		opt(b)
+	}
+	for i:= 0; i < b.rounds ; i++ {
+		b.sentMsg1[i] = false
+	}
+
+	if n.ID().Node() % 2 == 0{
+		b.p1v = 1
+	}
+
+	return b
+}
+
+// SetP1v sets the phase1 value of the node
+func (b *Benor) SetP1v(phase1value int){
+	b.p1v = phase1value
+}
+//SetP2v sets phase 2 value
+func (b *Benor) SetP2v(phase2value int){
+	b.p2v = phase2value
+}
+
+// GetP1v returns the phase 1 value of the node
+func (b *Benor) GetP1v()int{
+	return b.p1v
+}
+
+// GetP2v returns the phase 2 value of the node
+func (b *Benor) GetP2v()int{
+	return b.p2v
+}
+
+
+func (b *Benor) isDecision() bool {
+	return b.decision
+}
+
+func (b *Benor) setDecision() {
+	log.Infof("Accepted color %v:", b.GetP2v())
+	b.decision = true
+}
+
+// HandleRequest handles the request received from the client
+// Request received will then start working on sending the Msg1
+// Msg1 will contain phase 1 value
+func(b *Benor) HandleRequest(r paxi.Request){
+	log.Infof("Enter HandleRequest benor.go")
+	b.request = &r
+	log.Infof("Received from client: %v, key: %v, value: %v", b.request.Command.ClientID,
+		b.request.Command.Key, b.request.Command.Value)
+	if b.isDecision() == true {
+		b.decision = false
+	}
+
+	b.Msg1()
+
+}
+
+// Msg1 will handle broadcasting of phase 1 value
+func(b *Benor) Msg1(){
+	log.Infof("Enter Msg1")
+	b.slot++
+	b.log[b.slot] = &entry {
+		request: b.request,
+		quorum: paxi.NewQuorum(),
+		timestamp: time.Now(),
+	}
+	if !b.msg1Broadcast {
+		b.Broadcast(Msg1{ID: b.ID(), p1v: b.p1v})
+	}
+	b.msg1Broadcast = true			// no repeat of broadcast msg
+	//for i := 0; i < b.rounds; i++ {
+	//	log.Infof("For round: %v", i)
+	//	b.Broadcast(Msg1{ID: b.ID(), p1v: b.p1v, round: i})
+	//	b.sentMsg1[i] = true
+	//}
+	log.Infof("Exit Msg1")
+}
+
+func(b *Benor) Msg2(){
+	log.Infof("Enter Msg2")
+	if !b.msg2Broadcast{
+		b.Broadcast(Msg2{ID: b.ID(), p2v: b.p2v})
+		b.msg2Broadcast = true
+	}
+	log.Infof("Exit Msg2")
+}
+
+func(b *Benor) HandleMsg1(m Msg1){
+	//if b.sentMsg1[m.round] == false {
+	//	b.Broadcast(Msg1{ID:b.ID(), p1v: b.p1v, round: m.round})
+	//}
+	log.Infof("Enter Handle Msg 1")
+	log.Infof("Msg 1 received is %v", m.String())
+	b.Q1.SampleACK(m.ID, m.p1v)
+	log.Infof("Quorum size: %v", b.Q1.Size())
+	// once message received from the "main" replica, should broadcast to all other replica too
+	// This is the all to all communication
+	if !b.msg1Broadcast{
+		b.Broadcast(Msg1{ID: b.ID(), p1v: b.p1v})
+		b.msg1Broadcast = true		// no repeat of broadcast msg
+		log.Infof("I %v sent too all", b.ID())
+	} else{
+
+		// phase 1 msg
+		// wait for replies from N-F nodes
+		// of these check for majority from 0 or 1
+		// set these values as phase 2 values and then again broadcast
+		// checking majority of 0 or 1
+		if b.Q1.BenORMajority() == 0{
+			// p1v majority of 0 reached
+			// set p2v as 0
+			log.Infof("Majority of p1v = 0 received")
+			b.p2v = 0
+		} else if b.Q1.BenORMajority() == 1 {
+			// p1v majority of 1 reached
+			// set p2v as 1
+			log.Infof("Majority of p1v = 1 received")
+			b.p2v = 1
+		} else {
+			// no majority received
+			// set p2v as -1
+			log.Infof("Majority of p1v not reached thus p2v = -1")
+			b.p2v = -1
+		}
+		log.Infof("Exit Handle Msg 1")
+		if !b.msg2Broadcast{
+			b.Msg2()
+		}
+	}
+}
+
+func(b *Benor) HandleMsg2(m Msg2){
+	log.Infof("Enter Handle Msg 2")
+
+	// HAPPY PATH
+	// wait for n-f msgs from all nodes
+	// of these check if majority between 0 or 1
+	// set that value as final/accepted/decided 0 or 1
+	// done!
+	log.Infof("Msg 2 received is: %v", m.String())
+	b.Q2.SampleACK(m.ID, b.p2v)
+	//log.Infof("Current State: p1v: %v, p2v: %v", b.p1v, b.p2v)
+	log.Infof("Second ACK working!")
+	if b.Q2.Size() > 5/2 {
+		// majority replies
+		if b.Q2.BenORMajority() == 0{
+			log.Infof("Majority of 0 reached")
+			log.Infof("Decided on 0")
+			b.acceptedValue = 0
+			b.decision = true
+		} else if b.Q2.BenORMajority() == 1{
+			log.Infof("Majority of 1 reached")
+			log.Infof("decided on 1")
+			b.acceptedValue = 1
+			b.decision = true
+		}
+		// else condition would be to restart the process
+		// "jolt" the system by randomly choose 1 or 0 for p1v
+		// after that again start from the first i.e send p1v msg
+		// decide majority for p2v
+		// send p2v
+		// decide majority for acceptedValue
+		// process complete
+		// this allows for rounds
+	}
+	// send reply back to client
+	if b.ID() == b.request.NodeID {
+		if b.decision{
+			b.request.Reply(paxi.Reply{
+				Value: b.request.Command.Value,
+				Command: b.request.Command,
+				Timestamp: b.request.Timestamp,
+			})
+		}
+	}
+	log.Infof("Exit Handle Msg 2")
+}
+
+
+
+

@@ -3,15 +3,13 @@ package main
 import (
 	"encoding/binary"
 	"flag"
+	"github.com/ailidani/paxi"
+	"github.com/ailidani/paxi/chain"
 	"github.com/ailidani/paxi/log"
+	"github.com/ailidani/paxi/paxos"
 	"github.com/ailidani/paxi/slush"
 	"github.com/ailidani/paxi/snowball"
 	"github.com/ailidani/paxi/snowflake"
-
-	"github.com/ailidani/paxi"
-	"github.com/ailidani/paxi/chain"
-	"github.com/ailidani/paxi/paxos"
-
 )
 
 var id = flag.String("id", "", "node id this client connects to")
@@ -72,6 +70,10 @@ func main() {
 	case "snowball":
 		log.Infof("Creating the snowball client instance from the switch case")
 		d.Client = snowball.NewClient(paxi.ID(*id))
+	case "benor":
+		log.Infof("Creating the benor client instance from the switch case")
+		d.Client = slush.NewClient(paxi.ID(*id))
+
 	default:
 		d.Client = paxi.NewHTTPClient(paxi.ID(*id))
 	}

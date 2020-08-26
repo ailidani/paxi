@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"github.com/ailidani/paxi/log"
 	"github.com/ailidani/paxi/slush"
-	"github.com/ailidani/paxi/snowflake"
 	"github.com/ailidani/paxi/snowball"
+	"github.com/ailidani/paxi/snowflake"
 	"os"
 	"strconv"
 	"strings"
@@ -128,6 +128,9 @@ func main() {
 
 	case "snowball":
 		client = snowball.NewClient(paxi.ID(*id))
+
+	case "benor":
+		client = slush.NewClient(paxi.ID(*id))
 
 	default:
 		client = paxi.NewHTTPClient(paxi.ID(*id))
