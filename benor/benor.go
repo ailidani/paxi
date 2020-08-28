@@ -33,6 +33,7 @@ type Benor struct{
 	request       *paxi.Request
 	msg1Broadcast bool
 	msg2Broadcast bool
+	isClientRequest bool
 
 	sentMsg1 [5]bool
 }
@@ -108,7 +109,9 @@ func(b *Benor) HandleRequest(r paxi.Request){
 	if b.isDecision() == true {
 		b.decision = false
 	}
-
+	// I received request from client
+	// so I'm the assumed "leader"
+	b.isClientRequest = true
 	b.Msg1()
 
 }
@@ -222,8 +225,22 @@ func(b *Benor) HandleMsg2(m Msg2){
 		// this allows for rounds
 	}
 	// send reply back to client
-	if b.ID() == b.request.NodeID {
+	//if b.ID() == b.request.NodeID {
+	//	if b.decision{
+	//		b.request.Reply(paxi.Reply{
+	//			Value: b.request.Command.Value,
+	//			Command: b.request.Command,
+	//			Timestamp: b.request.Timestamp,
+	//		})
+	//	}
+	//}
+
+	// Only the replica that received request from the client
+	// can enter this block
+	// pls work
+	if b.isClientRequest{
 		if b.decision{
+			log.Infof("Sending Reply back to client!")
 			b.request.Reply(paxi.Reply{
 				Value: b.request.Command.Value,
 				Command: b.request.Command,
@@ -231,6 +248,7 @@ func(b *Benor) HandleMsg2(m Msg2){
 			})
 		}
 	}
+
 	log.Infof("Exit Handle Msg 2")
 }
 
