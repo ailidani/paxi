@@ -80,16 +80,16 @@ Messages ==     [type:{"1a"}, n:Nodes, o:Objects, b:Ballots]
     variable msgs = {};
 
     define {
-        Q1Satisfied(o, b) == \E q \in Q1 : \A n \in q : \E m \in msgs : 
+        Q1Satisfied(o, b) == \E q \in Q1 : \A n \in q : \E m \in msgs :
                              /\ m.type = "1b"
                              /\ m.o = o
                              /\ m.b = b
-                             /\ m.n = n 
-                             
-        Q2Satisfied(o, b, s) == \E q \in Q2 : \A n \in q : \E m \in msgs : 
-                                /\ m.type = "2b" 
+                             /\ m.n = n
+
+        Q2Satisfied(o, b, s) == \E q \in Q2 : \A n \in q : \E m \in msgs :
+                                /\ m.type = "2b"
                                 /\ m.o = o
-                                /\ m.b = b 
+                                /\ m.b = b
                                 /\ m.s = s
                                 /\ m.n = n
 
@@ -100,7 +100,7 @@ Messages ==     [type:{"1a"}, n:Nodes, o:Objects, b:Ballots]
         a \succ b == more(a, b)
 
         a \succeq b == a \succ b \/ a = b
-        
+
         max(a, b) == IF a > b THEN a ELSE b
     }
 
@@ -114,7 +114,7 @@ Messages ==     [type:{"1a"}, n:Nodes, o:Objects, b:Ballots]
         with(o \in Objects) {
             when self \in Leaders;
             when o \notin own;
-            when ~ \E m \in msgs : m.type = "1a" /\ m.o = o;
+            when ~ \E m \in msgs : m.type = "1a" /\ m.o = o /\ m.b = ballots[o];
             ballots[o] := <<ballots[o][1] + 1, self>>;
             Send([type |-> "1a",
                      n |-> self,
@@ -122,7 +122,7 @@ Messages ==     [type:{"1a"}, n:Nodes, o:Objects, b:Ballots]
                      b |-> ballots[o]]);
         }
     }
-    
+
     macro p1b() {
         with (m \in msgs) {
             when m.type = "1a";
@@ -136,7 +136,7 @@ Messages ==     [type:{"1a"}, n:Nodes, o:Objects, b:Ballots]
                      s |-> slots[m.o]]);
         }
     }
-    
+
     macro p2a() {
         with (m \in msgs) {
             when m.type = "1b";
@@ -156,7 +156,7 @@ Messages ==     [type:{"1a"}, n:Nodes, o:Objects, b:Ballots]
             }
         }
     }
-    
+
     macro p2b() {
         with (m \in msgs) {
             when m.type = "2a";
@@ -170,7 +170,7 @@ Messages ==     [type:{"1a"}, n:Nodes, o:Objects, b:Ballots]
                      s |-> m.s]);
         }
     }
-    
+
     macro p3() {
         with (m \in msgs) {
             when m.type = "2b";
@@ -208,7 +208,7 @@ Messages ==     [type:{"1a"}, n:Nodes, o:Objects, b:Ballots]
     }
 }
 ***************************************************************************)
-\* BEGIN TRANSLATION
+\* BEGIN TRANSLATION - the hash of the PCal code: PCal-7f35cb3570d2c9e7e4429f9462c54ec0
 VARIABLES msgs, pc
 
 (* define statement *)
@@ -262,7 +262,7 @@ p1a(self) == /\ pc[self] = "p1a"
              /\ \E o \in Objects:
                   /\ self \in Leaders
                   /\ o \notin own[self]
-                  /\ ~ \E m \in msgs : m.type = "1a" /\ m.o = o
+                  /\ ~ \E m \in msgs : m.type = "1a" /\ m.o = o /\ m.b = ballots[self][o]
                   /\ ballots' = [ballots EXCEPT ![self][o] = <<ballots[self][o][1] + 1, self>>]
                   /\ msgs' = (msgs \union {([type |-> "1a",
                                                 n |-> self,
@@ -348,7 +348,7 @@ Next == (\E self \in Nodes: node(self))
 
 Spec == Init /\ [][Next]_vars
 
-\* END TRANSLATION
+\* END TRANSLATION - the hash of the generated TLA code (remove to silence divergence warnings): TLA-c14ee1b1a64742c8ec75482d6e2a1518
 
 
 -----------------------------------------------------------------------------

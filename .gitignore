@@ -4,6 +4,7 @@ bin/*
 !bin/*.json
 tla/*
 !tla/wpaxos.tla
+!tla/wpaxos.cfg
 aws
 ppaxos
 cosmos
