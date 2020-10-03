@@ -19,6 +19,7 @@ const (
 	INFO
 	WARNING
 	ERROR
+	TEST
 )
 
 var names = []string{
@@ -26,6 +27,7 @@ var names = []string{
 	INFO:    "INFO",
 	WARNING: "WARNING",
 	ERROR:   "ERROR",
+	TEST: "TEST",
 }
 
 func (s *severity) Get() interface{} {
@@ -57,6 +59,7 @@ type logger struct {
 	info    *stdlog.Logger
 	warning *stdlog.Logger
 	err     *stdlog.Logger
+	test *stdlog.Logger
 
 	severity severity
 	dir      string
@@ -108,6 +111,7 @@ func init() {
 	log.info = stdlog.New(os.Stdout, "[INFO] ", format)
 	log.warning = stdlog.New(os.Stderr, "[WARNING] ", format)
 	log.err = stdlog.New(os.Stderr, "[ERROR] ", format)
+	log.test = stdlog.New(os.Stdout, "[TEST] ", format)
 }
 
 // Setup setup log format and output file
@@ -123,6 +127,7 @@ func Setup() {
 	multi := io.MultiWriter(f, os.Stderr)
 	log.warning = stdlog.New(multi, "[WARNING] ", format)
 	log.err = stdlog.New(multi, "[ERROR] ", format)
+	log.test = stdlog.New(f, "[TEST] ", format)
 }
 
 func Debug(v ...interface{}) {
@@ -146,6 +151,18 @@ func Info(v ...interface{}) {
 func Infof(format string, v ...interface{}) {
 	if log.severity <= INFO {
 		log.info.Output(2, fmt.Sprintf(format, v...))
+	}
+}
+
+func Test(v ...interface{}){
+	if log.severity <= TEST {
+		log.test.Output(2, fmt.Sprint(v...))
+	}
+}
+
+func Testf(format string, v ...interface{}){
+	if log.severity <= TEST{
+		log.test.Output(2, fmt.Sprintf(format, v...))
 	}
 }
 
