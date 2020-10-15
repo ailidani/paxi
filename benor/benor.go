@@ -51,7 +51,7 @@ func NewBenor(n paxi.Node, options ...func(*Benor)) *Benor{
 		rounds:   4,
 		msg1Broadcast: false,
 		msg2Broadcast: false,
-
+		isClientRequest: false,
 		//request:  nil,
 	}
 
@@ -137,6 +137,7 @@ func(b *Benor) Msg1(){
 	log.Infof("Exit Msg1")
 }
 
+// Msg2 takes care of broadcasting the phase2 value
 func(b *Benor) Msg2(){
 	log.Infof("Enter Msg2")
 	if !b.msg2Broadcast{
@@ -240,6 +241,7 @@ func(b *Benor) HandleMsg2(m Msg2){
 	// pls work
 	if b.isClientRequest{
 		if b.decision{
+			log.Infof("Preparing for next round")
 			log.Infof("Sending Reply back to client!")
 			b.request.Reply(paxi.Reply{
 				Value: b.request.Command.Value,
