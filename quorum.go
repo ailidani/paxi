@@ -1,5 +1,7 @@
 package paxi
 
+import "github.com/ailidani/paxi/log"
+
 // Quorum records each acknowledgement and check for different types of quorum satisfied
 type Quorum struct {
 	size  int
@@ -17,6 +19,7 @@ func NewQuorum() *Quorum {
 		acks:  make(map[ID]bool),
 		zones: make(map[int]int),
 		idColMap: make(map[ID]int),
+		valueMap: make(map[ID]int),
 	}
 	return q
 }
@@ -50,18 +53,33 @@ func (q *Quorum) SampleMajority(sampleID int) bool {
 func(q *Quorum) BenORMajority() int {
 	zeroCnt := 0
 	oneCnt := 0
-	for _, value := range q.idColMap{
+	log.Infof("Quorum Size: %v", q.size)
+	for _, value := range q.valueMap{
 		if value == 1{
 			oneCnt++
 		} else if value == 0{
 			zeroCnt++
 		}
 	}
-	if zeroCnt >= oneCnt{
+	log.Infof("OneCount: %v & ZeroCount: %v", oneCnt, zeroCnt)
+	if zeroCnt > oneCnt{
 		return 0
+	} else if oneCnt > zeroCnt{
+		return 1
+	} else {
+		return -1
+	}
+}
+
+func(q *Quorum) BenOrAtLeastOneValue() int{
+	for _, v := range q.valueMap {
+		if v == 0{
+			return 0
+		}
 	}
 	return 1
 }
+
 
 func (q *Quorum) SampleMajorityColor(sampleID int) int {
 	redCnt := 0
@@ -123,6 +141,10 @@ func (q *Quorum) All() bool {
 // Majority quorum satisfied
 func (q *Quorum) Majority() bool {
 	return q.size > config.n/2
+}
+// MajorityMinus2 quorum satisfied
+func (q *Quorum) MajorityMinus2() bool {
+	return q.size == config.n-2
 }
 
 // FastQuorum from fast paxos

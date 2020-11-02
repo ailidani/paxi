@@ -24,6 +24,7 @@ import (
 	"github.com/ailidani/paxi/vpaxos"
 	"github.com/ailidani/paxi/wankeeper"
 	"github.com/ailidani/paxi/wpaxos"
+	"github.com/ailidani/paxi/binaryconsensus"
 )
 
 var algorithm = flag.String("algorithm", "paxos", "Distributed algorithm")
@@ -94,6 +95,9 @@ func replica(id paxi.ID) {
 
 	case "benor":
 		benor.NewReplica(id).Run()
+
+	case "binary":
+		binaryconsensus.NewReplica(id).Run()
 
 	default:
 		panic("Unknown algorithm")

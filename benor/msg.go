@@ -1,9 +1,8 @@
 package benor
 
-import(
+import (
 	"encoding/gob"
 	"fmt"
-
 	"github.com/ailidani/paxi"
 )
 
@@ -14,18 +13,25 @@ func init(){
 }
 
 type Msg1 struct {
+	// msg for broadcasting p1v value by the replica that receives client request
 	ID paxi.ID
 	p1v int // phase 1 value - input, can be 0,1
+	slot int // added slots
+	request paxi.Request	// client request structure
 	//round int
 }
 
 type Msg2 struct {
+	// msg for broadcasting to other replicas when one replica receives msg1 from the client serving replica
 	ID paxi.ID
-	p2v int // phase 2 value, can be 0,1,-1
+	p1v int // phase 2 value, can be 0,1,-1
+	slot int	// slots
 }
 
 type Msg3 struct {
 	ID paxi.ID
+	p2v int
+	slot int
 }
 
 func(m Msg1) String() string{
@@ -33,10 +39,9 @@ func(m Msg1) String() string{
 }
 
 func(m Msg2) String() string{
-	return fmt.Sprint("Msg2: ID: p", m.ID,"and p2v: ", m.p2v)
+	return fmt.Sprint("Msg2: ID: p", m.ID,"and p2v: ", m.p1v)
 }
 
 func(m Msg3) String() string{
 	return fmt.Sprint("Msg3: ID: ", m.ID)
 }
-
