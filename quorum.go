@@ -138,6 +138,11 @@ func (q *Quorum) All() bool {
 	return q.size == config.n
 }
 
+func (q *Quorum) AllMinusOne() bool {
+	return q.size == config.n-1
+}
+
+
 // Majority quorum satisfied
 func (q *Quorum) Majority() bool {
 	return q.size > config.n/2

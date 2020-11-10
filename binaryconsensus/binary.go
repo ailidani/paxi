@@ -40,7 +40,7 @@ func NewBinary(n paxi.Node, options ...func(*Binary)) *Binary{
 		Node:     n,
 		log:      make(map[int]*entry, paxi.GetConfig().BufferSize),
 		slot:     -1,
-		p1v:      0,
+		p1v:      1,
 		p2v:      -1,
 		decision: false,
 		Q1:   	paxi.NewQuorum(),
@@ -99,9 +99,10 @@ func(bi *Binary) HandleMsg1(m Msg1){
 
 	log.Infof("Enter HandleMsg1")
 	bi.leader = m.ID
+	log.Infof("received ID: %v p1v: %v", m.ID, m.p1v)
+	bi.Q1.BenORAck(m.ID, m.p1v)
+	log.Infof("I follower broadcast the ID and p1v to all")
 
-	bi.Q1.SampleACK(m.ID, m.p1v)
-	log.Infof("I follower broadcasted the ID and p1v to all")
 	// Msg2 sent
 	bi.Broadcast(Msg2{
 		ID:  bi.ID(),
@@ -114,10 +115,12 @@ func(bi *Binary) HandleMsg1(m Msg1){
 // all replicas will do this procedure
 func(bi *Binary) HandleMsg2(m Msg2){
 	log.Infof("Enter HandleMsg2")
-	log.Infof("ACKing the message recived and adding to quorum 1")
+
+	log.Infof("received ID: %v p1v: %v", m.ID, m.p1v)
+	log.Infof("ACKing the message received and adding to quorum 1")
 
 	if !(m.ID == bi.leader){
-		bi.Q1.SampleACK(m.ID, m.p1v)
+		bi.Q1.BenORAck(m.ID, m.p1v)
 	}
 	// check for majority in the arrived quorums
 	// based on the majority set p2v as 0 or 1
@@ -147,10 +150,11 @@ func(bi *Binary) HandleMsg2(m Msg2){
 // all replicas will do this procedure for phase 2 value
 func(bi *Binary) HandleMsg3(m Msg3){
 	log.Infof("Enter HandleMsg3")
+	log.Infof("received ID: %v p1v: %v", m.ID, m.p2v)
 	log.Infof("ACKing the message received and adding to quorum 2")
 
 	// ack the incoming message in a new quorum
-	bi.Q2.SampleACK(m.ID, m.p2v)
+	bi.Q2.BenORAck(m.ID, m.p2v)
 
 	// again check for majority in the messages received
 	// if 0 set 0, if 1 set 1

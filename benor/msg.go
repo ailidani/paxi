@@ -10,6 +10,7 @@ func init(){
 	gob.Register(Msg1{})
 	gob.Register(Msg2{})
 	gob.Register(Msg3{})
+	gob.Register(Msg4{})
 }
 
 type Msg1 struct {
@@ -18,7 +19,7 @@ type Msg1 struct {
 	p1v int // phase 1 value - input, can be 0,1
 	slot int // added slots
 	request paxi.Request	// client request structure
-	//round int
+	round int
 }
 
 type Msg2 struct {
@@ -26,22 +27,36 @@ type Msg2 struct {
 	ID paxi.ID
 	p1v int // phase 2 value, can be 0,1,-1
 	slot int	// slots
+	round int
+
 }
 
 type Msg3 struct {
 	ID paxi.ID
 	p2v int
 	slot int
+	round int
+}
+
+type Msg4 struct {
+	ID paxi.ID
+	p1v int
+	slot int
+	round int
 }
 
 func(m Msg1) String() string{
-	return fmt.Sprint("Msg 1= ID: ", m.ID,"and p1v: ", m.p1v)
+	return fmt.Sprint("Msg 1= ID: ", m.ID," p1v: ", m.p1v, " slot: ", m.slot, " round: ", m.round)
 }
 
 func(m Msg2) String() string{
-	return fmt.Sprint("Msg2: ID: p", m.ID,"and p2v: ", m.p1v)
+	return fmt.Sprint("Msg2: ID: p", m.ID," p1v: ", m.p1v,  " slot: ", m.slot, " round: ", m.round)
 }
 
 func(m Msg3) String() string{
-	return fmt.Sprint("Msg3: ID: ", m.ID)
+	return fmt.Sprint("Msg3: ID: ", m.ID," p2v: ", m.p2v," slot: ", m.slot, " round: ", m.round)
+}
+
+func(m Msg4) String() string{
+	return fmt.Sprint("Msg4: ID: ", m.ID, " p1v: ", m.p1v, " slot: ", m.slot, " round: ", m.round)
 }

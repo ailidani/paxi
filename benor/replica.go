@@ -29,6 +29,7 @@ func NewReplica(id paxi.ID) *Replica{
 	r.Register(Msg1{}, r.HandleMsg1)
 	r.Register(Msg2{}, r.HandleMsg2)
 	r.Register(Msg3{}, r.HandleMsg3)
+	r.Register(Msg4{}, r.HandleMsg4)
 	return r
 }
 

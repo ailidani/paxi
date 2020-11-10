@@ -16,6 +16,7 @@ type entry struct {
 	request *paxi.Request
 	quorum1 *paxi.Quorum
 	quorum2 *paxi.Quorum
+	quorum3 *paxi.Quorum
 	timestamp time.Time
 }
 
@@ -31,7 +32,8 @@ type Benor struct{
 	decidedValue int
 	Q1        *paxi.Quorum     	// phase 1 value quorum
 	Q2        *paxi.Quorum		// phase 2 value quorum
-	rounds        int
+	Q3	*paxi.Quorum			// quorum for receiving msg4 to flush the original quorums. hack
+
 	request       *paxi.Request
 	msg1Broadcast bool
 	msg2Broadcast bool
@@ -40,7 +42,7 @@ type Benor struct{
 	currentRound int
 	MAXROUNDS int
 	execute int
-
+	whoIsLeader paxi.ID
 	ReplyWhenCommit bool
 	//sentMsg1 [5]bool
 }
@@ -50,19 +52,19 @@ func NewBenor(n paxi.Node, options ...func(*Benor)) *Benor{
 		Node:     n,
 		log:      make(map[int]*entry, paxi.GetConfig().BufferSize),
 		slot:     -1,
-		p1v:      0,
+		p1v:      1,
 		p2v:      -1,
 		decision: false,
 		decidedValue: -1,
 		Q1:   paxi.NewQuorum(),
 		Q2:   paxi.NewQuorum(),
-		//rounds:   4,
+		Q3: paxi.NewQuorum(),
 		msg1Broadcast: false,
 		msg2Broadcast: false,
 		msg3Broadcast: false,
 		isClientRequest: false,
-		currentRound: 0,
-		MAXROUNDS: 5,
+		currentRound: 1,
+		MAXROUNDS: 2,
 		//request:  nil,
 	}
 
@@ -130,6 +132,7 @@ func(b *Benor) HandleRequest(r paxi.Request){
 		request:   &r,
 		quorum1:    b.Q1,
 		quorum2:	b.Q2,
+		quorum3: b.Q3,
 		timestamp: time.Time{},
 	}
 	log.Infof("Enter HandleRequest benor.go")
@@ -154,7 +157,15 @@ func(b *Benor) Msg1(req paxi.Request){
 	//	quorum: paxi.NewQuorum(),
 	//	timestamp: time.Now(),
 	//}
-	b.Broadcast(Msg1{ID: b.ID(), p1v: b.p1v, slot: b.slot, request: req})
+	log.Infof("Round Number %v Started!", b.currentRound)
+	//b.Broadcast(Msg1{ID: b.ID(), p1v: b.p1v, slot: b.slot, request: req, round: b.currentRound})
+	b.Broadcast(Msg1{
+		ID:      b.ID(),
+		p1v:     b.p1v,
+		slot:    b.slot,
+		request: req,
+		round:   b.currentRound,
+	})
 	//for i := 0; i < b.rounds; i++ {
 	//	log.Infof("For round: %v", i)
 	//	b.Broadcast(Msg1{ID: b.ID(), p1v: b.p1v, round: i})
@@ -177,13 +188,38 @@ func(b *Benor) HandleMsg1(m Msg1) {
 		request:   &m.request,
 		quorum1:    b.Q1,
 		quorum2: b.Q2,
+		quorum3: b.Q3,
 		timestamp: time.Time{},
 	}
 
+	log.Infof("My Round number: %v", b.currentRound)
+	log.Infof("Round number I received from Leader: %v", m.round)
+	log.Infof("************************")
+	log.Infof("I received:" +
+		"ID: %v" +
+		"p1v: %v" +
+		"slot: %v" +
+		"round: %v", m.ID, m.p1v, m.slot, m.round)
+	log.Infof("************************")
+
+
 	// replica acks the leader msg to the quorum
 	b.log[m.slot].quorum1.SampleACK(m.ID, m.p1v)
+	b.whoIsLeader = m.ID
+	// update the round number to move in lockstep fashion for all nodes
+	if m.round != b.currentRound{
+		log.Infof("Attempting to increment round. Current round %v", b.currentRound)
+		b.currentRound = m.round
+		log.Infof("Round Updated to %v ", b.currentRound)
+	}
 	// contains p1v value of nodes
-	b.Broadcast(Msg2{ID: b.ID(), p1v: b.p1v, slot:m.slot})
+	//b.Broadcast(Msg2{ID: b.ID(), p1v: b.p1v, slot:m.slot, round: b.currentRound})
+	b.Broadcast(Msg2{
+		ID:    b.ID(),
+		p1v:   b.p1v,
+		slot:  m.slot,
+		round: b.currentRound,
+	})
 	log.Infof("Exit HandleMsg1")
 }
 
@@ -200,6 +236,14 @@ func(b *Benor) HandleMsg2(m Msg2) {
 		log.Infof("not ok Handle Msg2")
 		b.log[m.slot] = &entry{}
 	}
+	log.Infof("************************")
+	log.Infof("I received:" +
+		"ID: %v" +
+		"p1v: %v" +
+		"slot: %v" +
+		"round: %v", m.ID, m.p1v, m.slot, m.round)
+	log.Infof("************************")
+
 	e.quorum1.BenORAck(m.ID, m.p1v)
 	if e.quorum1.Majority() {
 		log.Infof("Entered the Phase 1 Majority: HandleMsg2")
@@ -214,7 +258,13 @@ func(b *Benor) HandleMsg2(m Msg2) {
 			b.p2v = -1
 		}
 		// value decided for p2v
-		b.Broadcast(Msg3{ID: b.ID(), p2v: b.p2v, slot: m.slot})
+		//b.Broadcast(Msg3{ID: b.ID(), p2v: b.p2v, slot: m.slot, round: b.currentRound})
+		b.Broadcast(Msg3{
+			ID:    b.ID(),
+			p2v:   b.p2v,
+			slot:  m.slot,
+			round: b.currentRound,
+		})
 	}
 	log.Infof("Exit Handle Msg 2")
 }
@@ -228,24 +278,34 @@ func(b *Benor) HandleMsg3(m Msg3) {
 		log.Infof("not ok: log not found HandleMsg3")
 		b.log[m.slot] = &entry{}
 	}
+	log.Infof("************************")
+	log.Infof("I received:" +
+		"ID: %v" +
+		"p2v: %v" +
+		"slot: %v" +
+		"round: %v", m.ID, m.p2v, m.slot, m.round)
+	log.Infof("************************")
 
 	e.quorum2.BenORAck(m.ID, m.p2v)
 	log.Infof("SampleACK HandleMsg3")
 
 	if e.quorum2.Majority() {
-		if e.quorum2.BenORMajority() == 0 {
+		if e.quorum2.BenORMajority() == 0 && b.currentRound >= b.MAXROUNDS{
 			log.Infof("HandleMsg3 final value decided = 0")
 			b.decidedValue = 0
 			b.decision = true
 			b.log[m.slot].commit = true
-			b.exec()
-
-		} else if e.quorum2.BenORMajority() == 1 {
+			if b.isClientRequest {
+				b.exec()
+			}
+		} else if e.quorum2.BenORMajority() == 1 && b.currentRound >= b.MAXROUNDS {
 			log.Infof("HandleMsg3 final value decided = 1")
 			b.decidedValue = 1
 			b.decision = true
 			b.log[m.slot].commit = true
-			b.exec()
+			if b.isClientRequest {
+				b.exec()
+			}
 		} else {
 			// no majority
 			log.Infof("Handle Msg 3 no majority reached")
@@ -264,15 +324,51 @@ func(b *Benor) HandleMsg3(m Msg3) {
 				} else {
 					b.p2v = 0
 				}
-				//b.Broadcast(Msg2{
-				//	ID:   b.ID(),
-				//	p1v:  b.p1v,
-				//	slot: m.slot,
-				//})
 			}
-
+			// hack to start the next rounds. keep track of who is the leader. in var whoIsLeader
+			if !b.isClientRequest {
+				b.Send(b.whoIsLeader, Msg4{
+					ID:    b.ID(),
+					p1v:   b.p1v,
+					slot:  m.slot,
+					round: b.currentRound,
+				})
+			}
 		}
 	}
+}
+
+// only the leader replica would enter this function here
+// HandleMsg4 would flush all the quorums then start the next round with previously decided phase 1 value
+func(b *Benor) HandleMsg4(m Msg4){
+	log.Infof("Enter HandleMsg4! Only leader allowed")
+	e, ok := b.log[m.slot]
+	log.Infof("************************")
+	log.Infof("I received:" +
+		"ID: %v" +
+		"p1v: %v" +
+		"slot: %v" +
+		"round: %v", m.ID, m.p1v, m.slot, m.round)
+	log.Infof("************************")
+
+	if !ok{
+		log.Infof("not ok: log not found HandleMsg4")
+		b.log[m.slot] = &entry{}
+	}
+
+	e.quorum3.ACK(m.ID)
+	if e.quorum3.AllMinusOne(){
+		e.quorum1.Reset()
+		e.quorum2.Reset()
+		e.quorum3.Reset()
+
+		// incrementing current round
+		b.currentRound++
+		log.Infof("I updated my round to: %v", b.currentRound)
+
+		b.Msg1(*e.request)
+	}
+	log.Infof("Exit HandleMsg4!")
 }
 
 func (b *Benor) exec() {
