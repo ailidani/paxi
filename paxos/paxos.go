@@ -119,7 +119,7 @@ func (p *Paxos) P1a() {
 	p.Broadcast(P1a{Ballot: p.ballot})
 	// sends ballot to other nodes, to get elected as leader
 	// L label location found from TLA+ spec
-	log.Testf("ID:%v,active:%v,slot:%v,ballot:%v", p.ID(),p.active, p.slot, p.ballot)
+	log.Testf("ID:%v,active:%v,slot:%v,ballot:%v,action:L", p.ID(),p.active, p.slot, p.ballot)
 	log.Infof("Exiting P1a")
 }
 
@@ -183,7 +183,7 @@ func (p *Paxos) HandleP1a(m P1a) {
 		Log:    l,
 	})
 	// possible location of label A from TLA+ spec
-	log.Testf("ID:%v,active:%v,slot:%v,ballot:%v", p.ID(),p.active, p.slot, p.ballot)
+	log.Testf("ID:%v,active:%v,slot:%v,ballot:%v,action:A", p.ID(),p.active, p.slot, p.ballot)
 	log.Infof("Exit HandleP1a")
 }
 
@@ -232,7 +232,7 @@ func (p *Paxos) HandleP1b(m P1b) {
 		// is accepted as the leader for the slot
 		// sends out P2a msg
 		// Location of CollectP1 CP1L from TLA+ spec
-		log.Testf("ID:%v,active:%v,slot:%v,ballot:%v", p.ID(),p.active, p.slot, p.ballot)
+		log.Testf("ID:%v,active:%v,slot:%v,ballot:%v,action:CP1L", p.ID(),p.active, p.slot, p.ballot)
 		if p.Q1(p.quorum) {
 			p.active = true
 			// propose any uncommitted entries
@@ -247,7 +247,7 @@ func (p *Paxos) HandleP1b(m P1b) {
 				// send in my P2a value
 				// to consense upon
 				// location for P2L from TLA+ spec
-				log.Testf("ID:%v,active:%v,slot:%v,ballot:%v", p.ID(),p.active, p.slot, p.ballot)
+				log.Testf("ID:%v,active:%v,slot:%v,ballot:%v,action:P2L", p.ID(),p.active, p.slot, p.ballot)
 				p.Broadcast(P2a{
 					Ballot:  p.ballot,
 					Slot:    i,
@@ -296,7 +296,7 @@ func (p *Paxos) HandleP2a(m P2a) {
 	}
 
 	// location for label A replyP2 macro from TLA+ spec
-	log.Testf("ID:%v,active:%v,slot:%v,ballot:%v", p.ID(),p.active, p.slot, p.ballot)
+	log.Testf("ID:%v,active:%v,slot:%v,ballot:%v,action:A", p.ID(),p.active, p.slot, p.ballot)
 	p.Send(m.Ballot.ID(), P2b{
 		Ballot: p.ballot,
 		Slot:   m.Slot,
@@ -330,12 +330,12 @@ func (p *Paxos) HandleP2b(m P2b) {
 		p.log[m.Slot].quorum.ACK(m.ID)
 		// I collect here all the P2b messages received here
 		// CP2l label from TLA+ spec
-		log.Testf("ID:%v,active:%v,slot:%v,ballot:%v", p.ID(),p.active, p.slot, p.ballot)
+		log.Testf("ID:%v,active:%v,slot:%v,ballot:%v,action:CP2L", p.ID(),p.active, p.slot, p.ballot)
 		if p.Q2(p.log[m.Slot].quorum) {
 			p.log[m.Slot].commit = true
 			// consensus achieved, value can now be safely committed
 			// location of P3L from TLA+spec
-			log.Testf("ID:%v,active:%v,slot:%v,ballot:%v", p.ID(),p.active, p.slot, p.ballot)
+			log.Testf("ID:%v,active:%v,slot:%v,ballot:%v,action:P3L", p.ID(),p.active, p.slot, p.ballot)
 			p.Broadcast(P3{
 				Ballot:  m.Ballot,
 				Slot:    m.Slot,
@@ -388,7 +388,7 @@ func (p *Paxos) HandleP3(m P3) {
 		p.exec()
 	}
 	// location for label A from TLA+ spec
-	log.Testf("ID:%v,active:%v,slot:%v,ballot:%v", p.ID(),p.active, p.slot, p.ballot)
+	log.Testf("ID:%v,active:%v,slot:%v,ballot:%v,action:A", p.ID(),p.active, p.slot, p.ballot)
 	// here we receive the order to commit
 	log.Infof("Exit HandleP3")
 }
