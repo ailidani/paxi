@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"net/http/httputil"
 	"strconv"
@@ -85,6 +86,14 @@ func (c *HTTPClient) GetURL(id ID, key Key) string {
 			if c.ID == "" || id.Zone() == c.ID.Zone() {
 				break
 			}
+		}
+
+		i := rand.Intn(len(c.HTTP))
+		for id = range c.HTTP {
+			if i == 0 {
+				break
+			}
+			i--
 		}
 	}
 	return c.HTTP[id] + "/" + strconv.Itoa(int(key))
