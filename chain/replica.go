@@ -132,7 +132,7 @@ func (r *Replica) handleAck(m Ack) {
 		})
 	}
 
-	for r.log[r.clsn] != nil && r.log[r.clsn].ack == true {
+	for r.log[r.clsn] != nil && r.log[r.clsn].ack {
 		e := r.log[r.clsn]
 		r.Node.Execute(e.command)
 
