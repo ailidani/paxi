@@ -10,48 +10,50 @@ func TestTransport(t *testing.T) {
 	gob.Register(A{})
 	gob.Register(B{})
 
-	server := NewTransport("tcp://127.0.0.1:1735")
-	server.Listen()
+	tests := []string{"tcp", "udp", "chan"}
+	for _, test := range tests {
+		server := NewTransport(test + "://127.0.0.1:1735")
+		server.Listen()
+		client := NewTransport(test + "://127.0.0.1:1735")
+		client.Dial()
 
-	client := NewTransport("tcp://127.0.0.1:1735")
-	client.Dial()
+		client.Send(A{
+			I: 42,
+			S: "hello world",
+			B: true,
+		})
 
-	client.Send(A{
-		I: 42,
-		S: "hello world",
-		B: true,
-	})
+		client.Send(B{
+			S: "hello gob",
+		})
 
-	client.Send(B{
-		S: "hello gob",
-	})
+		m := server.Recv()
+		switch m.(type) {
+		case A:
+			t.Logf("recv message %+v", m)
+		default:
+			t.Error()
+		}
 
-	m := server.Recv()
-	switch m.(type) {
-	case A:
-		t.Logf("recv message %+v", m)
-	default:
-		t.Error()
-	}
+		m = server.Recv()
+		switch m.(type) {
+		case B:
+			t.Logf("recv message %+v", m)
+		default:
+			t.Error()
+		}
 
-	m = server.Recv()
-	switch m.(type) {
-	case B:
-		t.Logf("recv message %+v", m)
-	default:
-		t.Error()
-	}
+		client.Send(A{
+			I: 105,
+			S: "new world",
+		})
 
-	client.Send(A{
-		I: 105,
-		S: "new world",
-	})
-
-	m = server.Recv()
-	switch m.(type) {
-	case A:
-		t.Logf("recv message %+v", m)
-	default:
-		t.Error()
+		m = server.Recv()
+		switch m.(type) {
+		case A:
+			t.Logf("recv message %+v", m)
+		default:
+			t.Error()
+		}
 	}
 }
