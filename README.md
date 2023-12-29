@@ -86,7 +86,7 @@ After compile, Golang will generate 3 executable files under `bin` folder.
 
 Each executable file expects some parameters which can be seen by `-help` flag, e.g. `./server -help`.
 
-1. Generate the [configuration file](https://github.com/ailidani/paxi/blob/master/bin/config.json) according to the example, then start server with `-config FILE_PATH` option, default to "config.json" when omit.
+1. Create the [configuration file](https://github.com/ailidani/paxi/blob/master/bin/config.json) according to the example, then start server with `-config FILE_PATH` option, default to "config.json" when omit.
 
 2. Start 9 servers with different ids in format of "ZONE_ID.NODE_ID".
 ```
@@ -103,7 +103,7 @@ Each executable file expects some parameters which can be seen by `-help` flag, 
 
 3. Start benchmarking client that connects to server ID 1.1 and benchmark parameters specified in [config.json](https://github.com/ailidani/paxi/blob/master/bin/config.json).
 ```
-./client -id 1.1 -bconfig benchmark.json
+./client -id 1.1 -config config.json
 ```
 When flag `id` is absent, client will randomly select any server for each operation.
 
