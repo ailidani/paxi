@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/ailidani/paxi"
+	"github.com/ailidani/paxi/log"
 )
 
 // entry in log
@@ -57,7 +58,15 @@ func NewPaxos(n paxi.Node, options ...func(*Paxos)) *Paxos {
 	return p
 }
 
-// IsLeader indecates if this node is current leader
+// variables i need are
+// TLA+ ---------- Go
+// elected			active
+// ballot			ballot
+// slot				slot
+// decided			decided value
+
+
+// IsLeader indicates if this node is current leader
 func (p *Paxos) IsLeader() bool {
 	return p.active || p.ballot.ID() == p.ID()
 }
@@ -85,6 +94,7 @@ func (p *Paxos) SetBallot(b paxi.Ballot) {
 // HandleRequest handles request and start phase 1 or phase 2
 func (p *Paxos) HandleRequest(r paxi.Request) {
 	// log.Debugf("Replica %s received %v\n", p.ID(), r)
+	log.Infof("Enter HandleRequest paxos.go")
 	if !p.active {
 		p.requests = append(p.requests, &r)
 		// current phase 1 pending
@@ -94,10 +104,12 @@ func (p *Paxos) HandleRequest(r paxi.Request) {
 	} else {
 		p.P2a(&r)
 	}
+	log.Infof("Exit HandleRequest paxos.go")
 }
 
 // P1a starts phase 1 prepare
 func (p *Paxos) P1a() {
+	log.Infof("Entering P1a")
 	if p.active {
 		return
 	}
@@ -105,10 +117,18 @@ func (p *Paxos) P1a() {
 	p.quorum.Reset()
 	p.quorum.ACK(p.ID())
 	p.Broadcast(P1a{Ballot: p.ballot})
+	// sends ballot to other nodes, to get elected as leader
+	// L label location found from TLA+ spec
+	log.Testf("ID:%v,active:%v,slot:%v,ballot:%v,action:L", p.ID(),p.active, p.slot, p.ballot)
+	log.Infof("Exiting P1a")
 }
 
 // P2a starts phase 2 accept
 func (p *Paxos) P2a(r *paxi.Request) {
+	log.Infof("Entering P2a")
+	// I'm the leader
+	// no need for election again.
+	//I'll send my P2a value to do consensus on
 	p.slot++
 	p.log[p.slot] = &entry{
 		ballot:    p.ballot,
@@ -128,12 +148,13 @@ func (p *Paxos) P2a(r *paxi.Request) {
 	} else {
 		p.Broadcast(m)
 	}
+	log.Infof("Exiting P2a")
 }
 
 // HandleP1a handles P1a message
 func (p *Paxos) HandleP1a(m P1a) {
 	// log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.Ballot.ID(), m, p.ID())
-
+	log.Infof("Enter HandleP1a")
 	// new leader
 	if m.Ballot > p.ballot {
 		p.ballot = m.Ballot
@@ -153,12 +174,17 @@ func (p *Paxos) HandleP1a(m P1a) {
 		}
 		l[s] = CommandBallot{p.log[s].command, p.log[s].ballot}
 	}
-
+	// follower nodes here respond back to P1a msg that
+	// this ballot was seen (i.e are you the leader or not)
+	// if ballot greater ok, else no buddy
 	p.Send(m.Ballot.ID(), P1b{
 		Ballot: p.ballot,
 		ID:     p.ID(),
 		Log:    l,
 	})
+	// possible location of label A from TLA+ spec
+	log.Testf("ID:%v,active:%v,slot:%v,ballot:%v,action:A", p.ID(),p.active, p.slot, p.ballot)
+	log.Infof("Exit HandleP1a")
 }
 
 func (p *Paxos) update(scb map[int]CommandBallot) {
@@ -181,6 +207,7 @@ func (p *Paxos) update(scb map[int]CommandBallot) {
 
 // HandleP1b handles P1b message
 func (p *Paxos) HandleP1b(m P1b) {
+	log.Infof("Enter HandleP1b")
 	p.update(m.Log)
 
 	// old message
@@ -194,6 +221,7 @@ func (p *Paxos) HandleP1b(m P1b) {
 		p.ballot = m.Ballot
 		p.active = false // not necessary
 		// forward pending requests to new leader
+		// I'm not the leader
 		p.forward()
 		// p.P1a()
 	}
@@ -201,6 +229,10 @@ func (p *Paxos) HandleP1b(m P1b) {
 	// ack message
 	if m.Ballot.ID() == p.ID() && m.Ballot == p.ballot {
 		p.quorum.ACK(m.ID)
+		// is accepted as the leader for the slot
+		// sends out P2a msg
+		// Location of CollectP1 CP1L from TLA+ spec
+		log.Testf("ID:%v,active:%v,slot:%v,ballot:%v,action:CP1L", p.ID(),p.active, p.slot, p.ballot)
 		if p.Q1(p.quorum) {
 			p.active = true
 			// propose any uncommitted entries
@@ -212,6 +244,10 @@ func (p *Paxos) HandleP1b(m P1b) {
 				p.log[i].ballot = p.ballot
 				p.log[i].quorum = paxi.NewQuorum()
 				p.log[i].quorum.ACK(p.ID())
+				// send in my P2a value
+				// to consense upon
+				// location for P2L from TLA+ spec
+				log.Testf("ID:%v,active:%v,slot:%v,ballot:%v,action:P2L", p.ID(),p.active, p.slot, p.ballot)
 				p.Broadcast(P2a{
 					Ballot:  p.ballot,
 					Slot:    i,
@@ -225,12 +261,14 @@ func (p *Paxos) HandleP1b(m P1b) {
 			p.requests = make([]*paxi.Request, 0)
 		}
 	}
+
+	log.Infof("Exit HandleP1b")
 }
 
 // HandleP2a handles P2a message
 func (p *Paxos) HandleP2a(m P2a) {
 	// log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.Ballot.ID(), m, p.ID())
-
+	log.Infof("Enter HandleP2a")
 	if m.Ballot >= p.ballot {
 		p.ballot = m.Ballot
 		p.active = false
@@ -257,16 +295,20 @@ func (p *Paxos) HandleP2a(m P2a) {
 		}
 	}
 
+	// location for label A replyP2 macro from TLA+ spec
+	log.Testf("ID:%v,active:%v,slot:%v,ballot:%v,action:A", p.ID(),p.active, p.slot, p.ballot)
 	p.Send(m.Ballot.ID(), P2b{
 		Ballot: p.ballot,
 		Slot:   m.Slot,
 		ID:     p.ID(),
 	})
+	log.Infof("Exit HandleP2a")
 }
 
 // HandleP2b handles P2b message
 func (p *Paxos) HandleP2b(m P2b) {
 	// old message
+	log.Infof("Enter HandleP2b")
 	entry, exist := p.log[m.Slot]
 	if !exist || m.Ballot < entry.ballot || entry.commit {
 		return
@@ -286,8 +328,14 @@ func (p *Paxos) HandleP2b(m P2b) {
 	// if no q2 can be formed, this slot will be retried when received p2a or p3
 	if m.Ballot.ID() == p.ID() && m.Ballot == p.log[m.Slot].ballot {
 		p.log[m.Slot].quorum.ACK(m.ID)
+		// I collect here all the P2b messages received here
+		// CP2l label from TLA+ spec
+		log.Testf("ID:%v,active:%v,slot:%v,ballot:%v,action:CP2L", p.ID(),p.active, p.slot, p.ballot)
 		if p.Q2(p.log[m.Slot].quorum) {
 			p.log[m.Slot].commit = true
+			// consensus achieved, value can now be safely committed
+			// location of P3L from TLA+spec
+			log.Testf("ID:%v,active:%v,slot:%v,ballot:%v,action:P3L", p.ID(),p.active, p.slot, p.ballot)
 			p.Broadcast(P3{
 				Ballot:  m.Ballot,
 				Slot:    m.Slot,
@@ -305,12 +353,13 @@ func (p *Paxos) HandleP2b(m P2b) {
 			}
 		}
 	}
+	log.Infof("Exit HandleP2b")
 }
 
 // HandleP3 handles phase 3 commit message
 func (p *Paxos) HandleP3(m P3) {
 	// log.Debugf("Replica %s ===[%v]===>>> Replica %s\n", m.Ballot.ID(), m, p.ID())
-
+	log.Infof("Enter HandleP3")
 	p.slot = paxi.Max(p.slot, m.Slot)
 
 	e, exist := p.log[m.Slot]
@@ -338,6 +387,10 @@ func (p *Paxos) HandleP3(m P3) {
 	} else {
 		p.exec()
 	}
+	// location for label A from TLA+ spec
+	log.Testf("ID:%v,active:%v,slot:%v,ballot:%v,action:A", p.ID(),p.active, p.slot, p.ballot)
+	// here we receive the order to commit
+	log.Infof("Exit HandleP3")
 }
 
 func (p *Paxos) exec() {

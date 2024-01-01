@@ -1,11 +1,15 @@
 package paxi
 
+import "github.com/ailidani/paxi/log"
+
 // Quorum records each acknowledgement and check for different types of quorum satisfied
 type Quorum struct {
 	size  int
 	acks  map[ID]bool
 	zones map[int]int
 	nacks map[ID]bool
+	idColMap map[ID]int
+	valueMap map[ID]int
 }
 
 // NewQuorum returns a new Quorum
@@ -14,8 +18,85 @@ func NewQuorum() *Quorum {
 		size:  0,
 		acks:  make(map[ID]bool),
 		zones: make(map[int]int),
+		idColMap: make(map[ID]int),
+		valueMap: make(map[ID]int),
 	}
 	return q
+}
+
+func (q *Quorum) SampleACK(id ID, col int) {
+	if !q.acks[id] {
+		q.acks[id] = true
+		q.size++
+		q.zones[id.Zone()]++
+		q.idColMap[id] = col
+	}
+
+}
+
+func(q *Quorum) BenORAck(id ID, value int) {
+	if !q.acks[id] {
+		q.acks[id] = true
+		q.size++
+		q.zones[id.Zone()]++
+		q.valueMap[id] = value
+	}
+}
+
+func (q *Quorum) SampleMajority(sampleID int) bool {
+	if q.zones[sampleID] > 2 {
+		return true
+	}
+	return false
+}
+
+func(q *Quorum) BenORMajority() int {
+	zeroCnt := 0
+	oneCnt := 0
+	log.Infof("Quorum Size: %v", q.size)
+	for _, value := range q.valueMap{
+		if value == 1{
+			oneCnt++
+		} else if value == 0{
+			zeroCnt++
+		}
+	}
+	log.Infof("OneCount: %v & ZeroCount: %v", oneCnt, zeroCnt)
+	if zeroCnt > oneCnt{
+		return 0
+	} else if oneCnt > zeroCnt{
+		return 1
+	} else {
+		return -1
+	}
+}
+
+func(q *Quorum) BenOrAtLeastOneValue() int{
+	for _, v := range q.valueMap {
+		if v == 0{
+			return 0
+		}
+	}
+	return 1
+}
+
+
+func (q *Quorum) SampleMajorityColor(sampleID int) int {
+	redCnt := 0
+	blueCnt := 0
+	for id, col := range q.idColMap {
+		if id.Zone() == sampleID {
+			if col == 0 {
+				redCnt++
+			} else if  col == 1 {
+				blueCnt++
+			}
+		}
+	}
+	if redCnt >= blueCnt {
+		return 0
+	}
+	return 1
 }
 
 // ACK adds id to quorum ack records
@@ -50,15 +131,25 @@ func (q *Quorum) Reset() {
 	q.acks = make(map[ID]bool)
 	q.zones = make(map[int]int)
 	q.nacks = make(map[ID]bool)
+	q.idColMap = make(map[ID]int)
 }
 
 func (q *Quorum) All() bool {
 	return q.size == config.n
 }
 
+func (q *Quorum) AllMinusOne() bool {
+	return q.size == config.n-1
+}
+
+
 // Majority quorum satisfied
 func (q *Quorum) Majority() bool {
 	return q.size > config.n/2
+}
+// MajorityMinus2 quorum satisfied
+func (q *Quorum) MajorityMinus2() bool {
+	return q.size == config.n-2
 }
 
 // FastQuorum from fast paxos

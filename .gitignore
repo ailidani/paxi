@@ -8,3 +8,6 @@ tla/*
 aws
 ppaxos
 cosmos
+.vscode/
+.idea/
+venv/
